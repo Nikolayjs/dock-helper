@@ -1,0 +1,227 @@
+import { useMemo, useState } from 'react';
+import {
+  ActionIcon,
+  Group,
+  Loader,
+  Popover,
+  ScrollArea,
+  Stack,
+  Text,
+  TextInput,
+  ThemeIcon,
+  UnstyledButton,
+} from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
+import { IconArticle, IconBook2, IconCalculator, IconNotes, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
+
+import { useCalculators } from '../../features/calculators/useCalculators';
+import { useDocuments } from '../../features/knowledgeBase/useDocuments';
+import { useNotes } from '../../features/notes/useNotes';
+import { stripHtml } from '../../features/notes/textPreview';
+import { usePatients } from '../../features/patients/usePatients';
+
+const SEARCH_DEBOUNCE_MS = 300;
+const MAX_RESULTS_PER_GROUP = 4;
+
+interface SearchResult {
+  id: string;
+  title: string;
+  description: string;
+  path: string;
+  icon: typeof IconCalculator;
+  group: string;
+}
+
+function matches(query: string, ...fields: Array<string | undefined>) {
+  return fields.some((field) => field?.toLowerCase().includes(query));
+}
+
+export function HeaderSearch() {
+  const navigate = useNavigate();
+  const { calculators } = useCalculators();
+  const { documents: guidelines } = useDocuments('guideline');
+  const { documents: articles } = useDocuments('article');
+  const { notes } = useNotes();
+  const { patients } = usePatients();
+
+  const [query, setQuery] = useState('');
+  const [focused, setFocused] = useState(false);
+  const [debouncedQuery] = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
+
+  const trimmedQuery = query.trim();
+  const trimmedDebouncedQuery = debouncedQuery.trim();
+  const isSearching = trimmedQuery.length > 0 && trimmedDebouncedQuery !== trimmedQuery;
+  const opened = focused && trimmedQuery.length > 0;
+
+  const groupedResults = useMemo(() => {
+    const q = trimmedDebouncedQuery.toLowerCase();
+    if (!q) return [];
+
+    const groups: { group: string; items: SearchResult[] }[] = [
+      {
+        group: 'Калькуляторы',
+        items: calculators
+          .filter((calc) => matches(q, calc.title, calc.description, calc.category))
+          .slice(0, MAX_RESULTS_PER_GROUP)
+          .map((calc) => ({
+            id: calc.id,
+            title: calc.title,
+            description: calc.description,
+            path: `/calculators/${calc.id}`,
+            icon: IconCalculator,
+            group: 'Калькуляторы',
+          })),
+      },
+      {
+        group: 'Клинические рекомендации',
+        items: guidelines
+          .filter((doc) => matches(q, doc.title, doc.summary, ...doc.tags))
+          .slice(0, MAX_RESULTS_PER_GROUP)
+          .map((doc) => ({
+            id: doc.id,
+            title: doc.title,
+            description: doc.summary,
+            path: `/guidelines/${doc.id}`,
+            icon: IconBook2,
+            group: 'Клинические рекомендации',
+          })),
+      },
+      {
+        group: 'Статьи',
+        items: articles
+          .filter((doc) => matches(q, doc.title, doc.summary, ...doc.tags))
+          .slice(0, MAX_RESULTS_PER_GROUP)
+          .map((doc) => ({
+            id: doc.id,
+            title: doc.title,
+            description: doc.summary,
+            path: `/articles/${doc.id}`,
+            icon: IconArticle,
+            group: 'Статьи',
+          })),
+      },
+      {
+        group: 'Заметки',
+        items: notes
+          .map((note) => ({ note, plainContent: stripHtml(note.content) }))
+          .filter(({ note, plainContent }) => matches(q, note.title, plainContent))
+          .slice(0, MAX_RESULTS_PER_GROUP)
+          .map(({ note, plainContent }) => ({
+            id: note.id,
+            title: note.title || 'Без названия',
+            description: plainContent,
+            path: `/notes/${note.id}`,
+            icon: IconNotes,
+            group: 'Заметки',
+          })),
+      },
+      {
+        group: 'Пациенты',
+        items: patients
+          .filter((patient) => matches(q, patient.fullName, patient.phone, ...patient.visits.map((v) => v.diagnosis)))
+          .slice(0, MAX_RESULTS_PER_GROUP)
+          .map((patient) => ({
+            id: patient.id,
+            title: patient.fullName,
+            description: patient.visits[0]?.diagnosis ?? '',
+            path: `/patients/${patient.id}`,
+            icon: IconUsers,
+            group: 'Пациенты',
+          })),
+      },
+    ];
+
+    return groups.filter((group) => group.items.length > 0);
+  }, [trimmedDebouncedQuery, calculators, guidelines, articles, notes, patients]);
+
+  const totalResults = groupedResults.reduce((sum, group) => sum + group.items.length, 0);
+
+  const handleSelect = (path: string) => {
+    setQuery('');
+    setFocused(false);
+    navigate(path);
+  };
+
+  return (
+    <Popover opened={opened} width={340} position="bottom-start" shadow="md" withinPortal>
+      <Popover.Target>
+        <TextInput
+          value={query}
+          onChange={(event) => setQuery(event.currentTarget.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') event.currentTarget.blur();
+          }}
+          placeholder="Поиск пациента, калькулятора…"
+          radius="md"
+          leftSection={<IconSearch size={16} />}
+          rightSection={
+            isSearching ? (
+              <Loader size={14} />
+            ) : query ? (
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => setQuery('')}
+              >
+                <IconX size={14} />
+              </ActionIcon>
+            ) : null
+          }
+          w={{ base: 160, sm: 280 }}
+        />
+      </Popover.Target>
+      <Popover.Dropdown p="xs" onMouseDown={(event) => event.preventDefault()}>
+        <ScrollArea.Autosize mah={360} type="auto">
+          {isSearching ? (
+            <Group justify="center" py="md">
+              <Loader size="sm" />
+            </Group>
+          ) : totalResults === 0 ? (
+            <Text size="sm" c="dimmed" ta="center" py="md">
+              Ничего не найдено по запросу «{trimmedQuery}»
+            </Text>
+          ) : (
+            <Stack gap="sm">
+              {groupedResults.map(({ group, items }) => (
+                <Stack key={group} gap={2}>
+                  <Text size="xs" fw={600} c="dimmed" tt="uppercase" px={6}>
+                    {group}
+                  </Text>
+                  {items.map((item) => (
+                    <UnstyledButton
+                      key={`${item.group}-${item.id}`}
+                      onClick={() => handleSelect(item.path)}
+                      p={6}
+                      style={{ borderRadius: 8 }}
+                    >
+                      <Group gap={10} wrap="nowrap">
+                        <ThemeIcon variant="light" color="brand" size={30} radius="md">
+                          <item.icon size={16} stroke={1.8} />
+                        </ThemeIcon>
+                        <div style={{ overflow: 'hidden' }}>
+                          <Text size="sm" fw={500} truncate>
+                            {item.title}
+                          </Text>
+                          {item.description && (
+                            <Text size="xs" c="dimmed" truncate>
+                              {item.description}
+                            </Text>
+                          )}
+                        </div>
+                      </Group>
+                    </UnstyledButton>
+                  ))}
+                </Stack>
+              ))}
+            </Stack>
+          )}
+        </ScrollArea.Autosize>
+      </Popover.Dropdown>
+    </Popover>
+  );
+}

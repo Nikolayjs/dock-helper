@@ -1,0 +1,75 @@
+.navItem {
+  display: block;
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+  font-weight: 500;
+}
+
+.navItem[data-active='true'] {
+  color: var(--mantine-color-brand-light-color);
+  background-color: var(--mantine-color-brand-light);
+  font-weight: 600;
+}
+
+.navItem[data-icon-only='true'] {
+  padding: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.userBox {
+  display: block;
+  border-radius: 14px;
+  padding: 10px;
+  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+  text-align: left;
+  transition: background-color 100ms ease;
+}
+
+.userBox:hover {
+  background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+}
+
+.userBox[data-active='true'] {
+  background-color: var(--mantine-color-brand-light);
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  flex-shrink: 0;
+  color: light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3));
+  cursor: grab;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.navRow:hover .dragHandle,
+.dragHandle:focus-visible {
+  opacity: 1;
+}
+
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 10;
+}
+
+.resizeHandle:hover,
+.resizeHandle:active {
+  background-color: var(--mantine-color-brand-4);
+  opacity: 0.5;
+}

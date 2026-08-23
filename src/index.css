@@ -1,0 +1,58 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8));
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mantine-color-default-border);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wikilink-missing {
+  color: var(--mantine-color-red-6);
+  border-bottom: 1px dashed var(--mantine-color-red-5);
+  cursor: help;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .printable-document,
+  .printable-document * {
+    visibility: visible;
+  }
+
+  .printable-document {
+    position: fixed;
+    inset: 0;
+    padding: 20mm 16mm;
+    background: #fff;
+    color: #000;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

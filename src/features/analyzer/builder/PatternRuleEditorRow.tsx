@@ -1,0 +1,172 @@
+import { ActionIcon, Alert, Card, Grid, Group, Select, SegmentedControl, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
+import { IconGripVertical, IconLock, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
+
+import type { ParamStatus, Severity } from '../types';
+import type { CustomPatternRule, PatternCondition } from '../customTypes';
+
+export interface DraftPatternRule extends CustomPatternRule {
+  uid: string;
+}
+
+interface ParamOption {
+  key: string;
+  label: string;
+}
+
+interface PatternRuleEditorRowProps {
+  rule: DraftPatternRule;
+  paramOptions: ParamOption[];
+  /** Precomputed human-readable summary of `rule.rawRoot`, shown instead of the condition editor when `rule.locked`. */
+  lockedSummary?: string;
+  onChange: (rule: DraftPatternRule) => void;
+  onRemove: () => void;
+}
+
+const SEVERITY_OPTIONS = [
+  { value: 'info', label: 'Информация' },
+  { value: 'warning', label: 'Внимание' },
+  { value: 'critical', label: 'Критично' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'low', label: 'Понижен' },
+  { value: 'normal', label: 'В норме' },
+  { value: 'high', label: 'Повышен' },
+];
+
+function emptyCondition(paramOptions: ParamOption[]): PatternCondition {
+  return { id: crypto.randomUUID(), paramKey: paramOptions[0]?.key ?? '', status: 'high' };
+}
+
+export function PatternRuleEditorRow({ rule, paramOptions, lockedSummary, onChange, onRemove }: PatternRuleEditorRowProps) {
+  const updateCondition = (index: number, condition: PatternCondition) => {
+    const conditions = [...rule.conditions];
+    conditions[index] = condition;
+    onChange({ ...rule, conditions });
+  };
+
+  const addCondition = () => {
+    onChange({ ...rule, conditions: [...rule.conditions, emptyCondition(paramOptions)] });
+  };
+
+  const removeCondition = (index: number) => {
+    onChange({ ...rule, conditions: rule.conditions.filter((_, i) => i !== index) });
+  };
+
+  return (
+    <Card withBorder padding="md" radius="md">
+      <Group justify="space-between" mb="sm" wrap="nowrap">
+        <Group gap={6} c="dimmed">
+          <IconGripVertical size={16} />
+          <Text size="xs" fw={600} tt="uppercase">
+            Правило
+          </Text>
+        </Group>
+        <ActionIcon color="red" variant="subtle" onClick={onRemove} radius="md">
+          <IconTrash size={16} />
+        </ActionIcon>
+      </Group>
+
+      <Grid>
+        <Grid.Col span={{ base: 12, sm: 8 }}>
+          <TextInput
+            label="Заключение"
+            placeholder="Например: Картина, характерная для гипотиреоза"
+            value={rule.title}
+            onChange={(e) => onChange({ ...rule, title: e.currentTarget.value })}
+          />
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, sm: 4 }}>
+          <Select
+            label="Важность"
+            data={SEVERITY_OPTIONS}
+            value={rule.severity}
+            allowDeselect={false}
+            onChange={(v) => onChange({ ...rule, severity: (v as Severity) ?? 'info' })}
+          />
+        </Grid.Col>
+
+        <Grid.Col span={12}>
+          <TagsInput
+            label="Возможные причины"
+            placeholder="Введите причину и нажмите Enter"
+            value={rule.causes}
+            onChange={(v) => onChange({ ...rule, causes: v })}
+          />
+        </Grid.Col>
+
+        <Grid.Col span={12}>
+          {rule.locked ? (
+            <Alert variant="light" color="gray" icon={<IconLock size={16} />}>
+              <Text size="sm">Условия срабатывания: {lockedSummary ?? '—'}</Text>
+              <Text size="xs" c="dimmed" mt={4}>
+                Такая структура условий не редактируется в конструкторе — при сохранении останется без изменений.
+              </Text>
+            </Alert>
+          ) : (
+            <>
+              <Group justify="space-between" align="center" mb={6}>
+                <Text size="sm" fw={500}>
+                  Условия срабатывания
+                </Text>
+                <SegmentedControl
+                  size="xs"
+                  value={rule.operator}
+                  onChange={(v) => onChange({ ...rule, operator: v as 'and' | 'or' })}
+                  data={[
+                    { value: 'and', label: 'Все условия' },
+                    { value: 'or', label: 'Любое условие' },
+                  ]}
+                />
+              </Group>
+
+              <Stack gap="xs">
+                {rule.conditions.map((condition, index) => (
+                  <Group key={condition.id} gap={6} wrap="nowrap" align="center">
+                    <Select
+                      style={{ flex: 1 }}
+                      size="sm"
+                      data={paramOptions.map((p) => ({ value: p.key, label: p.label || p.key }))}
+                      value={condition.paramKey}
+                      onChange={(v) => updateCondition(index, { ...condition, paramKey: v ?? condition.paramKey })}
+                      placeholder="Показатель"
+                    />
+                    <Select
+                      size="sm"
+                      w={150}
+                      data={STATUS_OPTIONS}
+                      value={condition.status}
+                      allowDeselect={false}
+                      onChange={(v) => updateCondition(index, { ...condition, status: (v as ParamStatus) ?? 'high' })}
+                    />
+                    <Switch
+                      size="sm"
+                      label="не"
+                      title="Условие срабатывает, когда показатель НЕ в этом статусе"
+                      checked={condition.negate ?? false}
+                      onChange={(e) => updateCondition(index, { ...condition, negate: e.currentTarget.checked })}
+                    />
+                    <ActionIcon variant="subtle" color="red" onClick={() => removeCondition(index)}>
+                      <IconX size={14} />
+                    </ActionIcon>
+                  </Group>
+                ))}
+                <ActionIcon
+                  variant="light"
+                  color="brand"
+                  onClick={addCondition}
+                  size="lg"
+                  radius="md"
+                  disabled={paramOptions.length === 0}
+                  aria-label="Добавить условие"
+                >
+                  <IconPlus size={16} />
+                </ActionIcon>
+              </Stack>
+            </>
+          )}
+        </Grid.Col>
+      </Grid>
+    </Card>
+  );
+}

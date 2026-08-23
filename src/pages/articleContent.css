@@ -1,0 +1,83 @@
+/* Styling for Readability-extracted article HTML, in em so it resizes with the reader's font-size zoom. */
+.article-content {
+  line-height: 1.7;
+  color: var(--mantine-color-text);
+}
+
+.article-content p {
+  margin: 0 0 1em;
+}
+
+.article-content h1,
+.article-content h2,
+.article-content h3,
+.article-content h4,
+.article-content h5,
+.article-content h6 {
+  font-family: var(--mantine-font-family-headings);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.25em 0 0.5em;
+}
+
+.article-content h1,
+.article-content h2,
+.article-content h3 {
+  font-size: 1.4em;
+}
+
+.article-content h4,
+.article-content h5,
+.article-content h6 {
+  font-size: 1.15em;
+}
+
+.article-content img,
+.article-content video {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--mantine-radius-md);
+  margin: 1em auto;
+  display: block;
+}
+
+.article-content figure {
+  margin: 1em 0;
+}
+
+.article-content figcaption {
+  font-size: 0.85em;
+  color: var(--mantine-color-dimmed);
+  text-align: center;
+  margin-top: 0.5em;
+}
+
+.article-content blockquote {
+  margin: 1em 0;
+  padding-left: 1em;
+  border-left: 3px solid var(--mantine-color-gray-3);
+  color: var(--mantine-color-dimmed);
+  font-style: italic;
+}
+
+.article-content ul,
+.article-content ol {
+  margin: 0 0 1em;
+  padding-left: 1.5em;
+}
+
+.article-content a {
+  color: var(--mantine-color-brand-6);
+}
+
+.article-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.article-content th,
+.article-content td {
+  border: 1px solid var(--mantine-color-default-border);
+  padding: 0.5em;
+}

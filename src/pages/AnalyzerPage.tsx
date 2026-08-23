@@ -1,0 +1,128 @@
+import { useMemo, useState } from 'react';
+import { Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Tabs, Text } from '@mantine/core';
+import { IconEdit, IconEraser, IconPlus } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
+
+import { analyzeTest } from '../features/analyzer/analyzerEngine';
+import { AnalyzerResults } from '../features/analyzer/AnalyzerResults';
+import { toLabTestDefinition } from '../features/analyzer/customTypes';
+import { LabTestForm } from '../features/analyzer/LabTestForm';
+import type { Sex } from '../features/analyzer/types';
+import { useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
+
+export function AnalyzerPage() {
+  const navigate = useNavigate();
+  const { customTests, isLoading } = useCustomAnalyzers();
+  const allTests = useMemo(() => customTests.map(toLabTestDefinition), [customTests]);
+
+  const [testId, setTestId] = useState<string | undefined>(undefined);
+  const [sex, setSex] = useState<Sex>('male');
+  const [age, setAge] = useState<number | undefined>(undefined);
+  const [valuesByTest, setValuesByTest] = useState<Record<string, Record<string, number | undefined>>>({});
+
+  const activeTestId = testId ?? allTests[0]?.id;
+  const currentTest = allTests.find((t) => t.id === activeTestId);
+  const currentValues = currentTest ? (valuesByTest[currentTest.id] ?? {}) : {};
+
+  const handleChange = (key: string, value: number | undefined) => {
+    if (!currentTest) return;
+    setValuesByTest((prev) => ({ ...prev, [currentTest.id]: { ...prev[currentTest.id], [key]: value } }));
+  };
+
+  const handleClear = () => {
+    if (!currentTest) return;
+    setValuesByTest((prev) => ({ ...prev, [currentTest.id]: {} }));
+  };
+
+  const result = useMemo(
+    () => (currentTest ? analyzeTest(currentTest, currentValues, sex, age) : null),
+    [currentTest, currentValues, sex, age],
+  );
+
+  if (isLoading) {
+    return (
+      <Group justify="center" py="xl">
+        <Loader />
+      </Group>
+    );
+  }
+
+  return (
+    <Container size="xl" px={0}>
+      <Group justify="space-between" mb="lg" wrap="wrap" gap="md">
+        <Group gap="xs" wrap="wrap">
+          <Tabs value={activeTestId} onChange={(v) => setTestId(v ?? undefined)} variant="pills">
+            <Tabs.List>
+              {allTests.map((test) => (
+                <Tabs.Tab key={test.id} value={test.id}>
+                  {test.shortTitle}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs>
+          <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => navigate('/analyzer/new')}>
+            Свой анализ
+          </Button>
+        </Group>
+
+        <Group gap="md">
+          <NumberInput
+            value={age ?? ''}
+            onChange={(v) => setAge(v === '' ? undefined : Number(v))}
+            placeholder="Возраст, лет"
+            min={0}
+            max={120}
+            w={140}
+            radius="md"
+          />
+          <SegmentedControl
+            value={sex}
+            onChange={(v) => setSex(v as Sex)}
+            data={[
+              { value: 'male', label: 'Мужской' },
+              { value: 'female', label: 'Женский' },
+            ]}
+          />
+          {currentTest && (
+            <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`/analyzer/${currentTest.id}/edit`)}>
+              Изменить
+            </Button>
+          )}
+          <Button variant="light" color="gray" leftSection={<IconEraser size={16} />} onClick={handleClear} disabled={!currentTest}>
+            Очистить
+          </Button>
+        </Group>
+      </Group>
+
+      {currentTest && result && (
+        <Grid gap="lg">
+          <Grid.Col span={{ base: 12, lg: 7 }}>
+            <Card withBorder padding="lg">
+              <Text fw={600} mb={2}>
+                {currentTest.title}
+              </Text>
+              <Text size="sm" c="dimmed" mb="lg">
+                {currentTest.description}
+              </Text>
+              <LabTestForm
+                test={currentTest}
+                sex={sex}
+                age={age}
+                values={currentValues}
+                computedValues={result.values}
+                statuses={result.statuses}
+                onChange={handleChange}
+              />
+            </Card>
+          </Grid.Col>
+
+          <Grid.Col span={{ base: 12, lg: 5 }}>
+            <div style={{ position: 'sticky', top: 84, maxHeight: 'calc(100vh - 104px)', overflowY: 'auto' }}>
+              <AnalyzerResults result={result} />
+            </div>
+          </Grid.Col>
+        </Grid>
+      )}
+    </Container>
+  );
+}
