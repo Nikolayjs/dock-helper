@@ -7,6 +7,7 @@ import { ScrollToTopButton } from '../components/layout/ScrollToTopButton';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Topbar } from '../components/layout/Topbar';
 import { useSidebarWidth } from '../components/layout/useSidebarWidth';
+import { useStableViewportHeight } from '../components/layout/useStableViewportHeight';
 import { ReminderWatcher } from '../features/reminders/ReminderWatcher';
 import classes from './AppLayout.module.css';
 
@@ -107,6 +108,7 @@ export function AppLayout() {
   const meta = getPageMeta(location.pathname);
   const title = typeof meta.title === 'function' ? meta.title(location.pathname) : meta.title;
   const { width, collapsed, startResize, toggleCollapsed } = useSidebarWidth();
+  useStableViewportHeight();
 
   useEffect(() => {
     window.scrollTo(0, 0);
