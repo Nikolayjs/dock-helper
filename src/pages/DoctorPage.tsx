@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import {
   ActionIcon,
@@ -38,6 +38,7 @@ import {
   IconPrinter,
   IconSun,
   IconUpload,
+  IconUserPlus,
   IconUsers,
   IconX,
 } from '@tabler/icons-react';
@@ -50,6 +51,7 @@ import { useAuth, useLogout, useUpdateAuthUser } from '../features/auth/AuthCont
 import { getClinicSettings, setClinicSettings, type ClinicSettings } from '../features/patients/clinicSettings';
 import { stripHtml } from '../features/notes/textPreview';
 import { useNotes } from '../features/notes/useNotes';
+import { getMembers, invite, type WorkspaceMember } from '../features/workspace/workspaceApi';
 import { resizeImageToDataUrl } from '../lib/imageResize';
 
 const AVATAR_MAX_DIMENSION = 256;
@@ -98,6 +100,11 @@ export function DoctorPage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
 
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [inviteUsername, setInviteUsername] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -107,6 +114,28 @@ export function DoctorPage() {
 
   const showProfileError = (error: unknown, fallback: string) => {
     notifications.show({ message: error instanceof Error ? error.message : fallback, color: 'red' });
+  };
+
+  useEffect(() => {
+    void getMembers()
+      .then(setMembers)
+      .catch((error: unknown) => showProfileError(error, 'Не удалось загрузить список команды'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleInvite = async () => {
+    setInviteError(null);
+    setIsInviting(true);
+    try {
+      await invite(inviteUsername.trim());
+      setInviteUsername('');
+      notifications.show({ message: 'Врач добавлен в вашу команду', color: 'teal' });
+      setMembers(await getMembers());
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : 'Не удалось добавить врача');
+    } finally {
+      setIsInviting(false);
+    }
   };
 
   const closePasswordModal = () => {
@@ -396,6 +425,56 @@ export function DoctorPage() {
               </Button>
             </Group>
           </Group>
+        </Card>
+
+        <Card withBorder padding="lg">
+          <Group gap={8} mb={4}>
+            <ThemeIcon variant="light" color="brand" size={30} radius="md">
+              <IconUserPlus size={16} />
+            </ThemeIcon>
+            <Title order={4}>Команда</Title>
+          </Group>
+          <Text size="sm" c="dimmed" mb="lg">
+            Врачи в этом списке видят и редактируют общие данные — пациентов, заметки, планер и всё остальное.
+          </Text>
+
+          <Stack gap="xs" mb="lg">
+            {members.map((member) => (
+              <Group key={member.id} justify="space-between" wrap="nowrap">
+                <Group gap={10} wrap="nowrap">
+                  <Avatar src={member.avatarDataUrl ?? undefined} size={32} radius={999} color="brand" variant="filled">
+                    {getInitials(member.name)}
+                  </Avatar>
+                  <Box>
+                    <Text size="sm" fw={600}>
+                      {member.name}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {member.username} · {member.role}
+                    </Text>
+                  </Box>
+                </Group>
+              </Group>
+            ))}
+          </Stack>
+
+          <Group align="flex-end" gap="sm">
+            <TextInput
+              label="Добавить врача по нику"
+              placeholder="username"
+              value={inviteUsername}
+              onChange={(e) => setInviteUsername(e.currentTarget.value)}
+              error={inviteError}
+              disabled={isInviting}
+              style={{ flex: 1 }}
+            />
+            <Button onClick={handleInvite} loading={isInviting} disabled={!inviteUsername.trim()}>
+              Добавить
+            </Button>
+          </Group>
+          <Text size="xs" c="dimmed" mt={6}>
+            Врач добавляется мгновенно, без подтверждения с его стороны.
+          </Text>
         </Card>
 
         <Modal opened={passwordModalOpen} onClose={closePasswordModal} title="Сменить пароль" radius="lg" centered>
