@@ -1,5 +1,12 @@
 .main {
   background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8));
+  /* Grid rows size to their tallest item's content by default (min-height: auto). Without this,
+   * a page taller than the viewport made the whole grid row — and with it the sticky navbar,
+   * which is height:100% of that row — stretch to the content's height instead of the viewport's,
+   * so the navbar could end up thousands of pixels tall on a short screen. min-height: 0 lets
+   * this grid item (and the row) stay viewport-bound, with the AppShell root's own overflow:auto
+   * (see mode="static" in AppLayout.tsx) scrolling the excess content instead. */
+  min-height: 0;
 }
 
 .header {
@@ -8,18 +15,8 @@
 
 .navbar {
   border-right: 1px solid var(--mantine-color-default-border);
-  /* Mantine's own rule is `height: calc(100dvh - header-offset - footer-offset)` — 100dvh
-   * tracks the dynamic viewport on mobile browsers, growing/shrinking in real time as the
-   * address bar hides/shows while the page scrolls, which visibly stretched the sidebar and
-   * made the pinned "Пользователь" item at its bottom jump mid-scroll. svh is meant to fix
-   * exactly this (pinned to the *smallest* possible viewport), but real-world support turned
-   * out inconsistent on at least one tested tablet browser — the jitter persisted even with
-   * svh. --stable-vh (see useStableViewportHeight) recomputes the same guarantee directly from
-   * window.innerHeight in JS instead of trusting the CSS unit; vh/svh stay as fallbacks for the
-   * instant before that effect runs on mount. Keep subtracting the header/footer offset exactly
-   * like Mantine does in all three, otherwise the navbar overflows past the bottom of the screen
-   * by the header's height. */
-  height: calc(100vh - var(--app-shell-header-offset, 0rem) - var(--app-shell-footer-offset, 0rem));
-  height: calc(100svh - var(--app-shell-header-offset, 0rem) - var(--app-shell-footer-offset, 0rem));
-  height: calc(var(--stable-vh, 100svh) - var(--app-shell-header-offset, 0rem) - var(--app-shell-footer-offset, 0rem));
+  /* Same min-height: 0 story as .main above — the navbar shares the grid's row 2, so its own
+   * intrinsic content height (not 0'd out) was enough on its own to inflate the row regardless
+   * of .main's fix. */
+  min-height: 0;
 }

@@ -4,10 +4,10 @@ import { useDisclosure } from '@mantine/hooks';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { ScrollToTopButton } from '../components/layout/ScrollToTopButton';
+import { SCROLL_ROOT_ID } from '../components/layout/scrollRoot';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Topbar } from '../components/layout/Topbar';
 import { useSidebarWidth } from '../components/layout/useSidebarWidth';
-import { useStableViewportHeight } from '../components/layout/useStableViewportHeight';
 import { ReminderWatcher } from '../features/reminders/ReminderWatcher';
 import classes from './AppLayout.module.css';
 
@@ -108,14 +108,23 @@ export function AppLayout() {
   const meta = getPageMeta(location.pathname);
   const title = typeof meta.title === 'function' ? meta.title(location.pathname) : meta.title;
   const { width, collapsed, startResize, toggleCollapsed } = useSidebarWidth();
-  useStableViewportHeight();
 
   useEffect(() => {
-    window.scrollTo(0, 0);
+    document.getElementById(SCROLL_ROOT_ID)?.scrollTo(0, 0);
   }, [location.pathname]);
 
   return (
     <AppShell
+      id={SCROLL_ROOT_ID}
+      /* "static" makes the header/navbar `position: sticky` inside this root element (which
+       * becomes the actual scroll container) instead of `position: fixed` to the raw viewport.
+       * The default "fixed" mode sized the navbar off vh/dvh/svh, which kept resizing as mobile
+       * browsers' address bars hid/showed during page scroll — no CSS viewport unit tested held
+       * up reliably across devices. Sticky positioning has no such dependency: its height just
+       * follows the actual page layout. It also stops the address bar animation at its source —
+       * mobile browsers only auto-hide it in response to the *document's own* scroll, and with
+       * this root element as the sole scroll container, the document itself never scrolls. */
+      mode="static"
       header={{ height: 68 }}
       navbar={{ width, breakpoint: 'sm', collapsed: { mobile: !opened } }}
       padding="lg"
