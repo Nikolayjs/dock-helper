@@ -252,7 +252,7 @@ export function Sidebar({ onNavigate, collapsed, onStartResize, onToggleCollapse
 
   return (
     <Stack justify="space-between" h="100%" py="md" gap={0} style={{ position: "relative" }}>
-      <ScrollArea px={collapsed ? 4 : "sm"} style={{ flex: 1 }} type="never" scrollbars="y">
+      <ScrollArea px={collapsed ? 4 : "sm"} style={{ flex: 1, minHeight: 0 }} type="never" scrollbars="y">
         <Stack gap={collapsed ? "sm" : "xl"} pb="md">
           <SortableNavSection title="Основное" section="main" items={orderedMain} onReorder={setSectionOrder} onNavigate={onNavigate} iconOnly={collapsed} />
           {collapsed && <Divider />}

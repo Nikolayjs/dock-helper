@@ -13,14 +13,23 @@ const COLLAPSE_THRESHOLD = 160;
  * screen. Manual resize/toggle still update the stored preference underneath, they just don't
  * visibly do anything until the viewport widens past this again. */
 const NARROW_VIEWPORT_BREAKPOINT = 1150;
+/** Below this the AppShell navbar itself switches to an off-canvas mobile drawer (must match the
+ * `breakpoint="sm"` passed to `AppShell`'s `navbar` prop — Mantine's default `sm` is 48em/768px).
+ * The drawer already only appears when opened via the burger button and should show full width
+ * with labels then, so the icon-only auto-collapse below must not apply in this range — applying
+ * it there made the opened drawer render icon-only instead of the full slide-out panel. */
+const MOBILE_DRAWER_BREAKPOINT = 768;
 
 function useIsNarrowViewport(): boolean {
+  const isInRange = (width: number) => width >= MOBILE_DRAWER_BREAKPOINT && width <= NARROW_VIEWPORT_BREAKPOINT;
   const [isNarrow, setIsNarrow] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth <= NARROW_VIEWPORT_BREAKPOINT,
+    () => typeof window !== 'undefined' && isInRange(window.innerWidth),
   );
 
   useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${NARROW_VIEWPORT_BREAKPOINT}px)`);
+    const mql = window.matchMedia(
+      `(min-width: ${MOBILE_DRAWER_BREAKPOINT}px) and (max-width: ${NARROW_VIEWPORT_BREAKPOINT}px)`,
+    );
     const update = () => setIsNarrow(mql.matches);
     update();
     mql.addEventListener('change', update);

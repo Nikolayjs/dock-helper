@@ -8,12 +8,13 @@
 
 .navbar {
   border-right: 1px solid var(--mantine-color-default-border);
-  /* Mantine's fixed-position navbar defaults to height: 100%, which for a position:fixed
-   * element resolves against the dynamic viewport on mobile browsers — it grows/shrinks in
-   * real time as the address bar hides/shows while the page scrolls. That visibly stretched
-   * the sidebar and made the pinned "Пользователь" item at its bottom jump around mid-scroll.
-   * 100svh pins it to the *smallest* possible viewport (address bar always assumed visible),
-   * so the navbar's height never changes after mount. */
-  height: 100vh;
-  height: 100svh;
+  /* Mantine's own rule is `height: calc(100dvh - header-offset - footer-offset)` — 100dvh
+   * tracks the dynamic viewport on mobile browsers, growing/shrinking in real time as the
+   * address bar hides/shows while the page scrolls, which visibly stretched the sidebar and
+   * made the pinned "Пользователь" item at its bottom jump mid-scroll. Swap dvh for svh (the
+   * *smallest* possible viewport, address bar always assumed visible) so the height never
+   * changes after mount — but keep subtracting the header/footer offset exactly like Mantine
+   * does, otherwise the navbar overflows past the bottom of the screen by the header's height. */
+  height: calc(100vh - var(--app-shell-header-offset, 0rem) - var(--app-shell-footer-offset, 0rem));
+  height: calc(100svh - var(--app-shell-header-offset, 0rem) - var(--app-shell-footer-offset, 0rem));
 }
