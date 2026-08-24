@@ -27,9 +27,9 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
   const user = useAuth();
 
   return (
-    <Box pos="relative" h="100%" px="lg">
-      <Group h="100%" justify="space-between" wrap="nowrap">
-        <Group gap="sm" wrap="nowrap">
+    <Box h="100%" px="lg">
+      <Group h="100%" justify="space-between" wrap="nowrap" gap="md">
+        <Group gap="sm" wrap="nowrap" style={{ flexShrink: 0 }}>
           <UnstyledButton component={Link} to="/dashboard">
             <Group gap={10} wrap="nowrap">
               <ThemeIcon
@@ -65,7 +65,22 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
           </ActionIcon>
         </Group>
 
-        <Group gap="sm" wrap="nowrap">
+        {/* A flex item that can shrink and truncate, not an absolutely-centered box — that
+         * ignored how much room the search bar and other header content actually needed, so a
+         * long title/subtitle would visually overlap the search field at in-between viewport
+         * widths (~1150px) instead of just shrinking. */}
+        <Box visibleFrom="sm" style={{ flex: 1, minWidth: 0, textAlign: 'center', overflow: 'hidden' }}>
+          <Title order={3} fw={700} lh={1.2} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {title}
+          </Title>
+          {subtitle && (
+            <Text size="xs" c="dimmed" truncate>
+              {subtitle}
+            </Text>
+          )}
+        </Box>
+
+        <Group gap="sm" wrap="nowrap" style={{ flexShrink: 0 }}>
           <HeaderSearch />
           <HeaderNotifications />
           <UnstyledButton component={Link} to="/doctor" visibleFrom="xs">
@@ -85,23 +100,6 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
           </UnstyledButton>
         </Group>
       </Group>
-
-      <Box
-        pos="absolute"
-        top="50%"
-        left="50%"
-        style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none', textAlign: 'center' }}
-        visibleFrom="sm"
-      >
-        <Title order={3} fw={700} lh={1.2}>
-          {title}
-        </Title>
-        {subtitle && (
-          <Text size="xs" c="dimmed">
-            {subtitle}
-          </Text>
-        )}
-      </Box>
     </Box>
   );
 }

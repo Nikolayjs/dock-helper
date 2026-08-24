@@ -195,9 +195,15 @@ export function GraphView({ nodes, edges, onOpen }: GraphViewProps) {
       return;
     }
     if (panRef.current) {
-      const dx = event.clientX - panRef.current.startX;
-      const dy = event.clientY - panRef.current.startY;
-      setTransform((prev) => ({ ...prev, x: panRef.current!.origin.x + dx, y: panRef.current!.origin.y + dy }));
+      // Read the ref's value into locals now, synchronously — setTransform's updater can run
+      // after this tick (React may defer/batch it), and panRef.current is a live, mutable value
+      // that a concurrent pointercancel/pointerup can null out in between (touch gestures on
+      // mobile fire these in quick, overlapping succession). Closing over `origin` here instead
+      // of re-reading `panRef.current!.origin` inside the updater avoids that race.
+      const { startX, startY, origin } = panRef.current;
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      setTransform((prev) => ({ ...prev, x: origin.x + dx, y: origin.y + dy }));
     }
   };
 
@@ -287,7 +293,15 @@ export function GraphView({ nodes, edges, onOpen }: GraphViewProps) {
   return (
     <Box
       ref={containerRef}
-      style={{ width: '100%', height: '100%', minHeight: 420, position: 'relative', overflow: 'hidden', cursor: panRef.current ? 'grabbing' : 'grab' }}
+      style={{
+        width: '100%',
+        height: '100%',
+        minHeight: 420,
+        position: 'relative',
+        overflow: 'hidden',
+        cursor: panRef.current ? 'grabbing' : 'grab',
+        touchAction: 'none',
+      }}
     >
       <svg
         ref={svgRef}
