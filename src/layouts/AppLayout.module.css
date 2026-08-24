@@ -8,4 +8,12 @@
 
 .navbar {
   border-right: 1px solid var(--mantine-color-default-border);
+  /* Mantine's fixed-position navbar defaults to height: 100%, which for a position:fixed
+   * element resolves against the dynamic viewport on mobile browsers — it grows/shrinks in
+   * real time as the address bar hides/shows while the page scrolls. That visibly stretched
+   * the sidebar and made the pinned "Пользователь" item at its bottom jump around mid-scroll.
+   * 100svh pins it to the *smallest* possible viewport (address bar always assumed visible),
+   * so the navbar's height never changes after mount. */
+  height: 100vh;
+  height: 100svh;
 }
