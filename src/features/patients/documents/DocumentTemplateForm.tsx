@@ -18,6 +18,7 @@ import type { DocumentTemplateInput } from './useDocumentTemplates';
 const SAMPLE_PATIENT: Patient = {
   id: 'sample',
   fullName: 'Иванов Иван Иванович',
+  sex: 'male',
   birthDate: '1985-06-15',
   phone: '',
   reminderDate: null,
