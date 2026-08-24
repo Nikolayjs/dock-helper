@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { Button, Divider, Group, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Divider, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { IconTrash } from '@tabler/icons-react';
 
-import type { Patient } from './types';
+import type { Patient, PatientSex } from './types';
 import type { PatientInput } from './usePatients';
+
+const SEX_OPTIONS: { value: PatientSex; label: string }[] = [
+  { value: 'male', label: 'Мужской' },
+  { value: 'female', label: 'Женский' },
+];
 
 interface PatientFormProps {
   initialPatient?: Patient;
@@ -15,6 +20,7 @@ interface PatientFormProps {
 
 export function PatientForm({ initialPatient, onSubmit, onCancel, onDelete }: PatientFormProps) {
   const [fullName, setFullName] = useState(initialPatient?.fullName ?? '');
+  const [sex, setSex] = useState<PatientSex | null>(initialPatient?.sex ?? null);
   const [birthDate, setBirthDate] = useState<string | null>(initialPatient?.birthDate ?? null);
   const [phone, setPhone] = useState(initialPatient?.phone ?? '');
   const [reminderDate, setReminderDate] = useState<string | null>(initialPatient?.reminderDate ?? null);
@@ -26,6 +32,7 @@ export function PatientForm({ initialPatient, onSubmit, onCancel, onDelete }: Pa
     if (!canSave) return;
     onSubmit({
       fullName: fullName.trim(),
+      sex,
       birthDate,
       phone: phone.trim(),
       reminderDate,
@@ -37,6 +44,14 @@ export function PatientForm({ initialPatient, onSubmit, onCancel, onDelete }: Pa
     <Stack gap="md">
       <TextInput label="ФИО" placeholder="Например: Соколова Мария Ивановна" value={fullName} onChange={(e) => setFullName(e.currentTarget.value)} required />
       <Group grow>
+        <Select
+          label="Пол"
+          placeholder="Не указан"
+          data={SEX_OPTIONS}
+          value={sex}
+          onChange={(v) => setSex(v as PatientSex | null)}
+          clearable
+        />
         <DatePickerInput label="Дата рождения" placeholder="Не указана" value={birthDate} onChange={(v) => setBirthDate(v as string | null)} clearable valueFormat="D MMMM YYYY" />
         <TextInput label="Телефон" placeholder="Необязательно" value={phone} onChange={(e) => setPhone(e.currentTarget.value)} />
       </Group>

@@ -11,9 +11,12 @@ export interface PatientVisit {
   createdAt: string;
 }
 
+export type PatientSex = 'male' | 'female';
+
 export interface Patient {
   id: string;
   fullName: string;
+  sex: PatientSex | null;
   birthDate: string | null;
   phone: string;
   reminderDate: string | null;

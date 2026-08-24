@@ -18,6 +18,11 @@ const REMINDER_COLOR: Record<'overdue' | 'today' | 'upcoming', string> = {
   upcoming: 'teal',
 };
 
+const SEX_LABEL: Record<'male' | 'female', string> = {
+  male: 'М',
+  female: 'Ж',
+};
+
 export function PatientCard({ patient, onOpen, onEdit, onDelete }: PatientCardProps) {
   const age = calcAge(patient.birthDate);
   const lastVisit = patient.visits[0];
@@ -34,9 +39,9 @@ export function PatientCard({ patient, onOpen, onEdit, onDelete }: PatientCardPr
             <Text fw={600} size="sm" truncate>
               {patient.fullName}
             </Text>
-            {age !== null && (
+            {(age !== null || patient.sex) && (
               <Text size="xs" c="dimmed">
-                {formatAge(age)}
+                {[patient.sex ? SEX_LABEL[patient.sex] : null, age !== null ? formatAge(age) : null].filter(Boolean).join(', ')}
               </Text>
             )}
           </div>

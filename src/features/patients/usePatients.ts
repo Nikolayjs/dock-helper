@@ -5,7 +5,7 @@ import type { Patient, PatientVisit } from './types';
 
 const QUERY_KEY = ['patients'];
 
-export type PatientInput = Pick<Patient, 'fullName' | 'birthDate' | 'phone' | 'reminderDate' | 'reminderNote'>;
+export type PatientInput = Pick<Patient, 'fullName' | 'sex' | 'birthDate' | 'phone' | 'reminderDate' | 'reminderNote'>;
 export type VisitInput = Pick<PatientVisit, 'date' | 'diagnosis' | 'diagnosisCode' | 'note' | 'referralCategory' | 'referralDestination'>;
 
 const repo = createHttpRepository<Patient, PatientInput>('/patients');

@@ -31,6 +31,11 @@ const REMINDER_COLOR: Record<'overdue' | 'today' | 'upcoming', string> = {
   upcoming: 'teal',
 };
 
+const SEX_LABEL: Record<'male' | 'female', string> = {
+  male: 'Мужской',
+  female: 'Женский',
+};
+
 export function PatientViewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -108,8 +113,14 @@ export function PatientViewPage() {
               <div>
                 <Title order={3}>{patient.fullName}</Title>
                 <Group gap={8} mt={4}>
+                  {patient.sex && (
+                    <Text size="sm" c="dimmed">
+                      {SEX_LABEL[patient.sex]}
+                    </Text>
+                  )}
                   {age !== null && (
                     <Text size="sm" c="dimmed">
+                      {patient.sex ? '· ' : ''}
                       {formatAge(age)}
                     </Text>
                   )}
