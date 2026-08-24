@@ -27,8 +27,12 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function login(email: string, password: string): Promise<AuthResult> {
-  return postJson<AuthResult>('/auth/login', { email, password });
+export function login(username: string, password: string): Promise<AuthResult> {
+  return postJson<AuthResult>('/auth/login', { username, password });
+}
+
+export function register(username: string, password: string, name: string, role?: string): Promise<AuthResult> {
+  return postJson<AuthResult>('/auth/register', { username, password, name, role });
 }
 
 export async function me(token: string): Promise<AuthUser> {
@@ -51,4 +55,8 @@ export type UpdateProfileInput = Partial<Pick<AuthUser, 'name' | 'role' | 'avata
 /** Reuses httpRepository's `request` (bearer auth already attached) — unlike login/register/me, this only ever runs after boot, once a token is already set. */
 export function updateProfile(input: UpdateProfileInput): Promise<AuthUser> {
   return request<AuthUser>('/auth/me', { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return request<void>('/auth/me/password', { method: 'PATCH', body: JSON.stringify({ currentPassword, newPassword }) });
 }

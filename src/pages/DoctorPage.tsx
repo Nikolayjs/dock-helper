@@ -10,7 +10,9 @@ import {
   Container,
   Group,
   Image,
+  Modal,
   Pagination,
+  PasswordInput,
   SimpleGrid,
   Stack,
   Text,
@@ -28,6 +30,7 @@ import {
   IconCheck,
   IconChecklist,
   IconDeviceDesktop,
+  IconKey,
   IconLogout,
   IconMoonStars,
   IconNote,
@@ -42,7 +45,7 @@ import dayjs from 'dayjs';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { useSidebarOrder } from '../components/layout/useSidebarOrder';
-import { updateProfile } from '../features/auth/authApi';
+import { AuthApiError, changePassword, updateProfile } from '../features/auth/authApi';
 import { useAuth, useLogout, useUpdateAuthUser } from '../features/auth/AuthContext';
 import { getClinicSettings, setClinicSettings, type ClinicSettings } from '../features/patients/clinicSettings';
 import { stripHtml } from '../features/notes/textPreview';
@@ -95,8 +98,41 @@ export function DoctorPage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
 
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   const showProfileError = (error: unknown, fallback: string) => {
     notifications.show({ message: error instanceof Error ? error.message : fallback, color: 'red' });
+  };
+
+  const closePasswordModal = () => {
+    setPasswordModalOpen(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setPasswordError(null);
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError(null);
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('Новые пароли не совпадают.');
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      notifications.show({ message: 'Пароль изменён', color: 'teal' });
+      closePasswordModal();
+    } catch (error) {
+      setPasswordError(error instanceof AuthApiError ? error.message : 'Не удалось сменить пароль');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleNameRoleBlur = () => {
@@ -349,13 +385,70 @@ export function DoctorPage() {
           </Title>
           <Group justify="space-between" align="center">
             <Text size="sm" c="dimmed">
-              {user.email}
+              {user.username}
             </Text>
-            <Button variant="light" color="red" leftSection={<IconLogout size={16} />} onClick={logout}>
-              Выйти
-            </Button>
+            <Group gap={8}>
+              <Button variant="light" color="gray" leftSection={<IconKey size={16} />} onClick={() => setPasswordModalOpen(true)}>
+                Сменить пароль
+              </Button>
+              <Button variant="light" color="red" leftSection={<IconLogout size={16} />} onClick={logout}>
+                Выйти
+              </Button>
+            </Group>
           </Group>
         </Card>
+
+        <Modal opened={passwordModalOpen} onClose={closePasswordModal} title="Сменить пароль" radius="lg" centered>
+          <Stack gap="md">
+            {passwordError && (
+              <Text size="sm" c="red">
+                {passwordError}
+              </Text>
+            )}
+            <PasswordInput
+              label="Текущий пароль"
+              value={currentPassword}
+              onChange={(e) => {
+                const value = e.currentTarget.value;
+                setCurrentPassword(value);
+              }}
+              disabled={isChangingPassword}
+              required
+            />
+            <PasswordInput
+              label="Новый пароль"
+              value={newPassword}
+              onChange={(e) => {
+                const value = e.currentTarget.value;
+                setNewPassword(value);
+              }}
+              disabled={isChangingPassword}
+              required
+            />
+            <PasswordInput
+              label="Повторите новый пароль"
+              value={confirmNewPassword}
+              onChange={(e) => {
+                const value = e.currentTarget.value;
+                setConfirmNewPassword(value);
+              }}
+              disabled={isChangingPassword}
+              required
+            />
+            <Group justify="flex-end">
+              <Button variant="default" onClick={closePasswordModal} disabled={isChangingPassword}>
+                Отмена
+              </Button>
+              <Button
+                onClick={handleChangePassword}
+                loading={isChangingPassword}
+                disabled={!currentPassword || !newPassword || !confirmNewPassword}
+              >
+                Сохранить
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
 
         <Card withBorder padding="lg">
           <Group justify="space-between" mb="md">
