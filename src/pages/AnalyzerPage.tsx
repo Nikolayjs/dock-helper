@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Tabs, Text } from '@mantine/core';
-import { IconEdit, IconEraser, IconPlus } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+import { IconEdit, IconEraser, IconFileUpload, IconPlus } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { analyzeTest } from '../features/analyzer/analyzerEngine';
 import { AnalyzerResults } from '../features/analyzer/AnalyzerResults';
 import { toLabTestDefinition } from '../features/analyzer/customTypes';
+import { LabFileImportModal } from '../features/analyzer/import/LabFileImportModal';
+import type { ParsedAnalyte } from '../features/analyzer/import/parseLabValues';
 import { LabTestForm } from '../features/analyzer/LabTestForm';
 import type { Sex } from '../features/analyzer/types';
 import { useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
@@ -19,6 +22,7 @@ export function AnalyzerPage() {
   const [sex, setSex] = useState<Sex>('male');
   const [age, setAge] = useState<number | undefined>(undefined);
   const [valuesByTest, setValuesByTest] = useState<Record<string, Record<string, number | undefined>>>({});
+  const [importOpen, setImportOpen] = useState(false);
 
   const activeTestId = testId ?? allTests[0]?.id;
   const currentTest = allTests.find((t) => t.id === activeTestId);
@@ -32,6 +36,24 @@ export function AnalyzerPage() {
   const handleClear = () => {
     if (!currentTest) return;
     setValuesByTest((prev) => ({ ...prev, [currentTest.id]: {} }));
+  };
+
+  /** Merges imported values in rather than replacing: a file rarely covers every parameter, and what
+   *  the doctor already typed for the rest should survive the import. */
+  const handleImport = (imported: Record<string, Record<string, number>>) => {
+    setValuesByTest((prev) => {
+      const next = { ...prev };
+      for (const [id, values] of Object.entries(imported)) next[id] = { ...prev[id], ...values };
+      return next;
+    });
+    const filled = Object.keys(imported);
+    if (filled.length > 0) setTestId(filled[0]);
+    const total = Object.values(imported).reduce((sum, values) => sum + Object.keys(values).length, 0);
+    notifications.show({ message: `Подставлено показателей: ${total}`, color: 'teal' });
+  };
+
+  const handleCreateFromUnmatched = (analytes: ParsedAnalyte[]) => {
+    navigate('/analyzer/new', { state: { seedAnalytes: analytes } });
   };
 
   const result = useMemo(
@@ -62,6 +84,9 @@ export function AnalyzerPage() {
           </Tabs>
           <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => navigate('/analyzer/new')}>
             Свой анализ
+          </Button>
+          <Button size="xs" leftSection={<IconFileUpload size={14} />} onClick={() => setImportOpen(true)}>
+            Загрузить файл
           </Button>
         </Group>
 
@@ -123,6 +148,14 @@ export function AnalyzerPage() {
           </Grid.Col>
         </Grid>
       )}
+
+      <LabFileImportModal
+        opened={importOpen}
+        onClose={() => setImportOpen(false)}
+        tests={allTests}
+        onApply={handleImport}
+        onCreateAnalyzer={handleCreateFromUnmatched}
+      />
     </Container>
   );
 }

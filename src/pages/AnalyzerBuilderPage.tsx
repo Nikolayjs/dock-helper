@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Alert, Badge, Button, Card, Container, Grid, Group, Loader, Modal, NumberInput, SegmentedControl, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { analyzeTest } from '../features/analyzer/analyzerEngine';
 import { AnalyzerResults } from '../features/analyzer/AnalyzerResults';
 import { ParameterEditorRow, type DraftParameter } from '../features/analyzer/builder/ParameterEditorRow';
+import { toParamKey } from '../features/analyzer/import/paramKey';
+import type { ParsedAnalyte } from '../features/analyzer/import/parseLabValues';
 import { PatternRuleEditorRow, type DraftPatternRule } from '../features/analyzer/builder/PatternRuleEditorRow';
 import {
   describePatternNode,
@@ -29,10 +31,31 @@ function emptyRule(): DraftPatternRule {
   return { uid: crypto.randomUUID(), id: crypto.randomUUID(), title: '', severity: 'warning', causes: [], operator: 'and', conditions: [] };
 }
 
+/**
+ * Seeds the parameter rows from analytes a lab file offered that no existing analyzer claimed.
+ *
+ * Name and unit come from the file; reference ranges deliberately do not. Laboratories print their
+ * own intervals, which vary by method and by analyser, and importing one as if it were the doctor's
+ * own would put a number they never chose in charge of what gets flagged.
+ */
+function parametersFromAnalytes(analytes: ParsedAnalyte[]): DraftParameter[] {
+  const taken = new Set<string>();
+  return analytes.map((analyte) => ({
+    uid: crypto.randomUUID(),
+    key: toParamKey(analyte.name, taken),
+    label: analyte.name,
+    unit: analyte.unit,
+    inputType: 'number' as const,
+    lowCauses: [],
+    highCauses: [],
+  }));
+}
+
 export function AnalyzerBuilderPage() {
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
   const navigate = useNavigate();
+  const seedAnalytes = (useLocation().state as { seedAnalytes?: ParsedAnalyte[] } | null)?.seedAnalytes;
   const { customTests, addTest, updateTest, deleteTest } = useCustomAnalyzers();
 
   const editingTest = isEditMode ? customTests.find((t) => t.id === id) : undefined;
@@ -40,7 +63,9 @@ export function AnalyzerBuilderPage() {
   const [title, setTitle] = useState('');
   const [shortTitle, setShortTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [parameters, setParameters] = useState<DraftParameter[]>([emptyParameter()]);
+  const [parameters, setParameters] = useState<DraftParameter[]>(() =>
+    seedAnalytes && seedAnalytes.length > 0 ? parametersFromAnalytes(seedAnalytes) : [emptyParameter()],
+  );
   const [rules, setRules] = useState<DraftPatternRule[]>([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [hydrated, setHydrated] = useState(!isEditMode);
