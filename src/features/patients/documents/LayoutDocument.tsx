@@ -17,13 +17,20 @@ interface LayoutDocumentProps {
   resolveText?: (text: string) => string;
   /** Physical size, for printing. Otherwise the page fills its container and keeps its aspect. */
   printSized?: boolean;
+  /**
+   * Multiplier on the physical size, for imposing several copies on one sheet. Applied to the mm
+   * box rather than as a CSS transform: every block is positioned in percentages and set in `cqh`,
+   * so a smaller box already carries the type and the geometry down with it — exactly, and without
+   * the softened edges a scaled bitmap would print with.
+   */
+  scale?: number;
   backdropOpacity?: number;
   children?: React.ReactNode;
 }
 
-export function LayoutDocument({ layout, resolveText, printSized, backdropOpacity = 0, children }: LayoutDocumentProps) {
+export function LayoutDocument({ layout, resolveText, printSized, scale = 1, backdropOpacity = 0, children }: LayoutDocumentProps) {
   const pageStyle: CSSProperties = printSized
-    ? { width: `${layout.pageWidthMm}mm`, height: `${layout.pageHeightMm}mm` }
+    ? { width: `${layout.pageWidthMm * scale}mm`, height: `${layout.pageHeightMm * scale}mm` }
     : { width: '100%', aspectRatio: `${layout.pageWidthMm} / ${layout.pageHeightMm}` };
 
   return (

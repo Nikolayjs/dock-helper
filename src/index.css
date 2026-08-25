@@ -52,6 +52,13 @@ body {
     color: #000;
   }
 
+  /* An imposed sheet already is the paper: it carries its own A4 box and its own inner margin, and
+     its @page rule sets the physical size. The flow-document padding above would shift it off the
+     sheet, so it is undone here rather than made conditional up there. */
+  .printable-document:has(.printable-sheet) {
+    padding: 0;
+  }
+
   .no-print {
     display: none !important;
   }

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Badge, Button, Card, Group, Stack, TextInput } from '@mantine/core';
+import { Badge, Button, Card, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { IconPrinter, IconTrash } from '@tabler/icons-react';
 
 import { LayoutEditor } from './LayoutEditor';
-import { emptyLayout } from './layoutTypes';
+import { COPIES_PER_SHEET_OPTIONS, copiesPerSheet, emptyLayout, planSheet } from './layoutTypes';
 import { SAMPLE_PATIENT, SAMPLE_VISIT } from './templateTypes';
 import type { DocumentTemplate } from './templateTypes';
 import { TemplateDocument } from './TemplateDocument';
@@ -31,6 +31,12 @@ export function LayoutTemplateForm({ template, onSubmit, onCancel, onDelete }: L
 
   const canSave = title.trim().length > 0;
 
+  const copies = copiesPerSheet(layout);
+  const plan = planSheet(layout, copies);
+  // Spelled out because the orientation is chosen for the doctor, not by them — seeing "A4
+  // альбомная" next to the count explains why the preview just turned sideways.
+  const sheetSummary = `${plan.cols}×${plan.rows} на A4 ${plan.sheetWidthMm > plan.sheetHeightMm ? 'альбомной' : 'книжной'}, ${Math.round(plan.scale * 100)}%`;
+
   const previewTemplate: DocumentTemplate = {
     id: 'preview',
     title,
@@ -54,16 +60,34 @@ export function LayoutTemplateForm({ template, onSubmit, onCancel, onDelete }: L
       <LayoutEditor layout={layout} onChange={setLayout} />
 
       <Card withBorder padding="lg">
-        <Group justify="space-between" mb="xs" className="no-print">
+        <Group justify="space-between" mb="xs" className="no-print" wrap="wrap" gap="sm">
           <Badge variant="light" color="gray">
             Предпросмотр (на примере пациента)
           </Badge>
-          <Button size="xs" variant="light" leftSection={<IconPrinter size={14} />} onClick={() => window.print()}>
-            Печать
-          </Button>
+          <Group gap="sm" wrap="wrap">
+            <Select
+              size="xs"
+              w={150}
+              aria-label="Копий на листе"
+              data={COPIES_PER_SHEET_OPTIONS.map((n) => ({ value: String(n), label: `${n} на листе` }))}
+              value={String(copies)}
+              onChange={(value) => value && setLayout({ ...layout, copiesPerSheet: Number(value) })}
+              allowDeselect={false}
+            />
+            <Text size="xs" c="dimmed">
+              {sheetSummary}
+            </Text>
+            <Button size="xs" variant="light" leftSection={<IconPrinter size={14} />} onClick={() => window.print()}>
+              Печать
+            </Button>
+          </Group>
         </Group>
-        <div className="printable-document">
-          <TemplateDocument template={previewTemplate} patient={SAMPLE_PATIENT} visit={SAMPLE_VISIT} />
+        {/* A landscape A4 sheet is ~1120px at screen resolution and will outgrow the card on a
+            laptop; scrolling the preview beats scaling it, which would misrepresent the print. */}
+        <div style={{ overflowX: 'auto' }}>
+          <div className="printable-document">
+            <TemplateDocument template={previewTemplate} patient={SAMPLE_PATIENT} visit={SAMPLE_VISIT} />
+          </div>
         </div>
       </Card>
 
