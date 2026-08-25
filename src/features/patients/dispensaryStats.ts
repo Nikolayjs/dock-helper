@@ -91,25 +91,31 @@ export function computeDispensaryStats(records: DispensaryRecord[], periodStart:
  * Diagnoses are grouped case-insensitively on trimmed text: the same disease is typed
  * `Артериальная гипертензия` on one card and `артериальная  гипертензия` on the next, and two rows
  * for one disease would misstate every line of the report.
+ *
+ * @param labelOf names a record's disease. Grouping happens on that name rather than on the stored
+ *   text, so a card recording only `J35.0` and one spelling out `Хронический тонзиллит` land on the
+ *   same line — which is the same disease, and two lines for it would be wrong.
  */
 export function computeStatsByDiagnosis(
   records: DispensaryRecord[],
   periodStart: string,
   periodEnd: string,
+  labelOf: (record: DispensaryRecord) => string = (record) => record.diagnosis,
+  codeOf: (record: DispensaryRecord) => string | undefined = (record) => record.diagnosisCode,
 ): DiagnosisStats[] {
-  const groups = new Map<string, DispensaryRecord[]>();
+  const groups = new Map<string, { label: string; records: DispensaryRecord[] }>();
   for (const record of records) {
-    const key = record.diagnosis.trim().replace(/\s+/g, ' ').toLowerCase();
+    const label = labelOf(record).trim().replace(/\s+/g, ' ');
+    const key = label.toLowerCase();
     const group = groups.get(key);
-    if (group) group.push(record);
-    else groups.set(key, [record]);
+    if (group) group.records.push(record);
+    else groups.set(key, { label, records: [record] });
   }
 
   return [...groups.values()]
-    .map((group) => ({
-      // The first spelling encountered is the label; they differ only in case and spacing.
-      diagnosis: group[0].diagnosis.trim().replace(/\s+/g, ' '),
-      diagnosisCode: group.find((r) => r.diagnosisCode)?.diagnosisCode,
+    .map(({ label, records: group }) => ({
+      diagnosis: label,
+      diagnosisCode: group.map(codeOf).find(Boolean),
       ...computeDispensaryStats(group, periodStart, periodEnd),
     }))
     // Heaviest caseload first: that is the order the question "what do I mostly treat" is asked in.
