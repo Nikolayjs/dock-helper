@@ -9,6 +9,25 @@
   min-height: 0;
 }
 
+/* Breathing room under the last thing on a page.
+ *
+ * It cannot live on .main. The AppShell root is the scroll container (mode="static" in
+ * AppLayout.tsx) and .main is a grid item held to the viewport by the min-height: 0 above, so a
+ * page taller than the screen overflows .main rather than stretching it — and .main's own
+ * padding-bottom stays pinned to the bottom of that viewport-tall box, scrolling out of sight long
+ * before the content ends. Measured on a 390px phone, the analyzer page finished with exactly 0px
+ * beneath it. The padding has to belong to something that grows with the content: this wrapper. */
+.content {
+  padding-bottom: var(--mantine-spacing-xl);
+}
+
+@media (max-width: 48em) {
+  .content {
+    /* More on a phone: the scroll-to-top Affix hovers 24px off the bottom, over whatever is last. */
+    padding-bottom: calc(var(--mantine-spacing-xl) * 2);
+  }
+}
+
 .header {
   border-bottom: 1px solid var(--mantine-color-default-border);
 }

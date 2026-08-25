@@ -142,7 +142,10 @@ export function AppLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        <Outlet />
+        {/* Carries the bottom padding — see .content in the stylesheet for why it cannot sit on Main. */}
+        <div className={classes.content}>
+          <Outlet />
+        </div>
       </AppShell.Main>
     </AppShell>
   );
