@@ -42,6 +42,21 @@ const UNIT_SCAN_WINDOW = 3;
 const HAS_LETTERS = /[а-яёa-z]/i;
 
 /**
+ * A negative result written as a word. Most of a normal urinalysis reads this way, and without
+ * recognising it the scan runs past the result column entirely and takes the first number it
+ * finds — which is the lower reference bound, in a row whose name has by then swallowed the units
+ * and the word `Здоровые`. It lands on 0 and looks right, for entirely the wrong reason.
+ */
+const NEGATIVE_RESULT = /^(отриц|отрицательн|не\s*обнаруж|нет|neg|negative|abs)/i;
+
+/**
+ * A graded positive — `+`, `++`, `+/-`. The row ends here as far as reading a number goes: the
+ * scale behind the plus signs belongs to the parameter, not the file, so guessing 1 for a
+ * three-plus result would be worse than leaving it for the doctor.
+ */
+const GRADED_RESULT = /^[+]+$|^\+\/-$|^-\/\+$/;
+
+/**
  * Rows that are page furniture rather than results. Matched against the *name* only, so an analyte
  * whose name merely contains one of these words is unaffected.
  *
@@ -87,8 +102,16 @@ export function parseLabValues(lines: string[]): ParsedAnalyte[] {
 
   for (const line of lines) {
     const tokens = line.split(/\s+/).filter(Boolean);
-    const valueIndex = tokens.findIndex((token) => STANDALONE_NUMBER.test(token) && !DATE_LIKE.test(token));
+    // Whichever comes first ends the name: a number, a spelled-out negative, or a graded positive.
+    const valueIndex = tokens.findIndex(
+      (token) =>
+        (STANDALONE_NUMBER.test(token) && !DATE_LIKE.test(token)) ||
+        NEGATIVE_RESULT.test(token) ||
+        GRADED_RESULT.test(token),
+    );
     if (valueIndex <= 0) continue;
+    // A graded positive names no number the file can be trusted to scale; the row stops here.
+    if (GRADED_RESULT.test(tokens[valueIndex])) continue;
 
     const name = tokens
       .slice(0, valueIndex)
@@ -103,7 +126,10 @@ export function parseLabValues(lines: string[]): ParsedAnalyte[] {
     // interpretation note. Latin is left alone: `pH` and `hs-CRP` are real names.
     if (/^[а-яё]/.test(name)) continue;
 
-    const value = Number(tokens[valueIndex].replace(/^[<>≤≥]/, '').replace(/[*↑↓]+$/, '').replace(',', '.'));
+    const isNegative = NEGATIVE_RESULT.test(tokens[valueIndex]);
+    const value = isNegative
+      ? 0
+      : Number(tokens[valueIndex].replace(/^[<>≤≥]/, '').replace(/[*↑↓]+$/, '').replace(',', '.'));
     if (!Number.isFinite(value) || Math.abs(value) > IMPLAUSIBLE_VALUE) continue;
 
     analytes.push({ name, value, unit: findUnit(tokens, valueIndex + 1), line });

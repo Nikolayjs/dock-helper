@@ -11,6 +11,7 @@ import {
   Loader,
   Modal,
   ScrollArea,
+  Select,
   Stack,
   Text,
 } from '@mantine/core';
@@ -36,34 +37,64 @@ interface LabFileImportModalProps {
   tests: LabTestDefinition[];
   onApply: (values: Record<string, Record<string, number>>) => void;
   onCreateAnalyzer: (analytes: ParsedAnalyte[]) => void;
+  /**
+   * Appends the analytes to an existing analyzer as new parameters and resolves with the updated
+   * analyzer list — returned rather than awaited from a refetch so the review can re-match against
+   * the new parameters immediately, and the values the doctor came here for land in the same step.
+   */
+  onExtendAnalyzer: (testId: string, analytes: ParsedAnalyte[]) => Promise<LabTestDefinition[]>;
 }
 
-type Stage = { kind: 'idle' } | { kind: 'reading' } | { kind: 'error'; message: string } | { kind: 'review'; plan: MatchPlan };
+type Stage =
+  | { kind: 'idle' }
+  | { kind: 'reading' }
+  | { kind: 'error'; message: string }
+  /** `analytes` is kept alongside the plan so the file can be re-matched after an analyzer gains parameters. */
+  | { kind: 'review'; analytes: ParsedAnalyte[]; plan: MatchPlan };
 
 /** Below this an analyzer is more likely sharing a couple of common names than actually present in the file. */
 const CONFIDENT_MATCH_COUNT = 3;
 
+/** And below this share of the best-matching analyzer, it is riding on names that panel merely shares. */
+const CONFIDENT_MATCH_SHARE = 0.4;
+
 /**
  * Ticks the analyzers the file plausibly contains, and leaves the rest for the doctor to opt into.
  *
- * Some names belong to several panels — глюкоза and белок are measured in both blood and urine — so
- * an analyzer picked up on two such names has probably not been performed at all. Pre-ticking it
- * would quietly file blood chemistry into a urinalysis.
+ * Глюкоза, белок and билирубин are all measured in both blood and urine, under the same names and
+ * often the same units, so name matching alone cannot tell a urinalysis from a blood panel. What
+ * can is proportion: a urinalysis form filled 32 of the urinalysis parameters and 3 of the
+ * biochemistry ones, and those 3 were urine values about to be filed as blood chemistry — a urine
+ * glucose of 0 reading as profound hypoglycaemia. One file is one specimen, so an analyzer trailing
+ * far behind the leader is left for the doctor to tick deliberately.
  */
 function defaultSelection(plan: MatchPlan): string[] {
-  const confident = plan.fills.filter((fill) => fill.matches.length >= CONFIDENT_MATCH_COUNT);
+  const best = plan.fills[0]?.matches.length ?? 0;
+  const confident = plan.fills.filter(
+    (fill) => fill.matches.length >= CONFIDENT_MATCH_COUNT && fill.matches.length >= best * CONFIDENT_MATCH_SHARE,
+  );
   if (confident.length > 0) return confident.map((fill) => fill.test.id);
   // Nothing reached the bar: fall back to the strongest single candidate rather than nothing at all.
   return plan.fills.slice(0, 1).map((fill) => fill.test.id);
 }
 
-export function LabFileImportModal({ opened, onClose, tests, onApply, onCreateAnalyzer }: LabFileImportModalProps) {
+export function LabFileImportModal({
+  opened,
+  onClose,
+  tests,
+  onApply,
+  onCreateAnalyzer,
+  onExtendAnalyzer,
+}: LabFileImportModalProps) {
   const [stage, setStage] = useState<Stage>({ kind: 'idle' });
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
+  const [extendTargetId, setExtendTargetId] = useState<string | null>(null);
+  const [extending, setExtending] = useState(false);
 
   const reset = () => {
     setStage({ kind: 'idle' });
     setSelectedTestIds([]);
+    setExtendTargetId(null);
   };
 
   const close = () => {
@@ -86,13 +117,33 @@ export function LabFileImportModal({ opened, onClose, tests, onApply, onCreateAn
       }
       const plan = matchAnalytes(analytes, tests);
       setSelectedTestIds(defaultSelection(plan));
-      setStage({ kind: 'review', plan });
+      setExtendTargetId(plan.fills[0]?.test.id ?? tests[0]?.id ?? null);
+      setStage({ kind: 'review', analytes, plan });
     } catch (error) {
       const message =
         error instanceof LabFileError || error instanceof HttpRepositoryError
           ? error.message
           : 'Не удалось прочитать файл.';
       setStage({ kind: 'error', message });
+    }
+  };
+
+  const extendSelected = async () => {
+    if (stage.kind !== 'review' || !extendTargetId) return;
+    setExtending(true);
+    try {
+      const updatedTests = await onExtendAnalyzer(extendTargetId, stage.plan.unmatched);
+      const plan = matchAnalytes(stage.analytes, updatedTests);
+      // The extended analyzer is now the point of the exercise — tick it even if the count is low.
+      setSelectedTestIds([...new Set([...defaultSelection(plan), extendTargetId])]);
+      setStage({ kind: 'review', analytes: stage.analytes, plan });
+    } catch (error) {
+      setStage({
+        kind: 'error',
+        message: error instanceof HttpRepositoryError ? error.message : 'Не удалось сохранить анализатор.',
+      });
+    } finally {
+      setExtending(false);
     }
   };
 
@@ -230,25 +281,40 @@ export function LabFileImportModal({ opened, onClose, tests, onApply, onCreateAn
 
           {stage.plan.unmatched.length > 0 && (
             <Card withBorder padding="sm" radius="md">
-              <Group justify="space-between" wrap="wrap" gap="xs" mb={6}>
-                <Text size="sm" fw={600}>
-                  Не совпало: {stage.plan.unmatched.length}
-                </Text>
+              <Text size="sm" fw={600} mb={4}>
+                Не совпало: {stage.plan.unmatched.length}
+              </Text>
+              <Text size="xs" c="dimmed" lineClamp={3} mb="xs">
+                {stage.plan.unmatched.map((a) => `${a.name} ${a.value}`).join(' · ')}
+              </Text>
+
+              {/* Two ways out, because a file wider than the analyzer means one of two things: this
+                  panel is new, or the existing one was never filled in completely. */}
+              <Group gap="xs" wrap="wrap" align="flex-end">
+                <Select
+                  size="xs"
+                  w={210}
+                  label="Добавить показатели в анализатор"
+                  data={tests.map((t) => ({ value: t.id, label: t.shortTitle }))}
+                  value={extendTargetId}
+                  onChange={setExtendTargetId}
+                  allowDeselect={false}
+                />
+                <Button size="xs" variant="light" onClick={extendSelected} loading={extending} disabled={!extendTargetId}>
+                  Добавить {stage.plan.unmatched.length}
+                </Button>
                 <Button
                   size="xs"
-                  variant="light"
+                  variant="subtle"
                   leftSection={<IconPlus size={14} />}
                   onClick={() => {
                     onCreateAnalyzer(stage.plan.unmatched);
                     close();
                   }}
                 >
-                  Создать анализатор из них
+                  Или создать новый
                 </Button>
               </Group>
-              <Text size="xs" c="dimmed" lineClamp={3}>
-                {stage.plan.unmatched.map((a) => `${a.name} ${a.value}`).join(' · ')}
-              </Text>
             </Card>
           )}
 

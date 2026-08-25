@@ -52,6 +52,29 @@ function sortWords(text: string): string {
 }
 
 /**
+ * Cyrillic letters that are drawn identically to a Latin one. Laboratory software mixes the two
+ * constantly — the ПМТ form prints `рH` with a Cyrillic `р` — and the two strings are then equal on
+ * paper and unequal to every comparison.
+ *
+ * Applied to both sides as an extra variant, never as a replacement: a Russian word folds to the
+ * same nonsense on both sides, so nothing that used to match stops matching.
+ */
+const CONFUSABLES: Record<string, string> = {
+  а: 'a', в: 'b', е: 'e', к: 'k', м: 'm', н: 'h', о: 'o',
+  р: 'p', с: 'c', т: 't', у: 'y', х: 'x', і: 'i',
+};
+
+function fold(text: string): string {
+  return [...text].map((char) => CONFUSABLES[char] ?? char).join('');
+}
+
+/**
+ * The analyser's own code, which some forms give a column of its own — `PRO Белок`, `SG Удельный
+ * вес`. It merges into the name when the row is reassembled, and swamps a short one like `pH`.
+ */
+const LEADING_CODE = /^[a-z]{2,6}\d?\s+(?=\S)/;
+
+/**
  * The name itself, the name without its bracketed abbreviation, that abbreviation alone, each of
  * those with its words sorted, and every known synonym of the lot.
  */
@@ -68,6 +91,12 @@ function variants(text: string): string[] {
     if (inner) seeds.add(inner);
   }
 
+  // A name that opens with an analyser code is also tried without it.
+  for (const seed of [...seeds]) {
+    const withoutCode = seed.replace(LEADING_CODE, '');
+    if (withoutCode && withoutCode !== seed) seeds.add(withoutCode);
+  }
+
   const found = new Set<string>();
   for (const seed of seeds) {
     for (const synonym of expandSynonyms(seed)) {
@@ -75,6 +104,7 @@ function variants(text: string): string[] {
       found.add(sortWords(synonym));
     }
     found.add(sortWords(seed));
+    found.add(fold(seed));
   }
   return [...found];
 }

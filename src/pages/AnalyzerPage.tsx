@@ -8,6 +8,7 @@ import { analyzeTest } from '../features/analyzer/analyzerEngine';
 import { AnalyzerResults } from '../features/analyzer/AnalyzerResults';
 import { toLabTestDefinition } from '../features/analyzer/customTypes';
 import { LabFileImportModal } from '../features/analyzer/import/LabFileImportModal';
+import { toParamKey } from '../features/analyzer/import/paramKey';
 import type { ParsedAnalyte } from '../features/analyzer/import/parseLabValues';
 import { LabTestForm } from '../features/analyzer/LabTestForm';
 import type { Sex } from '../features/analyzer/types';
@@ -15,7 +16,7 @@ import { useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
 
 export function AnalyzerPage() {
   const navigate = useNavigate();
-  const { customTests, isLoading } = useCustomAnalyzers();
+  const { customTests, isLoading, updateTest } = useCustomAnalyzers();
   const allTests = useMemo(() => customTests.map(toLabTestDefinition), [customTests]);
 
   const [testId, setTestId] = useState<string | undefined>(undefined);
@@ -54,6 +55,42 @@ export function AnalyzerPage() {
 
   const handleCreateFromUnmatched = (analytes: ParsedAnalyte[]) => {
     navigate('/analyzer/new', { state: { seedAnalytes: analytes } });
+  };
+
+  /**
+   * Adds analytes a file carried but the analyzer lacks, as new parameters on that analyzer.
+   *
+   * Name and unit come from the file; no reference range does. A laboratory prints intervals for
+   * its own method and analyser, and adopting one silently would put a number the doctor never
+   * chose in charge of what gets flagged — so a new parameter arrives with no range, flagging
+   * nothing until they set one.
+   */
+  const handleExtendAnalyzer = async (testId: string, analytes: ParsedAnalyte[]) => {
+    const test = customTests.find((t) => t.id === testId);
+    if (!test) return allTests;
+
+    const taken = new Set(test.parameters.map((p) => p.key));
+    const added = analytes.map((analyte) => ({
+      key: toParamKey(analyte.name, taken),
+      label: analyte.name,
+      unit: analyte.unit,
+      inputType: 'number' as const,
+      lowCauses: [],
+      highCauses: [],
+    }));
+
+    const parameters = [...test.parameters, ...added];
+    await updateTest(testId, {
+      title: test.title,
+      shortTitle: test.shortTitle,
+      description: test.description,
+      parameters,
+      patterns: test.patterns,
+    });
+    notifications.show({ message: `Добавлено показателей: ${added.length}`, color: 'teal' });
+
+    // Handed straight back to the modal so it can re-match without waiting for the refetch.
+    return allTests.map((t) => (t.id === testId ? toLabTestDefinition({ ...test, parameters }) : t));
   };
 
   const result = useMemo(
@@ -155,6 +192,7 @@ export function AnalyzerPage() {
         tests={allTests}
         onApply={handleImport}
         onCreateAnalyzer={handleCreateFromUnmatched}
+        onExtendAnalyzer={handleExtendAnalyzer}
       />
     </Container>
   );
