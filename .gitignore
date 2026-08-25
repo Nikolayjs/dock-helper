@@ -12,8 +12,11 @@ dist
 dist-ssr
 *.local
 
-# Local Claude Code session state — not project source
-.claude/
+# Local Claude Code session state — not project source. settings.json is the exception: the
+# permission rules for this project belong in version control, not in one machine's config.
+# Note the `.claude/*` form — git cannot re-include a file whose parent directory is excluded.
+.claude/*
+!.claude/settings.json
 
 # Editor directories and files
 .vscode/*
