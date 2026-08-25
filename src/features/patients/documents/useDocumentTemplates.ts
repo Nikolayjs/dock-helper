@@ -5,7 +5,12 @@ import type { DocumentTemplate } from './templateTypes';
 
 const QUERY_KEY = ['document-templates'];
 
-export type DocumentTemplateInput = Pick<DocumentTemplate, 'title' | 'bodyHtml'>;
+/**
+ * `kind` and `layout` are optional so that the Tiptap form keeps posting exactly what it always
+ * did — the column defaults to 'flow' server-side, and an omitted layout stays null.
+ */
+export type DocumentTemplateInput = Pick<DocumentTemplate, 'title' | 'bodyHtml'> &
+  Partial<Pick<DocumentTemplate, 'kind' | 'layout'>>;
 
 const repo = createHttpRepository<DocumentTemplate, DocumentTemplateInput>('/document-templates');
 

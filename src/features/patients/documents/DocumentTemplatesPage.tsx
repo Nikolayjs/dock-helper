@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, Container, Group, SimpleGrid, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { IconFileText, IconFileOff, IconPlus, IconSearch } from '@tabler/icons-react';
+import { IconFileText, IconFileOff, IconPhotoScan, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { stripHtml } from '../../notes/textPreview';
@@ -23,9 +23,18 @@ export function DocumentTemplatesPage() {
         <Text c="dimmed" size="sm">
           {templates.length} документов доступно
         </Text>
-        <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/patients/documents/new')}>
-          Создать документ
-        </Button>
+        <Group gap="sm">
+          <Button
+            variant="default"
+            leftSection={<IconPhotoScan size={18} />}
+            onClick={() => navigate('/patients/documents/scan')}
+          >
+            Бланк из снимка
+          </Button>
+          <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/patients/documents/new')}>
+            Создать документ
+          </Button>
+        </Group>
       </Group>
 
       <TextInput
@@ -62,13 +71,15 @@ export function DocumentTemplatesPage() {
               onClick={() => navigate(`/patients/documents/${template.id}/edit`)}
             >
               <ThemeIcon size={44} radius="md" variant="light" color="brand" mb="sm">
-                <IconFileText size={22} />
+                {template.kind === 'layout' ? <IconPhotoScan size={22} /> : <IconFileText size={22} />}
               </ThemeIcon>
               <Text fw={600} size="md" mb={4}>
                 {template.title}
               </Text>
               <Text size="sm" c="dimmed" lineClamp={2}>
-                {stripHtml(template.bodyHtml) || 'Без текста'}
+                {template.kind === 'layout'
+                  ? `Бланк из снимка, ${template.layout?.blocks.length ?? 0} блоков`
+                  : stripHtml(template.bodyHtml) || 'Без текста'}
               </Text>
             </Card>
           ))}

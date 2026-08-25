@@ -17,6 +17,7 @@ import { DispensaryViewPage } from './pages/DispensaryViewPage';
 import { PrintableDocumentPage } from './pages/PrintableDocumentPage';
 import { DocumentTemplatesPage } from './pages/DocumentTemplatesPage';
 import { DocumentTemplateEditorPage } from './pages/DocumentTemplateEditorPage';
+import { ScanTemplatePage } from './pages/ScanTemplatePage';
 import { DispensaryEditorPage } from './pages/DispensaryEditorPage';
 import { DispensaryStatsPage } from './pages/DispensaryStatsPage';
 import { GuidelinesPage } from './pages/GuidelinesPage';
@@ -86,6 +87,7 @@ export function AppRouter() {
         <Route path="/patients/new" element={<PatientEditorPage />} />
         <Route path="/patients/documents" element={<DocumentTemplatesPage />} />
         <Route path="/patients/documents/new" element={<DocumentTemplateEditorPage />} />
+        <Route path="/patients/documents/scan" element={<ScanTemplatePage />} />
         <Route path="/patients/documents/:id/edit" element={<DocumentTemplateEditorPage />} />
         <Route path="/patients/dispensary/stats" element={<DispensaryStatsPage />} />
         <Route path="/patients/dispensary/new" element={<DispensaryEditorPage />} />

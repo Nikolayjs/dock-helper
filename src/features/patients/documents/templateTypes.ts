@@ -3,12 +3,20 @@ import dayjs from 'dayjs';
 import type { ClinicSettings } from '../clinicSettings';
 import { REFERRAL_CATEGORY_LABELS } from '../referralUtils';
 import type { Patient, PatientVisit } from '../types';
+import type { DocumentTemplateKind, TemplateLayout } from './layoutTypes';
 
 export interface DocumentTemplate {
   id: string;
   title: string;
-  /** Tiptap-authored HTML, containing literal {{token}} placeholders inserted as plain text. */
+  /**
+   * Which body field carries this template. 'flow' is everything authored in the Tiptap editor;
+   * 'layout' is a scanned form reproduced as positioned blocks. Both live in the same list.
+   */
+  kind: DocumentTemplateKind;
+  /** Tiptap-authored HTML, containing literal {{token}} placeholders inserted as plain text. Used when kind === 'flow'. */
   bodyHtml: string;
+  /** Positioned blocks recognised from a scan. Used when kind === 'layout'. */
+  layout: TemplateLayout | null;
   createdAt: string;
   updatedAt: string;
 }

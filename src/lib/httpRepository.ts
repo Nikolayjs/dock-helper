@@ -24,7 +24,10 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       headers: {
-        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        // A FormData body must NOT get an explicit Content-Type: the browser has to set it
+        // itself so it can append the multipart boundary. Forcing application/json here makes
+        // the server parse a file upload as JSON and reject it.
+        ...(init?.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },

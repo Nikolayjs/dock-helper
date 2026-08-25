@@ -5,6 +5,7 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { DocumentTemplateForm } from './DocumentTemplateForm';
+import { LayoutTemplateForm } from './LayoutTemplateForm';
 import { useDocumentTemplates } from './useDocumentTemplates';
 import type { DocumentTemplateInput } from './useDocumentTemplates';
 
@@ -60,7 +61,7 @@ export function DocumentTemplateEditorPage() {
   };
 
   return (
-    <Container size="md" px={0}>
+    <Container size={editingTemplate?.kind === 'layout' ? 'xl' : 'md'} px={0}>
       <Stack gap="lg">
         <Button
           variant="subtle"
@@ -75,12 +76,24 @@ export function DocumentTemplateEditorPage() {
 
         <Title order={3}>{editingTemplate ? 'Редактирование документа' : 'Новый документ'}</Title>
 
-        <DocumentTemplateForm
-          initialTemplate={editingTemplate}
-          onSubmit={handleSubmit}
-          onCancel={() => navigate('/patients/documents')}
-          onDelete={editingTemplate ? () => setDeleteModalOpen(true) : undefined}
-        />
+        {/* A scanned form and a Tiptap document are edited by different tools. Opening a layout
+            template in the rich-text form would show an empty editor and then overwrite the layout
+            with that emptiness on save, so the branch is load-bearing, not cosmetic. */}
+        {editingTemplate?.kind === 'layout' ? (
+          <LayoutTemplateForm
+            template={editingTemplate}
+            onSubmit={handleSubmit}
+            onCancel={() => navigate('/patients/documents')}
+            onDelete={() => setDeleteModalOpen(true)}
+          />
+        ) : (
+          <DocumentTemplateForm
+            initialTemplate={editingTemplate}
+            onSubmit={handleSubmit}
+            onCancel={() => navigate('/patients/documents')}
+            onDelete={editingTemplate ? () => setDeleteModalOpen(true) : undefined}
+          />
+        )}
       </Stack>
 
       <Modal opened={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Удалить документ?" radius="lg" centered>
