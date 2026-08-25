@@ -1,15 +1,42 @@
 import { useMemo, useState } from 'react';
-import { Button, Card, Container, Group, SimpleGrid, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { IconFileText, IconFileOff, IconPhotoScan, IconPlus, IconSearch } from '@tabler/icons-react';
+import { ActionIcon, Alert, Button, Card, Container, Group, Modal, Select, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { IconFileText, IconFileOff, IconInfoCircle, IconPhotoScan, IconPlus, IconPrinter, IconSearch } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { stripHtml } from '../../notes/textPreview';
+import { usePatients } from '../usePatients';
+import type { DocumentTemplate } from './templateTypes';
 import { useDocumentTemplates } from './useDocumentTemplates';
+
+/** Same recency rule as the visit list on a patient's own page: newest visit date, ties broken by creation order. */
+function latestVisitId(patientId: string, patients: ReturnType<typeof usePatients>['patients']): string | null {
+  const patient = patients.find((p) => p.id === patientId);
+  if (!patient || patient.visits.length === 0) return null;
+  return [...patient.visits].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0].id;
+}
 
 export function DocumentTemplatesPage() {
   const navigate = useNavigate();
   const { templates, isLoading } = useDocumentTemplates();
+  const { patients } = usePatients();
   const [search, setSearch] = useState('');
+  const [printTemplate, setPrintTemplate] = useState<DocumentTemplate | null>(null);
+  const [patientId, setPatientId] = useState<string | null>(null);
+
+  const selectedPatient = patients.find((p) => p.id === patientId) ?? null;
+
+  const closePrintModal = () => {
+    setPrintTemplate(null);
+    setPatientId(null);
+  };
+
+  const handlePrint = () => {
+    if (!printTemplate || !patientId) return;
+    const visitId = latestVisitId(patientId, patients);
+    if (!visitId) return;
+    navigate(`/patients/${patientId}/documents/${visitId}?templateId=${printTemplate.id}`);
+    closePrintModal();
+  };
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -70,9 +97,24 @@ export function DocumentTemplatesPage() {
               style={{ cursor: 'pointer', height: '100%' }}
               onClick={() => navigate(`/patients/documents/${template.id}/edit`)}
             >
-              <ThemeIcon size={44} radius="md" variant="light" color="brand" mb="sm">
-                {template.kind === 'layout' ? <IconPhotoScan size={22} /> : <IconFileText size={22} />}
-              </ThemeIcon>
+              <Group justify="space-between" align="flex-start" mb="sm">
+                <ThemeIcon size={44} radius="md" variant="light" color="brand">
+                  {template.kind === 'layout' ? <IconPhotoScan size={22} /> : <IconFileText size={22} />}
+                </ThemeIcon>
+                <Tooltip label="Напечатать для пациента">
+                  <ActionIcon
+                    variant="light"
+                    color="brand"
+                    size="lg"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPrintTemplate(template);
+                    }}
+                  >
+                    <IconPrinter size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
               <Text fw={600} size="md" mb={4}>
                 {template.title}
               </Text>
@@ -85,6 +127,40 @@ export function DocumentTemplatesPage() {
           ))}
         </SimpleGrid>
       )}
+
+      <Modal opened={printTemplate !== null} onClose={closePrintModal} title="Печать документа" radius="lg" centered>
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Документ «{printTemplate?.title}» будет заполнен данными пациента и последнего визита.
+          </Text>
+          <Select
+            label="Пациент"
+            placeholder="Выберите пациента"
+            data={patients.map((p) => ({ value: p.id, label: p.fullName }))}
+            value={patientId}
+            onChange={setPatientId}
+            searchable
+            required
+          />
+          {selectedPatient && selectedPatient.visits.length === 0 && (
+            <Alert color="orange" icon={<IconInfoCircle size={16} />}>
+              У этого пациента ещё нет визитов — сначала добавьте визит на его странице.
+            </Alert>
+          )}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={closePrintModal}>
+              Отмена
+            </Button>
+            <Button
+              leftSection={<IconPrinter size={16} />}
+              disabled={!selectedPatient || selectedPatient.visits.length === 0}
+              onClick={handlePrint}
+            >
+              Печать
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Container>
   );
 }

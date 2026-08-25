@@ -28,6 +28,31 @@ export interface TemplateContext {
   clinicSettings: ClinicSettings;
 }
 
+/** Stand-in patient/visit so a template can be previewed and print-tested before it is ever used on a real record. */
+export const SAMPLE_PATIENT: Patient = {
+  id: 'sample',
+  fullName: 'Иванов Иван Иванович',
+  sex: 'male',
+  birthDate: '1985-06-15',
+  phone: '',
+  reminderDate: null,
+  reminderNote: '',
+  visits: [],
+  createdAt: '',
+  updatedAt: '',
+};
+
+export const SAMPLE_VISIT: PatientVisit = {
+  id: 'sample',
+  date: new Date().toISOString().slice(0, 10),
+  diagnosis: 'Острый бронхит',
+  diagnosisCode: 'J20',
+  note: '',
+  referralCategory: 'consultation',
+  referralDestination: 'Пульмонолог',
+  createdAt: '',
+};
+
 const EMPTY = '—';
 
 interface PlaceholderDef {

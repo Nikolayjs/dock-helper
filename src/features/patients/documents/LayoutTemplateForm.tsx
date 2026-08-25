@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Button, Group, Stack, TextInput } from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import { Badge, Button, Card, Group, Stack, TextInput } from '@mantine/core';
+import { IconPrinter, IconTrash } from '@tabler/icons-react';
 
 import { LayoutEditor } from './LayoutEditor';
 import { emptyLayout } from './layoutTypes';
+import { SAMPLE_PATIENT, SAMPLE_VISIT } from './templateTypes';
 import type { DocumentTemplate } from './templateTypes';
+import { TemplateDocument } from './TemplateDocument';
 import type { DocumentTemplateInput } from './useDocumentTemplates';
 
 /**
@@ -29,6 +31,16 @@ export function LayoutTemplateForm({ template, onSubmit, onCancel, onDelete }: L
 
   const canSave = title.trim().length > 0;
 
+  const previewTemplate: DocumentTemplate = {
+    id: 'preview',
+    title,
+    kind: 'layout',
+    bodyHtml: template.bodyHtml,
+    layout,
+    createdAt: '',
+    updatedAt: '',
+  };
+
   return (
     <Stack gap="lg">
       <TextInput
@@ -40,6 +52,20 @@ export function LayoutTemplateForm({ template, onSubmit, onCancel, onDelete }: L
       />
 
       <LayoutEditor layout={layout} onChange={setLayout} />
+
+      <Card withBorder padding="lg">
+        <Group justify="space-between" mb="xs" className="no-print">
+          <Badge variant="light" color="gray">
+            Предпросмотр (на примере пациента)
+          </Badge>
+          <Button size="xs" variant="light" leftSection={<IconPrinter size={14} />} onClick={() => window.print()}>
+            Печать
+          </Button>
+        </Group>
+        <div className="printable-document">
+          <TemplateDocument template={previewTemplate} patient={SAMPLE_PATIENT} visit={SAMPLE_VISIT} />
+        </div>
+      </Card>
 
       <Group justify="space-between" mt="sm">
         {onDelete ? (

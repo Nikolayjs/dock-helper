@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActionIcon, Avatar, Badge, Button, Card, Container, Group, Menu, Stack, Text, Title } from '@mantine/core';
+import { ActionIcon, Avatar, Badge, Button, Card, Container, Group, Menu, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
@@ -229,9 +229,11 @@ export function PatientViewPage() {
                     <Group gap={2} wrap="nowrap">
                       <Menu position="bottom-end" withinPortal>
                         <Menu.Target>
-                          <ActionIcon variant="subtle" color="gray" size="sm">
-                            <IconPrinter size={14} />
-                          </ActionIcon>
+                          <Tooltip label="Напечатать документ">
+                            <ActionIcon variant="light" color="brand" size="md">
+                              <IconPrinter size={18} />
+                            </ActionIcon>
+                          </Tooltip>
                         </Menu.Target>
                         <Menu.Dropdown>
                           {templates.length === 0 ? (

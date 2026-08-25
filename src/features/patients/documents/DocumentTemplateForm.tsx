@@ -1,5 +1,5 @@
-import { Badge, Button, Card, Group, Stack, Text, TextInput, Typography } from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import { Badge, Button, Card, Group, Stack, Text, TextInput } from '@mantine/core';
+import { IconPrinter, IconTrash } from '@tabler/icons-react';
 import { Link } from '@tiptap/extension-link';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { Underline } from '@tiptap/extension-underline';
@@ -8,36 +8,10 @@ import { StarterKit } from '@tiptap/starter-kit';
 import { RichTextEditor } from '@mantine/tiptap';
 import { useState } from 'react';
 
-import { useAuth } from '../../auth/AuthContext';
-import { getClinicSettings } from '../clinicSettings';
-import type { Patient, PatientVisit } from '../types';
-import { PLACEHOLDERS, substitutePlaceholders } from './templateTypes';
-import type { DocumentTemplate, TemplateContext } from './templateTypes';
+import { PLACEHOLDERS, SAMPLE_PATIENT, SAMPLE_VISIT } from './templateTypes';
+import type { DocumentTemplate } from './templateTypes';
+import { TemplateDocument } from './TemplateDocument';
 import type { DocumentTemplateInput } from './useDocumentTemplates';
-
-const SAMPLE_PATIENT: Patient = {
-  id: 'sample',
-  fullName: 'Иванов Иван Иванович',
-  sex: 'male',
-  birthDate: '1985-06-15',
-  phone: '',
-  reminderDate: null,
-  reminderNote: '',
-  visits: [],
-  createdAt: '',
-  updatedAt: '',
-};
-
-const SAMPLE_VISIT: PatientVisit = {
-  id: 'sample',
-  date: new Date().toISOString().slice(0, 10),
-  diagnosis: 'Острый бронхит',
-  diagnosisCode: 'J20',
-  note: '',
-  referralCategory: 'consultation',
-  referralDestination: 'Пульмонолог',
-  createdAt: '',
-};
 
 interface DocumentTemplateFormProps {
   initialTemplate?: DocumentTemplate;
@@ -47,7 +21,6 @@ interface DocumentTemplateFormProps {
 }
 
 export function DocumentTemplateForm({ initialTemplate, onSubmit, onCancel, onDelete }: DocumentTemplateFormProps) {
-  const user = useAuth();
   const [title, setTitle] = useState(initialTemplate?.title ?? '');
 
   const editor = useEditor({
@@ -62,13 +35,15 @@ export function DocumentTemplateForm({ initialTemplate, onSubmit, onCancel, onDe
     onSubmit({ title: title.trim(), bodyHtml: editor?.getHTML() ?? '' });
   };
 
-  const previewContext: TemplateContext = {
-    patient: SAMPLE_PATIENT,
-    visit: SAMPLE_VISIT,
-    doctorName: user.name,
-    clinicSettings: getClinicSettings(),
+  const previewTemplate: DocumentTemplate = {
+    id: 'preview',
+    title,
+    kind: 'flow',
+    bodyHtml: editor?.getHTML() ?? '',
+    layout: null,
+    createdAt: '',
+    updatedAt: '',
   };
-  const previewHtml = substitutePlaceholders(editor?.getHTML() ?? '', previewContext);
 
   return (
     <Stack gap="lg">
@@ -153,12 +128,17 @@ export function DocumentTemplateForm({ initialTemplate, onSubmit, onCancel, onDe
       </Stack>
 
       <Card withBorder padding="lg">
-        <Badge variant="light" color="gray" mb="xs">
-          Предпросмотр (на примере пациента)
-        </Badge>
-        <Typography>
-          <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
-        </Typography>
+        <Group justify="space-between" mb="xs" className="no-print">
+          <Badge variant="light" color="gray">
+            Предпросмотр (на примере пациента)
+          </Badge>
+          <Button size="xs" variant="light" leftSection={<IconPrinter size={14} />} onClick={() => window.print()}>
+            Печать
+          </Button>
+        </Group>
+        <div className="printable-document">
+          <TemplateDocument template={previewTemplate} patient={SAMPLE_PATIENT} visit={SAMPLE_VISIT} />
+        </div>
       </Card>
 
       <Group justify="space-between" mt="sm">
