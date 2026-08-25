@@ -9,13 +9,28 @@ import type { PatientSex } from '../types';
  * leaving them behind, which is what the review screen shows the doctor before anything is saved.
  */
 
-export type PatientField = 'fullName' | 'lastName' | 'firstName' | 'middleName' | 'sex' | 'birthDate' | 'phone';
+export type PatientField =
+  | 'fullName'
+  | 'lastName'
+  | 'firstName'
+  | 'middleName'
+  | 'sex'
+  | 'birthDate'
+  | 'phone'
+  | 'diagnosis'
+  | 'diagnosisCode'
+  | 'registeredDate';
 
 export interface DraftPatient {
   fullName: string;
   sex: PatientSex | null;
   birthDate: string | null;
   phone: string;
+  /** Present only when the file names a diagnosis; a single one for everybody is applied later. */
+  diagnosis: string;
+  diagnosisCode: string;
+  /** The date the patient went on the register, when the file carries one. */
+  registeredDate: string | null;
   /** 1-based row in the file, so a rejected row can be found in the original. */
   sourceRow: number;
 }
@@ -32,6 +47,9 @@ const HEADINGS: Array<{ field: PatientField; prefixes: string[] }> = [
   { field: 'sex', prefixes: ['пол', 'sex', 'gender'] },
   { field: 'birthDate', prefixes: ['дата рожд', 'др', 'д р', 'дата рождения', 'birth', 'дата рожден'] },
   { field: 'phone', prefixes: ['телефон', 'тел', 'моб', 'контакт', 'номер тел', 'phone'] },
+  { field: 'diagnosis', prefixes: ['диагноз', 'заболевание', 'нозология', 'основной диагноз'] },
+  { field: 'diagnosisCode', prefixes: ['код мкб', 'мкб', 'мкб 10', 'код диагноза', 'шифр'] },
+  { field: 'registeredDate', prefixes: ['дата постановки', 'постановка на учет', 'взят на учет', 'дата взятия', 'на учете с', 'дата учета'] },
 ];
 
 function normalizeHeading(cell: Cell): string {
@@ -130,7 +148,21 @@ function isoFromUtcDate(date: Date): string | null {
   return isoFromParts(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
 }
 
-export function parseBirthDate(cell: Cell): string | null {
+/**
+ * How to read a two-digit year, which depends entirely on what the column means.
+ *
+ * `birth`: nobody in the file was born in the future, so `60` is 1960 and `05` is 2005.
+ * `past`: a date that has already happened but is usually recent — a registration date of `24` is
+ * 2024, while `98` is 1998. Sharing one rule would date this year's registrations to 1924.
+ */
+type YearWindow = 'birth' | 'past';
+
+function expandTwoDigitYear(value: number, window: YearWindow): number {
+  if (window === 'birth') return value > 30 ? 1900 + value : 2000 + value;
+  return 2000 + value <= new Date().getFullYear() ? 2000 + value : 1900 + value;
+}
+
+export function parseDateCell(cell: Cell, window: YearWindow = 'birth'): string | null {
   if (cell === null || cell === undefined || cell === '') return null;
   if (cell instanceof Date) return isoFromUtcDate(cell);
   // A date-formatted cell read as a plain number is a serial count of days from the Excel epoch.
@@ -142,9 +174,7 @@ export function parseBirthDate(cell: Cell): string | null {
   const dmy = text.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$/);
   if (dmy) {
     const [, d, m, y] = dmy;
-    // Two-digit years in a patient register are birth years, so the window ends at the present
-    // rather than straddling it: `60` is 1960, and nobody in the file was born in 2060.
-    const year = y.length === 2 ? (Number(y) > 30 ? 1900 + Number(y) : 2000 + Number(y)) : Number(y);
+    const year = y.length === 2 ? expandTwoDigitYear(Number(y), window) : Number(y);
     return isoFromParts(year, Number(m), Number(d));
   }
   const ymd = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
@@ -192,8 +222,11 @@ export function mapRows(rows: Cell[][], header: HeaderMatch): MappedRows {
     patients.push({
       fullName,
       sex: parseSex(row[columns.sex ?? -1] ?? null),
-      birthDate: parseBirthDate(row[columns.birthDate ?? -1] ?? null),
+      birthDate: parseDateCell(row[columns.birthDate ?? -1] ?? null),
       phone: cellText(row, columns.phone),
+      diagnosis: cellText(row, columns.diagnosis),
+      diagnosisCode: cellText(row, columns.diagnosisCode),
+      registeredDate: parseDateCell(row[columns.registeredDate ?? -1] ?? null, 'past'),
       sourceRow: i + 1,
     });
   }

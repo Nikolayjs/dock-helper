@@ -13,10 +13,17 @@ const repo = createHttpRepository<Patient, PatientInput>('/patients');
 export interface ImportResult {
   created: number;
   skipped: string[];
+  dispensaryCreated: number;
+  dispensarySkipped: number;
+}
+
+/** A patient row may also open a dispensary card, in the same request. */
+export interface ImportPatientRow extends PatientInput {
+  dispensary?: { diagnosis: string; diagnosisCode?: string; registeredDate: string };
 }
 
 /** One request for the whole list: the global throttle is 20/min, and a register is longer than that. */
-function importPatients(patients: PatientInput[]): Promise<ImportResult> {
+function importPatients(patients: ImportPatientRow[]): Promise<ImportResult> {
   return request<ImportResult>('/patients/import', { method: 'POST', body: JSON.stringify({ patients }) });
 }
 
@@ -69,7 +76,7 @@ export function usePatients() {
   });
 
   const importPatientsMutation = useMutation({
-    mutationFn: (input: PatientInput[]) => importPatients(input),
+    mutationFn: (input: ImportPatientRow[]) => importPatients(input),
     onSuccess: invalidate,
   });
 

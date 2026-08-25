@@ -3,6 +3,7 @@ import {
   Alert,
   Badge,
   Button,
+  Card,
   FileButton,
   Group,
   Loader,
@@ -10,13 +11,17 @@ import {
   ScrollArea,
   Select,
   Stack,
+  Switch,
   Table,
   Text,
+  TextInput,
 } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
+import dayjs from 'dayjs';
 import { IconAlertTriangle, IconFileUpload, IconInfoCircle } from '@tabler/icons-react';
 
 import { HttpRepositoryError } from '../../../lib/httpRepository';
-import type { ImportResult, PatientInput } from '../usePatients';
+import type { ImportPatientRow, ImportResult } from '../usePatients';
 import { findHeader, mapRows, type HeaderMatch, type MappedRows, type PatientField } from './mapColumns';
 import { TableFileError, readTableFile, type Cell } from './readTable';
 
@@ -32,7 +37,7 @@ import { TableFileError, readTableFile, type Cell } from './readTable';
 interface PatientImportModalProps {
   opened: boolean;
   onClose: () => void;
-  onImport: (patients: PatientInput[]) => Promise<ImportResult>;
+  onImport: (patients: ImportPatientRow[]) => Promise<ImportResult>;
 }
 
 type Stage =
@@ -50,6 +55,9 @@ const FIELD_LABELS: Array<{ field: PatientField; label: string }> = [
   { field: 'sex', label: 'Пол' },
   { field: 'birthDate', label: 'Дата рождения' },
   { field: 'phone', label: 'Телефон' },
+  { field: 'diagnosis', label: 'Диагноз' },
+  { field: 'diagnosisCode', label: 'Код МКБ' },
+  { field: 'registeredDate', label: 'Дата постановки на учёт' },
 ];
 
 const PREVIEW_ROWS = 8;
@@ -57,6 +65,11 @@ const PREVIEW_ROWS = 8;
 export function PatientImportModal({ opened, onClose, onImport }: PatientImportModalProps) {
   const [stage, setStage] = useState<Stage>({ kind: 'idle' });
   const [importing, setImporting] = useState(false);
+  // Applied to everyone when the file names no diagnosis or no registration date of its own.
+  const [onRegister, setOnRegister] = useState(false);
+  const [fallbackDiagnosis, setFallbackDiagnosis] = useState('');
+  const [fallbackCode, setFallbackCode] = useState('');
+  const [fallbackDate, setFallbackDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
 
   const reset = () => setStage({ kind: 'idle' });
   const close = () => {
@@ -77,7 +90,10 @@ export function PatientImportModal({ opened, onClose, onImport }: PatientImportM
         });
         return;
       }
-      setStage({ kind: 'review', rows, header, mapped: mapRows(rows, header) });
+      const mapped = mapRows(rows, header);
+      // A file with a diagnosis column is a dispensary register; anything else has to be said out loud.
+      if (mapped.patients.some((p) => p.diagnosis)) setOnRegister(true);
+      setStage({ kind: 'review', rows, header, mapped });
     } catch (error) {
       // The underlying reason reaches the console: a spreadsheet that will not open is the sort of
       // thing a doctor reports as "it just says it failed", and the real message is what identifies it.
@@ -102,14 +118,27 @@ export function PatientImportModal({ opened, onClose, onImport }: PatientImportM
     setImporting(true);
     try {
       const result = await onImport(
-        stage.mapped.patients.map((p) => ({
-          fullName: p.fullName,
-          sex: p.sex,
-          birthDate: p.birthDate,
-          phone: p.phone,
-          reminderDate: null,
-          reminderNote: '',
-        })),
+        stage.mapped.patients.map((p) => {
+          // The file's own diagnosis and date win; the fields below fill in only what it lacks, so a
+          // register carried over from earlier years keeps the dates the report is built from.
+          const diagnosis = p.diagnosis || fallbackDiagnosis.trim();
+          return {
+            fullName: p.fullName,
+            sex: p.sex,
+            birthDate: p.birthDate,
+            phone: p.phone,
+            reminderDate: null,
+            reminderNote: '',
+            dispensary:
+              onRegister && diagnosis
+                ? {
+                    diagnosis,
+                    diagnosisCode: p.diagnosisCode || fallbackCode.trim() || undefined,
+                    registeredDate: p.registeredDate ?? fallbackDate,
+                  }
+                : undefined,
+          };
+        }),
       );
       setStage({ kind: 'done', result, total: stage.mapped.patients.length });
     } catch (error) {
@@ -121,6 +150,9 @@ export function PatientImportModal({ opened, onClose, onImport }: PatientImportM
       setImporting(false);
     }
   };
+
+  const hasDiagnosisColumn = stage.kind === 'review' && stage.header.columns.diagnosis !== undefined;
+  const hasRegisteredColumn = stage.kind === 'review' && stage.header.columns.registeredDate !== undefined;
 
   const columnOptions =
     stage.kind === 'review'
@@ -204,6 +236,56 @@ export function PatientImportModal({ opened, onClose, onImport }: PatientImportM
             </Group>
           </div>
 
+          <Card withBorder padding="sm" radius="md">
+            <Switch
+              checked={onRegister}
+              onChange={(e) => setOnRegister(e.currentTarget.checked)}
+              label="Поставить всех на диспансерный учёт"
+              description="Каждому заводится карта учёта — они и попадут в статистику диспансеризации."
+            />
+            {onRegister && (
+              <Group gap="xs" wrap="wrap" mt="sm" align="flex-end">
+                {!hasDiagnosisColumn && (
+                  <>
+                    <TextInput
+                      size="xs"
+                      w={260}
+                      label="Диагноз для всех"
+                      description="В файле нет колонки с диагнозом"
+                      placeholder="Например: Артериальная гипертензия"
+                      value={fallbackDiagnosis}
+                      onChange={(e) => setFallbackDiagnosis(e.currentTarget.value)}
+                    />
+                    <TextInput
+                      size="xs"
+                      w={120}
+                      label="Код МКБ для всех"
+                      placeholder="I11"
+                      value={fallbackCode}
+                      onChange={(e) => setFallbackCode(e.currentTarget.value)}
+                    />
+                  </>
+                )}
+                {!hasRegisteredColumn && (
+                  <DatePickerInput
+                    size="xs"
+                    w={200}
+                    label="Дата постановки на учёт"
+                    description="Определяет графу отчёта"
+                    valueFormat="DD.MM.YYYY"
+                    value={fallbackDate}
+                    onChange={(value) => setFallbackDate(value ? dayjs(value).format('YYYY-MM-DD') : '')}
+                  />
+                )}
+                {hasDiagnosisColumn && hasRegisteredColumn && (
+                  <Text size="xs" c="dimmed">
+                    Диагноз и дата берутся из файла.
+                  </Text>
+                )}
+              </Group>
+            )}
+          </Card>
+
           {stage.mapped.patients.length === 0 ? (
             <Alert color="orange" icon={<IconInfoCircle size={18} />}>
               Ни одной строки с именем. Проверьте, та ли колонка выбрана как ФИО.
@@ -222,6 +304,8 @@ export function PatientImportModal({ opened, onClose, onImport }: PatientImportM
                       <Table.Th>Пол</Table.Th>
                       <Table.Th>Дата рождения</Table.Th>
                       <Table.Th>Телефон</Table.Th>
+                      {onRegister && <Table.Th>Диагноз</Table.Th>}
+                      {onRegister && <Table.Th>На учёте с</Table.Th>}
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -232,6 +316,12 @@ export function PatientImportModal({ opened, onClose, onImport }: PatientImportM
                         <Table.Td>{p.sex === 'male' ? 'М' : p.sex === 'female' ? 'Ж' : '—'}</Table.Td>
                         <Table.Td c={p.birthDate ? undefined : 'dimmed'}>{p.birthDate ?? '—'}</Table.Td>
                         <Table.Td c={p.phone ? undefined : 'dimmed'}>{p.phone || '—'}</Table.Td>
+                        {onRegister && (
+                          <Table.Td c={p.diagnosis || fallbackDiagnosis ? undefined : 'dimmed'}>
+                            {p.diagnosis || fallbackDiagnosis || 'не задан'}
+                          </Table.Td>
+                        )}
+                        {onRegister && <Table.Td>{p.registeredDate ?? fallbackDate}</Table.Td>}
                       </Table.Tr>
                     ))}
                   </Table.Tbody>
@@ -255,6 +345,8 @@ export function PatientImportModal({ opened, onClose, onImport }: PatientImportM
         <Stack gap="md">
           <Alert color="teal" icon={<IconInfoCircle size={18} />}>
             Добавлено пациентов: {stage.result.created} из {stage.total}.
+            {stage.result.dispensaryCreated > 0 && ` Заведено карт учёта: ${stage.result.dispensaryCreated}.`}
+            {stage.result.dispensarySkipped > 0 && ` Уже стояли на учёте: ${stage.result.dispensarySkipped}.`}
           </Alert>
           {stage.result.skipped.length > 0 && (
             <div>
