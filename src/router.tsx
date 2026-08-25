@@ -34,6 +34,9 @@ import { ArticleEditorPage } from './pages/ArticleEditorPage';
 import { AnalyzerPage } from './pages/AnalyzerPage';
 import { AnalyzerBuilderPage } from './pages/AnalyzerBuilderPage';
 import { InteractionsPage } from './pages/InteractionsPage';
+import { DrugsPage } from './pages/DrugsPage';
+import { DrugViewPage } from './pages/DrugViewPage';
+import { DrugEditorPage } from './pages/DrugEditorPage';
 import { PlannerPage } from './pages/PlannerPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { BookViewPage } from './pages/BookViewPage';
@@ -53,6 +56,10 @@ export function AppRouter() {
         <Route path="/analyzer/new" element={<AnalyzerBuilderPage />} />
         <Route path="/analyzer/:id/edit" element={<AnalyzerBuilderPage />} />
         <Route path="/interactions" element={<InteractionsPage />} />
+        <Route path="/drugs" element={<DrugsPage />} />
+        <Route path="/drugs/new" element={<DrugEditorPage />} />
+        <Route path="/drugs/:id" element={<DrugViewPage />} />
+        <Route path="/drugs/:id/edit" element={<DrugEditorPage />} />
         <Route path="/planner" element={<PlannerPage />} />
         <Route path="/doctor" element={<DoctorPage />} />
         <Route path="/calculators" element={<CalculatorsPage />} />

@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActionIcon,
   Alert,
+  Anchor,
+  Autocomplete,
   Badge,
   Button,
   Card,
@@ -12,16 +14,18 @@ import {
   Skeleton,
   Stack,
   Text,
-  TextInput,
   Textarea,
   TagsInput,
   ThemeIcon,
   Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconInfoCircle, IconPills, IconPlus, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowRight, IconInfoCircle, IconPill, IconPills, IconPlus, IconSettings, IconTrash } from '@tabler/icons-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
-import { checkInteractions, getKnownDrugNames } from '../features/interactions/interactionEngine';
+import { useDrugs } from '../features/drugs/useDrugs';
+import { buildDrugIndex, checkInteractions, getKnownDrugNames, resolveEnteredDrugs } from '../features/interactions/interactionEngine';
+import type { ResolvedDrug } from '../features/interactions/interactionEngine';
 import { SEVERITY_COLOR, SEVERITY_LABELS, SEVERITY_OPTIONS } from '../features/interactions/types';
 import type { InteractionSeverity } from '../features/interactions/types';
 import { useDrugInteractions, type DrugInteractionInput } from '../features/interactions/useDrugInteractions';
@@ -29,14 +33,30 @@ import { useDrugInteractions, type DrugInteractionInput } from '../features/inte
 const EMPTY_FORM: DrugInteractionInput = { drugA: '', drugB: '', severity: 'moderate', mechanism: '', recommendation: '' };
 
 export function InteractionsPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { interactions, isLoading, addInteraction, deleteInteraction } = useDrugInteractions();
-  const [drugs, setDrugs] = useState<string[]>([]);
+  const { drugs, isLoading: drugsLoading } = useDrugs();
+  const [entered, setEntered] = useState<string[]>([]);
   const [manageOpen, setManageOpen] = useState(false);
   const [form, setForm] = useState<DrugInteractionInput>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
 
-  const knownDrugNames = useMemo(() => getKnownDrugNames(interactions), [interactions]);
-  const matches = useMemo(() => checkInteractions(drugs, interactions), [drugs, interactions]);
+  // A drug card links here with its МНН prefilled, so the doctor lands on the check already holding
+  // the drug they were reading about and only has to add what else the patient takes.
+  const preset = searchParams.get('drugs');
+  useEffect(() => {
+    if (!preset) return;
+    const names = preset.split(',').map((name) => name.trim()).filter(Boolean);
+    setEntered((prev) => [...prev, ...names.filter((name) => !prev.includes(name))]);
+  }, [preset]);
+
+  const index = useMemo(() => buildDrugIndex(drugs), [drugs]);
+  const knownDrugNames = useMemo(() => getKnownDrugNames(drugs, interactions), [drugs, interactions]);
+  const resolved = useMemo(() => resolveEnteredDrugs(entered, index), [entered, index]);
+  const matches = useMemo(() => checkInteractions(entered, interactions, index), [entered, interactions, index]);
+
+  const innOptions = useMemo(() => drugs.map((drug) => drug.inn).sort((a, b) => a.localeCompare(b, 'ru')), [drugs]);
 
   const handleAddInteraction = async () => {
     if (!form.drugA.trim() || !form.drugB.trim() || !form.mechanism.trim() || !form.recommendation.trim()) return;
@@ -80,33 +100,49 @@ export function InteractionsPage() {
               </ThemeIcon>
               <Title order={4}>Препараты пациента</Title>
             </Group>
-            <Button variant="light" color="gray" size="xs" leftSection={<IconSettings size={14} />} onClick={() => setManageOpen(true)}>
-              Управление списком
-            </Button>
+            <Group gap="xs" wrap="wrap">
+              <Button
+                component={Link}
+                to="/drugs"
+                variant="light"
+                color="gray"
+                size="xs"
+                leftSection={<IconPill size={14} />}
+              >
+                Справочник препаратов
+              </Button>
+              <Button variant="light" color="gray" size="xs" leftSection={<IconSettings size={14} />} onClick={() => setManageOpen(true)}>
+                Управление списком
+              </Button>
+            </Group>
           </Group>
 
-          {isLoading ? (
+          {isLoading || drugsLoading ? (
             <Skeleton h={36} radius="md" />
           ) : (
-            <TagsInput
-              placeholder="Начните вводить название препарата…"
-              data={knownDrugNames}
-              value={drugs}
-              onChange={setDrugs}
-              clearable
-            />
+            <>
+              <TagsInput
+                placeholder="Название с упаковки или МНН — «Нурофен» тоже подойдёт…"
+                data={knownDrugNames}
+                value={entered}
+                onChange={setEntered}
+                clearable
+              />
+              <ResolutionLine resolved={resolved} />
+            </>
           )}
         </Card>
 
-        {drugs.length < 2 ? (
+        {entered.length < 2 ? (
           <Card withBorder padding="xl">
             <Stack align="center" gap="sm" py="lg">
               <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                 <IconPills size={24} />
               </ThemeIcon>
               <Text fw={600}>Добавьте минимум два препарата</Text>
-              <Text size="sm" c="dimmed" ta="center" maw={420}>
-                Взаимодействия проверяются попарно между всеми препаратами в списке выше.
+              <Text size="sm" c="dimmed" ta="center" maw={460}>
+                Взаимодействия проверяются попарно между всеми препаратами в списке выше. Можно вводить торговые
+                названия — они распознаются по справочнику препаратов.
               </Text>
             </Stack>
           </Card>
@@ -117,7 +153,7 @@ export function InteractionsPage() {
           </Alert>
         ) : (
           <Stack gap="sm">
-            {matches.map(({ interaction, drugA, drugB }) => (
+            {matches.map(({ interaction, a, b }) => (
               <Alert
                 key={interaction.id}
                 variant="light"
@@ -126,7 +162,7 @@ export function InteractionsPage() {
                 title={
                   <Group gap={8} wrap="wrap">
                     <Text fw={600} span>
-                      {drugA} + {drugB}
+                      {pairTitle(a, b)}
                     </Text>
                     <Badge size="sm" color={SEVERITY_COLOR[interaction.severity]} variant="filled">
                       {SEVERITY_LABELS[interaction.severity]}
@@ -139,6 +175,21 @@ export function InteractionsPage() {
                   <Text size="sm" fw={500}>
                     Рекомендация: {interaction.recommendation}
                   </Text>
+                  <Group gap="xs" mt={4}>
+                    {[a, b].map((side) =>
+                      side.drug ? (
+                        <Button
+                          key={side.inn}
+                          size="compact-xs"
+                          variant="subtle"
+                          rightSection={<IconArrowRight size={12} />}
+                          onClick={() => navigate(`/drugs/${side.drug!.id}`)}
+                        >
+                          {side.drug.inn}
+                        </Button>
+                      ) : null,
+                    )}
+                  </Group>
                 </Stack>
               </Alert>
             ))}
@@ -181,25 +232,24 @@ export function InteractionsPage() {
             <Text size="sm" fw={500}>
               Добавить взаимодействие
             </Text>
+            <Text size="xs" c="dimmed">
+              Указывайте МНН, а не торговое название: тогда правило сработает на любую упаковку из справочника.
+            </Text>
             <Group grow>
-              <TextInput
+              <Autocomplete
                 label="Препарат А"
                 placeholder="Например: Варфарин"
+                data={innOptions}
                 value={form.drugA}
-                onChange={(e) => {
-                  const value = e.currentTarget.value;
-                  setForm((prev) => ({ ...prev, drugA: value }));
-                }}
+                onChange={(value) => setForm((prev) => ({ ...prev, drugA: value }))}
                 disabled={isSaving}
               />
-              <TextInput
+              <Autocomplete
                 label="Препарат Б"
                 placeholder="Например: Ибупрофен"
+                data={innOptions}
                 value={form.drugB}
-                onChange={(e) => {
-                  const value = e.currentTarget.value;
-                  setForm((prev) => ({ ...prev, drugB: value }));
-                }}
+                onChange={(value) => setForm((prev) => ({ ...prev, drugB: value }))}
                 disabled={isSaving}
               />
             </Group>
@@ -249,5 +299,51 @@ export function InteractionsPage() {
         </Stack>
       </Modal>
     </Container>
+  );
+}
+
+/** «Нурофен (Ибупрофен) + Варфарин» — echo back what was typed, name what it was understood as. */
+function pairTitle(a: ResolvedDrug, b: ResolvedDrug): string {
+  return `${sideLabel(a)} + ${sideLabel(b)}`;
+}
+
+function sideLabel(side: ResolvedDrug): string {
+  if (side.viaBrandName && side.drug) return `${side.entered} (${side.drug.inn})`;
+  return side.drug?.inn ?? side.entered;
+}
+
+/**
+ * What the check actually understood.
+ *
+ * Silently resolving «Нурофен» to ибупрофен is the right behaviour but the wrong thing to hide: the
+ * doctor has to be able to see that the substitution happened, and — more importantly — that a drug
+ * they entered is *not* in the directory, so a missing warning has a visible reason.
+ */
+function ResolutionLine({ resolved }: { resolved: ResolvedDrug[] }) {
+  if (resolved.length === 0) return null;
+
+  const renamed = resolved.filter((item) => item.viaBrandName && item.drug);
+  const unknown = resolved.filter((item) => !item.drug);
+
+  if (renamed.length === 0 && unknown.length === 0) return null;
+
+  return (
+    <Stack gap={4} mt="sm">
+      {renamed.map((item) => (
+        <Text key={item.entered} size="xs" c="dimmed">
+          {item.entered} → <b>{item.drug!.inn}</b>
+          {item.drug!.pharmGroup ? `, ${item.drug!.pharmGroup}` : ''}
+        </Text>
+      ))}
+      {unknown.length > 0 && (
+        <Text size="xs" c="dimmed">
+          Нет в справочнике: {unknown.map((item) => item.entered).join(', ')}. Проверка ищет это название как есть —{' '}
+          <Anchor component={Link} to="/drugs/new" size="xs">
+            добавьте препарат
+          </Anchor>
+          , чтобы связать его с торговыми названиями.
+        </Text>
+      )}
+    </Stack>
   );
 }

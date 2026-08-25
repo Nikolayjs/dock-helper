@@ -33,6 +33,7 @@ import {
   IconMicroscope,
   IconNews,
   IconNotes,
+  IconPill,
   IconPills,
   IconUsers,
   IconZoomQuestion,
@@ -55,6 +56,7 @@ const mainNav: NavItemData[] = [
   { label: "Дашборд", path: "/dashboard", icon: IconLayoutDashboard },
   { label: "Анализы", path: "/analyzer", icon: IconMicroscope },
   { label: "Калькуляторы", path: "/calculators", icon: IconCalculator },
+  { label: "Лекарственные препараты", path: "/drugs", icon: IconPill },
   { label: "Взаимодействия", path: "/interactions", icon: IconPills },
   { label: "Планер", path: "/planner", icon: IconLayoutKanban },
   { label: "Заметки", path: "/notes", icon: IconNotes },
@@ -92,6 +94,7 @@ const soonNav: NavItemData[] = [
  * exclude "/patients/documents", which is its own sidebar entry. */
 const STARTS_WITH_NAV_PATHS = new Set([
   "/calculators",
+  "/drugs",
   "/notes",
   "/diagnostics",
   "/library",
