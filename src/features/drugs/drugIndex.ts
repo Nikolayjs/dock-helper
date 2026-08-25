@@ -81,7 +81,7 @@ export function drugNameOptions(drugs: Drug[]): string[] {
   return [...names].sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
-/** Distinct pharmacological groups, for the directory's group filter. */
+/** Distinct pharmacological groups — used to autocomplete the field in the editor, not to filter. */
 export function drugGroups(drugs: Drug[]): string[] {
   const groups = new Set<string>();
   for (const drug of drugs) {
@@ -91,10 +91,20 @@ export function drugGroups(drugs: Drug[]): string[] {
   return [...groups].sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
+/** Categories actually present, with how many drugs each holds — the directory's filter. */
+export function drugCategoryCounts(drugs: Drug[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const drug of drugs) {
+    const category = drug.category.trim() || 'Без раздела';
+    counts.set(category, (counts.get(category) ?? 0) + 1);
+  }
+  return counts;
+}
+
 /** Matches a drug against a free-text query across МНН, trade names, group and ATC code. */
 export function drugMatchesQuery(drug: Drug, query: string): boolean {
   const q = normalizeDrugName(query);
   if (!q) return true;
-  const haystack = [drug.inn, ...drug.brandNames, drug.pharmGroup, drug.atcCode].map(normalizeDrugName);
+  const haystack = [drug.inn, ...drug.brandNames, drug.pharmGroup, drug.category, drug.atcCode].map(normalizeDrugName);
   return haystack.some((value) => value.includes(q));
 }

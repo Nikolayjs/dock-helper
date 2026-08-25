@@ -4,21 +4,21 @@ import { IconInfoCircle, IconPill, IconPlus, IconSearch, IconX } from '@tabler/i
 import { useNavigate } from 'react-router-dom';
 
 import { DrugCard } from '../features/drugs/DrugCard';
-import { buildDrugIndex, drugGroups, drugMatchesQuery, normalizeDrugName, resolveDrug } from '../features/drugs/drugIndex';
+import { buildDrugIndex, drugCategoryCounts, drugMatchesQuery, normalizeDrugName, resolveDrug } from '../features/drugs/drugIndex';
 import { useDrugs } from '../features/drugs/useDrugs';
 import { useDrugInteractions } from '../features/interactions/useDrugInteractions';
 
-const ALL_GROUPS = '__all__';
+const ALL_CATEGORIES = '__all__';
 
 export function DrugsPage() {
   const navigate = useNavigate();
   const { drugs, isLoading } = useDrugs();
   const { interactions } = useDrugInteractions();
   const [search, setSearch] = useState('');
-  const [group, setGroup] = useState<string>(ALL_GROUPS);
+  const [category, setCategory] = useState<string>(ALL_CATEGORIES);
 
   const index = useMemo(() => buildDrugIndex(drugs), [drugs]);
-  const groups = useMemo(() => drugGroups(drugs), [drugs]);
+  const categories = useMemo(() => drugCategoryCounts(drugs), [drugs]);
 
   /** How many rules mention each МНН — the badge that tells a doctor which drugs need care. */
   const interactionCounts = useMemo(() => {
@@ -32,11 +32,16 @@ export function DrugsPage() {
   }, [interactions, index]);
 
   const filtered = useMemo(
-    () => drugs.filter((drug) => (group === ALL_GROUPS || drug.pharmGroup === group) && drugMatchesQuery(drug, search)),
-    [drugs, search, group],
+    () =>
+      drugs.filter(
+        (drug) =>
+          (category === ALL_CATEGORIES || (drug.category.trim() || 'Без раздела') === category) &&
+          drugMatchesQuery(drug, search),
+      ),
+    [drugs, search, category],
   );
 
-  const isFiltering = search.trim() !== '' || group !== ALL_GROUPS;
+  const isFiltering = search.trim() !== '' || category !== ALL_CATEGORIES;
 
   return (
     <Container size="xl" px={0}>
@@ -61,12 +66,16 @@ export function DrugsPage() {
               w={280}
             />
             <Select
-              data={[{ value: ALL_GROUPS, label: 'Все группы' }, ...groups.map((g) => ({ value: g, label: g }))]}
-              value={group}
-              onChange={(value) => setGroup(value ?? ALL_GROUPS)}
+              data={[
+                { value: ALL_CATEGORIES, label: `Все разделы (${drugs.length})` },
+                ...[...categories.entries()]
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([name, count]) => ({ value: name, label: `${name} (${count})` })),
+              ]}
+              value={category}
+              onChange={(value) => setCategory(value ?? ALL_CATEGORIES)}
               allowDeselect={false}
-              searchable
-              w={260}
+              w={280}
             />
             <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/drugs/new')}>
               Добавить препарат
@@ -89,7 +98,7 @@ export function DrugsPage() {
               <Text fw={600}>{isFiltering ? 'Ничего не найдено' : 'Справочник пуст'}</Text>
               <Text size="sm" c="dimmed" ta="center" maw={420}>
                 {isFiltering
-                  ? 'Попробуйте изменить запрос или снять фильтр по группе.'
+                  ? 'Попробуйте изменить запрос или снять фильтр по разделу.'
                   : 'Добавьте препараты, которые назначаете чаще всего — вместе с торговыми названиями, под которыми их знают пациенты.'}
               </Text>
             </Stack>

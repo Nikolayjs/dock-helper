@@ -72,6 +72,11 @@ export function DrugViewPage() {
         <div>
           <Title order={2}>{drug.inn}</Title>
           <Group gap={6} mt={10} wrap="wrap">
+            {drug.category && (
+              <Badge variant="filled" color="brand" tt="none">
+                {drug.category}
+              </Badge>
+            )}
             {drug.pharmGroup && (
               <Badge variant="light" color="brand" tt="none">
                 {drug.pharmGroup}

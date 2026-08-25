@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Autocomplete, Button, Card, Container, Group, Stack, TagsInput, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Autocomplete, Button, Card, Container, Group, Select, Stack, TagsInput, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconDeviceFloppy } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { drugGroups, normalizeDrugName } from '../features/drugs/drugIndex';
-import { DRUG_TEXT_FIELDS, EMPTY_DRUG } from '../features/drugs/types';
+import { DRUG_CATEGORIES, DRUG_TEXT_FIELDS, EMPTY_DRUG } from '../features/drugs/types';
 import type { DrugInput } from '../features/drugs/types';
 import { useDrugs } from '../features/drugs/useDrugs';
 
@@ -104,6 +104,16 @@ export function DrugEditorPage() {
               placeholder="Нурофен, Миг, Ибуклин…"
               value={form.brandNames}
               onChange={(value) => setForm((prev) => ({ ...prev, brandNames: value }))}
+              clearable
+            />
+
+            <Select
+              label="Раздел справочника"
+              description="По нему препарат находится в списке — точную группу укажите ниже"
+              data={DRUG_CATEGORIES}
+              value={form.category || null}
+              onChange={(value) => setForm((prev) => ({ ...prev, category: value ?? '' }))}
+              searchable
               clearable
             />
 
