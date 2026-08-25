@@ -13,6 +13,12 @@ export interface DispensaryStats {
   campRest: number;
 }
 
+export interface DiagnosisStats extends DispensaryStats {
+  diagnosis: string;
+  /** Taken from the first record of the group that names one; registers fill it inconsistently. */
+  diagnosisCode?: string;
+}
+
 function inPeriod(date: string, periodStart: string, periodEnd: string): boolean {
   return date >= periodStart && date <= periodEnd;
 }
@@ -73,4 +79,40 @@ export function computeDispensaryStats(records: DispensaryRecord[], periodStart:
   }
 
   return stats;
+}
+
+/**
+ * The same report, split by disease.
+ *
+ * One aggregate row answers "how many"; a doctor planning next year's work needs "of what" — which
+ * diseases the caseload actually consists of. Grouping runs the existing calculation over each
+ * subset rather than reimplementing it, so a line can never disagree with the total beneath it.
+ *
+ * Diagnoses are grouped case-insensitively on trimmed text: the same disease is typed
+ * `Артериальная гипертензия` on one card and `артериальная  гипертензия` on the next, and two rows
+ * for one disease would misstate every line of the report.
+ */
+export function computeStatsByDiagnosis(
+  records: DispensaryRecord[],
+  periodStart: string,
+  periodEnd: string,
+): DiagnosisStats[] {
+  const groups = new Map<string, DispensaryRecord[]>();
+  for (const record of records) {
+    const key = record.diagnosis.trim().replace(/\s+/g, ' ').toLowerCase();
+    const group = groups.get(key);
+    if (group) group.push(record);
+    else groups.set(key, [record]);
+  }
+
+  return [...groups.values()]
+    .map((group) => ({
+      // The first spelling encountered is the label; they differ only in case and spacing.
+      diagnosis: group[0].diagnosis.trim().replace(/\s+/g, ' '),
+      diagnosisCode: group.find((r) => r.diagnosisCode)?.diagnosisCode,
+      ...computeDispensaryStats(group, periodStart, periodEnd),
+    }))
+    // Heaviest caseload first: that is the order the question "what do I mostly treat" is asked in.
+    .filter((row) => row.consists > 0 || row.consisted > 0 || row.taken > 0 || row.totalRemoved > 0)
+    .sort((a, b) => b.consists - a.consists || b.taken - a.taken || a.diagnosis.localeCompare(b.diagnosis));
 }

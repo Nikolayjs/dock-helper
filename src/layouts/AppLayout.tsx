@@ -92,6 +92,15 @@ const PAGE_META: PageMetaEntry[] = [
   { match: (p) => p === '/patients/documents/new', title: 'Новый документ' },
   { match: (p) => p.startsWith('/patients/documents/') && p.endsWith('/edit'), title: 'Редактирование документа' },
   { match: (p) => p.includes('/documents/'), title: 'Документ' },
+  // Ahead of the catch-all below, which otherwise titles every dispensary page "Пациент".
+  {
+    match: (p) => p === '/patients/dispensary/stats',
+    title: 'Диспансерное наблюдение',
+    subtitle: 'Отчёт по периоду и разбивка по диагнозам',
+  },
+  { match: (p) => p === '/patients/dispensary/new', title: 'Постановка на учёт' },
+  { match: (p) => p.startsWith('/patients/dispensary/') && p.endsWith('/edit'), title: 'Редактирование карты учёта' },
+  { match: (p) => p.startsWith('/patients/dispensary/'), title: 'Карта диспансерного учёта' },
   { match: (p) => p.startsWith('/patients/') && p.endsWith('/edit'), title: 'Редактирование пациента' },
   { match: (p) => p.startsWith('/patients/'), title: 'Пациент' },
   { match: (p) => p.startsWith('/schedule'), title: 'Расписание' },
