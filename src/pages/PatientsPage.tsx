@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Alert, Button, Card, Container, Group, SegmentedControl, SimpleGrid, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconChartBar, IconClipboardHeart, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
+import { IconChartBar, IconClipboardHeart, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { DispensaryCard } from '../features/patients/DispensaryCard';
+import { PatientImportModal } from '../features/patients/import/PatientImportModal';
 import { PatientCard } from '../features/patients/PatientCard';
 import type { DispensaryRecord } from '../features/patients/types';
 import type { Patient } from '../features/patients/types';
@@ -17,12 +18,13 @@ type PatientsTab = 'all' | 'dispensary';
 type DispensaryFilter = 'active' | 'all';
 
 export function PatientsPage() {
-  const { patients, deletePatient } = usePatients();
+  const { patients, deletePatient, importPatients } = usePatients();
   const { records, deleteRecord } = useDispensary();
   const navigate = useNavigate();
   const [tab, setTab] = useState<PatientsTab>('all');
   const [search, setSearch] = useState('');
   const [dispensaryFilter, setDispensaryFilter] = useState<DispensaryFilter>('active');
+  const [importOpen, setImportOpen] = useState(false);
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(() => localStorage.getItem(DISCLAIMER_KEY) === '1');
 
   const dismissDisclaimer = () => {
@@ -121,6 +123,13 @@ export function PatientsPage() {
                   onChange={(e) => setSearch(e.currentTarget.value)}
                   w={280}
                 />
+                <Button
+                  variant="light"
+                  leftSection={<IconFileUpload size={18} />}
+                  onClick={() => setImportOpen(true)}
+                >
+                  Загрузить базу
+                </Button>
                 <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/patients/new')}>
                   Добавить пациента
                 </Button>
@@ -205,6 +214,8 @@ export function PatientsPage() {
           </>
         )}
       </Stack>
+
+      <PatientImportModal opened={importOpen} onClose={() => setImportOpen(false)} onImport={importPatients} />
     </Container>
   );
 }

@@ -10,6 +10,16 @@ export type VisitInput = Pick<PatientVisit, 'date' | 'diagnosis' | 'diagnosisCod
 
 const repo = createHttpRepository<Patient, PatientInput>('/patients');
 
+export interface ImportResult {
+  created: number;
+  skipped: string[];
+}
+
+/** One request for the whole list: the global throttle is 20/min, and a register is longer than that. */
+function importPatients(patients: PatientInput[]): Promise<ImportResult> {
+  return request<ImportResult>('/patients/import', { method: 'POST', body: JSON.stringify({ patients }) });
+}
+
 function addVisit(patientId: string, input: VisitInput): Promise<PatientVisit> {
   return request<PatientVisit>(`/patients/${patientId}/visits`, { method: 'POST', body: JSON.stringify(input) });
 }
@@ -58,10 +68,16 @@ export function usePatients() {
     onSuccess: invalidate,
   });
 
+  const importPatientsMutation = useMutation({
+    mutationFn: (input: PatientInput[]) => importPatients(input),
+    onSuccess: invalidate,
+  });
+
   return {
     patients,
     isLoading,
     addPatient: addPatientMutation.mutateAsync,
+    importPatients: importPatientsMutation.mutateAsync,
     updatePatient: (id: string, input: PatientInput) => updatePatientMutation.mutateAsync({ id, input }),
     deletePatient: deletePatientMutation.mutateAsync,
     addVisit: (patientId: string, input: VisitInput) => addVisitMutation.mutateAsync({ patientId, input }),
