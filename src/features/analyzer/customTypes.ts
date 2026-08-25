@@ -36,6 +36,8 @@ export interface BackendLabParameterOption {
 export interface BackendLabParameter {
   key: string;
   label: string;
+  /** Alternative names for matching an uploaded lab file; not shown anywhere in the form. */
+  aliases?: string[];
   unit?: string;
   decimals?: number;
   step?: number;
@@ -106,6 +108,8 @@ export interface CustomAgeBand {
 export interface CustomLabParameter {
   key: string;
   label: string;
+  /** Alternative names for matching an uploaded lab file; not shown anywhere in the form. */
+  aliases?: string[];
   unit?: string;
   decimals?: number;
   step?: number;
@@ -190,6 +194,7 @@ export function toLabTestDefinition(test: BackendLabTest): LabTestDefinition {
     parameters: test.parameters.map((param): LabParameter => ({
       key: param.key,
       label: param.label,
+      aliases: param.aliases,
       unit: param.unit,
       decimals: param.decimals,
       step: param.step,
@@ -270,6 +275,7 @@ function hydrateParameter(param: BackendLabParameter): CustomLabParameter {
   const base = {
     key: param.key,
     label: param.label,
+    aliases: param.aliases,
     unit: param.unit,
     decimals: param.decimals,
     step: param.step,
@@ -310,6 +316,7 @@ function draftParameterToPayload(param: CustomLabParameter): BackendLabParameter
   const base = {
     key: param.key,
     label: param.label,
+    aliases: param.aliases,
     unit: param.unit,
     decimals: param.decimals,
     step: param.step,

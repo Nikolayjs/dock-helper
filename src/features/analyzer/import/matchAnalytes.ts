@@ -1,5 +1,6 @@
 import type { LabParameter, LabTestDefinition } from '../types';
 import type { ParsedAnalyte } from './parseLabValues';
+import { expandSynonyms } from './synonyms';
 
 /**
  * Pairs analytes read out of a file with the parameters of the analyzers already defined.
@@ -45,18 +46,35 @@ function normalize(text: string): string {
     .trim();
 }
 
-/** The name itself, the name without its bracketed abbreviation, and that abbreviation alone. */
+/** `Билирубин общий` and `Общий билирубин` are the same name in a different order. */
+function sortWords(text: string): string {
+  return text.split(' ').filter(Boolean).sort().join(' ');
+}
+
+/**
+ * The name itself, the name without its bracketed abbreviation, that abbreviation alone, each of
+ * those with its words sorted, and every known synonym of the lot.
+ */
 function variants(text: string): string[] {
-  const found = new Set<string>();
+  const seeds = new Set<string>();
   const whole = normalize(text);
-  if (whole) found.add(whole);
+  if (whole) seeds.add(whole);
 
   const withoutBrackets = normalize(text.replace(/[([{].*?[)\]}]/g, ' '));
-  if (withoutBrackets) found.add(withoutBrackets);
+  if (withoutBrackets) seeds.add(withoutBrackets);
 
   for (const match of text.matchAll(/[([{](.*?)[)\]}]/g)) {
     const inner = normalize(match[1]);
-    if (inner) found.add(inner);
+    if (inner) seeds.add(inner);
+  }
+
+  const found = new Set<string>();
+  for (const seed of seeds) {
+    for (const synonym of expandSynonyms(seed)) {
+      found.add(synonym);
+      found.add(sortWords(synonym));
+    }
+    found.add(sortWords(seed));
   }
   return [...found];
 }
@@ -125,7 +143,13 @@ function unitsConflict(analyte: ParsedAnalyte, param: LabParameter): boolean {
 function bestScore(analyte: ParsedAnalyte, param: LabParameter): number {
   if (unitsConflict(analyte, param)) return 0;
 
-  const paramVariants = [...variants(param.label), normalize(param.key)];
+  // A parameter's own aliases are the doctor's answer for names no shared list could know — a local
+  // laboratory's wording, or an analyte they added themselves.
+  const paramVariants = [
+    ...variants(param.label),
+    ...(param.aliases ?? []).flatMap(variants),
+    normalize(param.key),
+  ];
   const analyteVariants = variants(analyte.name);
 
   let best = 0;

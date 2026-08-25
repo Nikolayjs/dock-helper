@@ -90,6 +90,16 @@ export function ParameterEditorRow({ parameter, onChange, onRemove, keyError }: 
           />
         </Grid.Col>
 
+        <Grid.Col span={12}>
+          <TagsInput
+            label="Скрытые названия"
+            description="Как этот показатель называют в бланках лабораторий. Используются только при загрузке файла анализов и нигде не показываются."
+            placeholder="Например: АлАТ"
+            value={parameter.aliases ?? []}
+            onChange={(aliases) => onChange({ ...parameter, aliases })}
+          />
+        </Grid.Col>
+
         <Grid.Col span={{ base: 12, sm: 6 }}>
           <Select
             label="Тип показателя"

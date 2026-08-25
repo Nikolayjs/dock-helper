@@ -26,6 +26,8 @@ export interface LabParameterOption {
 export interface LabParameter {
   key: string;
   label: string;
+  /** Other names this analyte is printed under, used when matching an uploaded file. Never shown in the form. */
+  aliases?: string[];
   unit?: string;
   decimals?: number;
   step?: number;
