@@ -8,7 +8,7 @@ export interface BarItem {
 }
 
 /**
- * Caseload by disease, as a ranked bar list.
+ * A ranked list of named quantities, drawn as bars.
  *
  * One series, so one hue: identity is carried by the labels beside each bar, never by colour. That
  * is what lets this stay readable in both themes and under any colour vision — there is no pair of
@@ -19,7 +19,7 @@ export interface BarItem {
  * than under it, and the value has to stay legible when the bar is a sliver.
  */
 
-interface DispensaryDiagnosisChartProps {
+interface RankedBarListProps {
   items: BarItem[];
   /** Beyond this the tail becomes a single summary row: a chart of forty bars ranks nothing. */
   limit?: number;
@@ -34,12 +34,7 @@ const DEFAULT_LIMIT = 8;
 /** brand.6 — validated at >= 3:1 on both the light and the dark chart surface. */
 const BAR_COLOR = 'var(--mantine-color-brand-6)';
 
-export function DispensaryDiagnosisChart({
-  items,
-  limit = DEFAULT_LIMIT,
-  emptyMessage,
-  tailLabel,
-}: DispensaryDiagnosisChartProps) {
+export function RankedBarList({ items, limit = DEFAULT_LIMIT, emptyMessage, tailLabel }: RankedBarListProps) {
   const ranked = items.filter((item) => item.value > 0);
   if (ranked.length === 0) {
     return (

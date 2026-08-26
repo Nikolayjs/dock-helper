@@ -1,6 +1,7 @@
 import { Card, Group, Text, ThemeIcon } from '@mantine/core';
 import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import type { Icon } from '@tabler/icons-react';
+import { Link } from 'react-router-dom';
 
 interface StatCardProps {
   label: string;
@@ -9,15 +10,19 @@ interface StatCardProps {
   color?: string;
   delta?: number;
   deltaLabel?: string;
+  /** Turns the whole card into a link — use it whenever the number names a list worth opening. */
+  to?: string;
+  /** One muted line under the number: what it means, or what to do about it. */
+  hint?: string;
 }
 
-export function StatCard({ label, value, icon: Icon, color = 'brand', delta, deltaLabel }: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, color = 'brand', delta, deltaLabel, to, hint }: StatCardProps) {
   const positive = (delta ?? 0) >= 0;
 
-  return (
-    <Card withBorder padding="lg">
-      <Group justify="space-between" align="flex-start">
-        <div>
+  const body = (
+    <>
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
+        <div style={{ minWidth: 0 }}>
           <Text size="sm" c="dimmed" fw={500}>
             {label}
           </Text>
@@ -46,6 +51,27 @@ export function StatCard({ label, value, icon: Icon, color = 'brand', delta, del
           )}
         </Group>
       )}
+
+      {hint && (
+        <Text size="xs" c="dimmed" mt={delta === undefined ? 'sm' : 4} lineClamp={2}>
+          {hint}
+        </Text>
+      )}
+    </>
+  );
+
+  if (!to) {
+    return (
+      <Card withBorder padding="lg">
+        {body}
+      </Card>
+    );
+  }
+
+  return (
+    // `color: inherit` because Mantine would otherwise paint the whole card in link blue.
+    <Card withBorder padding="lg" component={Link} to={to} style={{ textDecoration: 'none', color: 'inherit' }}>
+      {body}
     </Card>
   );
 }

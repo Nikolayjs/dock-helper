@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import { Link } from 'react-router-dom';
 
 import { computeDispensaryStats, computeStatsByDiagnosis } from '../features/patients/dispensaryStats';
-import { DispensaryDiagnosisChart, type BarItem } from '../features/patients/DispensaryDiagnosisChart';
+import { RankedBarList, type BarItem } from '../components/common/RankedBarList';
 import { DispensaryDiagnosisTable } from '../features/patients/DispensaryDiagnosisTable';
 import { DispensaryPatientTable } from '../features/patients/DispensaryPatientTable';
 import { DispensaryStatsTable } from '../features/patients/DispensaryStatsTable';
@@ -233,7 +233,7 @@ export function DispensaryStatsPage() {
           <Text size="xs" c="dimmed" mb="md">
             На конец периода, от большего к меньшему
           </Text>
-          <DispensaryDiagnosisChart
+          <RankedBarList
             items={byDiagnosis.map((row) => ({ label: row.diagnosis, value: row.consists, code: row.diagnosisCode }))}
             emptyMessage="За выбранный период на учёте никто не состоит."
             tailLabel={(count) => `Остальные диагнозы (${count})`}
@@ -265,7 +265,7 @@ export function DispensaryStatsPage() {
               </Text>
               {/* Five named categories compared by size — one series, so identity rides on the
                   labels and no pair of hues has to be told apart. */}
-              <DispensaryDiagnosisChart items={outcomes} emptyMessage="" />
+              <RankedBarList items={outcomes} emptyMessage="" />
             </>
           )}
         </Card>

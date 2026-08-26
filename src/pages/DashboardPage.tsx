@@ -1,87 +1,91 @@
 import { useMemo, useState } from 'react';
-import { AreaChart, DonutChart } from '@mantine/charts';
 import {
-  Avatar,
-  Badge,
+  Alert,
   Button,
   Card,
   Container,
   Grid,
   Group,
-  SegmentedControl,
-  SimpleGrid,
   Stack,
-  Table,
   Text,
-  ThemeIcon,
   Title,
 } from '@mantine/core';
+import { IconEye, IconInfoCircle, IconLayoutGrid, IconRotate } from '@tabler/icons-react';
 import {
-  IconBellRinging,
-  IconCalendarStats,
-  IconChecklist,
-  IconClockExclamation,
-  IconUsers,
-} from '@tabler/icons-react';
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import dayjs from 'dayjs';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-import { StatCard } from '../components/common/StatCard';
+import { SortableWidget } from '../features/dashboard/SortableWidget';
+import { useDashboardLayout } from '../features/dashboard/useDashboardLayout';
+import type { DashboardContext } from '../features/dashboard/dashboardContext';
 import {
+  countUndated,
+  getAgeSexStructure,
+  getDispensaryQueue,
+  getLapsedPatients,
+  getMonthlyVisitCount,
+  getTopDiagnoses,
+  getVisitLoad,
+  type LoadPeriod,
+} from '../features/dashboard/practice';
+import {
+  getRecentPatients,
   getReferralBreakdown,
   getReferralEntries,
   getReferralPeriodRange,
-  getRecentPatients,
-  getReminderStatusBreakdown,
-  getTodayChecklist,
   getTodayNotes,
   getUpcomingReminders,
-  getWeeklyVisitFlow,
+  type ReferralPeriod,
 } from '../features/dashboard/selectors';
-import type { ReferralPeriod } from '../features/dashboard/selectors';
-import { NoteCard } from '../features/notes/NoteCard';
 import { QUERY_KEY as NOTES_KEY, useNotes } from '../features/notes/useNotes';
-import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from '../features/patients/referralUtils';
-import { calcAge, formatAge, getInitials } from '../features/patients/utils';
+import type { Note } from '../features/notes/types';
+import { useDispensary } from '../features/patients/useDispensary';
 import { usePatients } from '../features/patients/usePatients';
-import type { ReminderStatus } from '../features/patients/utils';
+import { usePlanner } from '../features/planner/usePlanner';
 import { getUpcomingReminders as getUpcomingCalendarReminders } from '../features/reminders/selectors';
 import { useReminders } from '../features/reminders/useReminders';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
-const REFERRAL_PERIOD_LABEL: Record<ReferralPeriod, string> = {
-  month: 'Месяц',
-  quarter: 'Квартал',
-  halfYear: 'Полугодие',
-  year: 'Год',
-};
-
-const REMINDER_COLOR: Record<ReminderStatus, string> = {
-  overdue: 'red',
-  today: 'orange',
-  upcoming: 'teal',
-};
-
-const REMINDER_LABEL: Record<'overdue' | 'today', string> = {
-  overdue: 'Просрочено',
-  today: 'Сегодня',
-};
+/** Через столько месяцев без визита пациент считается выпавшим из наблюдения. */
+const LAPSED_MONTHS = 12;
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const { patients } = usePatients();
+  const { records } = useDispensary();
   const { notes, deleteNote, toggleTodoItem } = useNotes();
-  const confirmDelete = useDeleteWithConfirm();
+  const { cards } = usePlanner();
   const { reminders } = useReminders();
+  const confirmDelete = useDeleteWithConfirm();
+
+  const [editing, setEditing] = useState(false);
+  const [loadPeriod, setLoadPeriod] = useState<LoadPeriod>('year');
   const [referralPeriod, setReferralPeriod] = useState<ReferralPeriod>('month');
 
-  const checklist = getTodayChecklist(notes);
-  const todayNotes = getTodayNotes(notes);
-  const recentPatients = getRecentPatients(patients, 4);
-  const upcomingReminders = getUpcomingReminders(patients, 6);
-  const upcomingCalendarReminders = getUpcomingCalendarReminders(reminders, 7);
-  const weeklyVisitFlow = getWeeklyVisitFlow(patients);
-  const reminderBreakdown = getReminderStatusBreakdown(patients);
+  const layout = useDashboardLayout();
+
+  const sensors = useSensors(
+    // The same 4px threshold the sidebar and the planner use, so a click stays a click.
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const queue = useMemo(() => getDispensaryQueue(records, patients), [records, patients]);
+  const monthlyVisits = useMemo(() => getMonthlyVisitCount(patients), [patients]);
+  const lapsed = useMemo(() => getLapsedPatients(patients, LAPSED_MONTHS), [patients]);
+  const visitLoad = useMemo(() => getVisitLoad(patients, loadPeriod), [patients, loadPeriod]);
+  const ageSex = useMemo(() => getAgeSexStructure(patients), [patients]);
+  const undatedCount = useMemo(() => countUndated(patients), [patients]);
+  const topDiagnoses = useMemo(() => getTopDiagnoses(patients), [patients]);
 
   const referralRange = useMemo(() => getReferralPeriodRange(referralPeriod), [referralPeriod]);
   const referralBreakdown = useMemo(
@@ -92,348 +96,156 @@ export function DashboardPage() {
     () => getReferralEntries(patients, referralRange.start, referralRange.end, 8),
     [patients, referralRange],
   );
-  const totalReferrals = referralBreakdown.reduce((sum, item) => sum + item.value, 0);
 
-  const todayCount = upcomingReminders.filter((r) => r.status === 'today').length;
-  const overdueCount = upcomingReminders.filter((r) => r.status === 'overdue').length;
-  const doneToday = checklist.filter((item) => item.done).length;
+  const dueCards = useMemo(() => {
+    const horizon = dayjs().add(7, 'day');
+    return cards
+      .filter((card) => card.dueDate && !dayjs(card.dueDate).isAfter(horizon, 'day'))
+      .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''));
+  }, [cards]);
+
+  const removeNote = (note: Note) =>
+    confirmDelete({
+      what: 'заметку',
+      name: note.title,
+      notice: 'Заметка удалена',
+      queryKey: NOTES_KEY,
+      id: note.id,
+      perform: () => deleteNote(note.id),
+    });
+
+  const ctx: DashboardContext = {
+    queue,
+    monthlyVisits,
+    lapsed,
+    lapsedMonths: LAPSED_MONTHS,
+    visitLoad,
+    loadPeriod,
+    setLoadPeriod,
+    ageSex,
+    undatedCount,
+    topDiagnoses,
+    referrals: {
+      period: referralPeriod,
+      setPeriod: setReferralPeriod,
+      range: referralRange,
+      breakdown: referralBreakdown,
+      entries: referralEntries,
+      total: referralBreakdown.reduce((sum, item) => sum + item.value, 0),
+    },
+    todayNotes: getTodayNotes(notes),
+    notesActions: {
+      open: (id) => navigate(`/notes/${id}`, { state: { from: '/dashboard' } }),
+      edit: (id) => navigate(`/notes/${id}/edit`, { state: { from: '/dashboard' } }),
+      remove: removeNote,
+      toggleItem: toggleTodoItem,
+    },
+    dueCards,
+    patientReminders: getUpcomingReminders(patients, 6),
+    calendarReminders: getUpcomingCalendarReminders(reminders, 7),
+    recentPatients: getRecentPatients(patients, 5),
+  };
+
+  // While arranging, an enabled-but-empty card still has to be visible — otherwise there is no way
+  // to put it where you want it. In normal use an empty card is simply not drawn.
+  const shown = editing ? layout.visible : layout.visible.filter((widget) => !widget.isEmpty?.(ctx));
+  const hiddenWidgets = layout.all.filter((widget) => layout.isHidden(widget.id));
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) layout.reorder(String(active.id), String(over.id));
+  };
 
   return (
     <Container size="xl" px={0}>
       <Stack gap="lg">
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
-          <StatCard label="Пациентов в базе" value={String(patients.length)} icon={IconUsers} color="brand" />
-          <StatCard label="Напоминаний сегодня" value={String(todayCount)} icon={IconCalendarStats} color="grape" />
-          <StatCard label="Просрочено напоминаний" value={String(overdueCount)} icon={IconClockExclamation} color="red" />
-          <StatCard label="Задач на сегодня" value={`${doneToday}/${checklist.length}`} icon={IconChecklist} color="mint" />
-        </SimpleGrid>
-
-        <Card withBorder padding="lg">
-          <Group justify="space-between" mb="md" wrap="wrap">
-            <div>
-              <Title order={4}>Направления</Title>
+        <Group justify="space-between" wrap="wrap" gap="sm">
+          <div>
+            {editing && (
               <Text size="sm" c="dimmed">
-                {dayjs(referralRange.start).format('D MMMM YYYY')} — {dayjs(referralRange.end).format('D MMMM YYYY')}
+                Перетаскивайте карточки за <IconLayoutGrid size={12} style={{ verticalAlign: 'middle' }} /> и скрывайте
+                ненужные — раскладка сохранится в этом браузере.
               </Text>
-            </div>
-            <SegmentedControl
-              value={referralPeriod}
-              onChange={(v) => setReferralPeriod(v as ReferralPeriod)}
-              data={(Object.keys(REFERRAL_PERIOD_LABEL) as ReferralPeriod[]).map((value) => ({ value, label: REFERRAL_PERIOD_LABEL[value] }))}
-            />
+            )}
+          </div>
+          <Group gap="xs">
+            {editing && layout.isCustomised && (
+              <Button variant="subtle" size="xs" leftSection={<IconRotate size={14} />} onClick={layout.reset}>
+                Вернуть по умолчанию
+              </Button>
+            )}
+            <Button
+              variant={editing ? 'filled' : 'default'}
+              size="xs"
+              leftSection={<IconLayoutGrid size={14} />}
+              onClick={() => setEditing((value) => !value)}
+            >
+              {editing ? 'Готово' : 'Настроить'}
+            </Button>
           </Group>
+        </Group>
 
-          {totalReferrals === 0 ? (
-            <Text size="sm" c="dimmed">
-              За выбранный период направлений не было. Добавьте направление в визите пациента.
+        {editing && hiddenWidgets.length > 0 && (
+          <Card withBorder padding="lg">
+            <Text fw={600} mb={2}>
+              Скрытые карточки
             </Text>
-          ) : (
-            <Grid gap="lg">
-              <Grid.Col span={{ base: 12, sm: 5 }}>
-                <Group justify="space-between" mb="xs">
-                  <Text size="sm" c="dimmed">
-                    Всего направлений
-                  </Text>
-                  <Badge variant="light" color="brand" size="lg">
-                    {totalReferrals}
-                  </Badge>
-                </Group>
-                <DonutChart data={referralBreakdown} h={180} withLabelsLine withLabels />
-                <Stack gap={6} mt="md">
-                  {referralBreakdown.map((item) => (
-                    <Group key={item.name} justify="space-between">
-                      <Group gap={8}>
-                        <div style={{ width: 8, height: 8, borderRadius: 999, background: `var(--mantine-color-${item.color.replace('.', '-')})` }} />
-                        <Text size="sm">{item.name}</Text>
-                      </Group>
-                      <Text size="sm" c="dimmed">
-                        {item.value}
-                      </Text>
-                    </Group>
-                  ))}
-                </Stack>
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, sm: 7 }}>
-                <Table verticalSpacing="sm" highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Пациент</Table.Th>
-                      <Table.Th>Направление</Table.Th>
-                      <Table.Th>Дата</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {referralEntries.map((entry) => (
-                      <Table.Tr key={entry.visitId}>
-                        <Table.Td>
-                          <Link to={`/patients/${entry.patientId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                            <Text size="sm" fw={500}>
-                              {entry.patientName}
-                            </Text>
-                          </Link>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge variant="light" color={REFERRAL_CATEGORY_COLORS[entry.category]} size="sm">
-                            {REFERRAL_CATEGORY_LABELS[entry.category]}
-                            {entry.destination ? ` · ${entry.destination}` : ''}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{dayjs(entry.date).format('D MMMM')}</Text>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </Grid.Col>
-            </Grid>
-          )}
-        </Card>
-
-        <Grid gap="lg">
-          <Grid.Col span={{ base: 12, lg: 8 }}>
-            <Stack gap="lg">
-              <Card withBorder padding="lg">
-                <Group justify="space-between" mb="md">
-                  <div>
-                    <Title order={4}>Поток пациентов</Title>
-                    <Text size="sm" c="dimmed">
-                      Визиты за последние 7 дней
+            <Text size="sm" c="dimmed" mb="md">
+              Нажмите, чтобы вернуть на дашборд
+            </Text>
+            <Group gap="sm">
+              {hiddenWidgets.map((widget) => (
+                <Button
+                  key={widget.id}
+                  variant="default"
+                  size="xs"
+                  leftSection={<IconEye size={14} />}
+                  onClick={() => layout.toggle(widget.id)}
+                >
+                  {widget.title}
+                  {widget.isEmpty?.(ctx) && (
+                    <Text span size="xs" c="dimmed">
+                      {' '}
+                      · пусто
                     </Text>
-                  </div>
-                </Group>
-                <AreaChart
-                  h={260}
-                  data={weeklyVisitFlow}
-                  dataKey="day"
-                  withGradient
-                  curveType="monotone"
-                  series={[{ name: 'visits', color: 'brand.6', label: 'Визиты' }]}
-                  withLegend={false}
-                  gridAxis="xy"
-                  tickLine="none"
-                />
-              </Card>
+                  )}
+                </Button>
+              ))}
+            </Group>
+          </Card>
+        )}
 
-              <Card withBorder padding="lg">
-                <Group justify="space-between" mb="md">
-                  <Title order={4}>Ближайшие напоминания</Title>
-                  <Badge variant="light" color="brand">
-                    {upcomingReminders.length}
-                  </Badge>
-                </Group>
-                {upcomingReminders.length === 0 ? (
-                  <Text size="sm" c="dimmed">
-                    Нет активных напоминаний о визитах. Добавьте напоминание в карточке пациента.
-                  </Text>
-                ) : (
-                  <Table verticalSpacing="sm" highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Пациент</Table.Th>
-                        <Table.Th>Комментарий</Table.Th>
-                        <Table.Th>Дата</Table.Th>
-                        <Table.Th>Статус</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {upcomingReminders.map(({ patient, status }) => {
-                        const age = calcAge(patient.birthDate);
-                        return (
-                          <Table.Tr key={patient.id}>
-                            <Table.Td>
-                              <Link to={`/patients/${patient.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                <Group gap={8} wrap="nowrap">
-                                  <Avatar size={28} radius="xl" color="brand">
-                                    {getInitials(patient.fullName)}
-                                  </Avatar>
-                                  <div>
-                                    <Text size="sm" fw={500}>
-                                      {patient.fullName}
-                                    </Text>
-                                    {age !== null && (
-                                      <Text size="xs" c="dimmed">
-                                        {formatAge(age)}
-                                      </Text>
-                                    )}
-                                  </div>
-                                </Group>
-                              </Link>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="sm" c={patient.reminderNote ? undefined : 'dimmed'}>
-                                {patient.reminderNote || 'Без комментария'}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="sm">{dayjs(patient.reminderDate).format('D MMMM')}</Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Badge variant="light" color={REMINDER_COLOR[status]} size="sm">
-                                {status === 'upcoming' ? dayjs(patient.reminderDate).format('D MMMM') : REMINDER_LABEL[status]}
-                              </Badge>
-                            </Table.Td>
-                          </Table.Tr>
-                        );
-                      })}
-                    </Table.Tbody>
-                  </Table>
-                )}
-              </Card>
-            </Stack>
-          </Grid.Col>
+        {shown.length === 0 ? (
+          <Alert variant="light" color="brand" icon={<IconInfoCircle size={18} />} title="Дашборд пуст">
+            {hiddenWidgets.length > 0
+              ? 'Все карточки скрыты. Нажмите «Настроить» и верните нужные.'
+              : 'Пока нечего показать: добавьте пациентов, визиты или карты диспансерного учёта.'}
+          </Alert>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={shown.map((widget) => widget.id)} strategy={rectSortingStrategy}>
+              <Grid gap="lg" align="stretch">
+                {shown.map((widget) => (
+                  <SortableWidget
+                    key={widget.id}
+                    widget={widget}
+                    ctx={ctx}
+                    editing={editing}
+                    onHide={() => layout.toggle(widget.id)}
+                  />
+                ))}
+              </Grid>
+            </SortableContext>
+          </DndContext>
+        )}
 
-          <Grid.Col span={{ base: 12, lg: 4 }}>
-            <Stack gap="lg">
-              <Card withBorder padding="lg">
-                <Title order={4} mb="md">
-                  Статус напоминаний
-                </Title>
-                {reminderBreakdown.length === 0 ? (
-                  <Text size="sm" c="dimmed">
-                    Пока нет напоминаний о визитах.
-                  </Text>
-                ) : (
-                  <>
-                    <DonutChart data={reminderBreakdown} h={200} withLabelsLine withLabels />
-                    <Stack gap={6} mt="md">
-                      {reminderBreakdown.map((item) => (
-                        <Group key={item.name} justify="space-between">
-                          <Group gap={8}>
-                            <div style={{ width: 8, height: 8, borderRadius: 999, background: `var(--mantine-color-${item.color.replace('.', '-')})` }} />
-                            <Text size="sm">{item.name}</Text>
-                          </Group>
-                          <Text size="sm" c="dimmed">
-                            {item.value}
-                          </Text>
-                        </Group>
-                      ))}
-                    </Stack>
-                  </>
-                )}
-              </Card>
-
-              <Card withBorder padding="lg">
-                <Group justify="space-between" mb="md">
-                  <Title order={4}>Напоминания на неделю</Title>
-                  <Button component={Link} to="/calendar" variant="subtle" size="xs">
-                    Добавить
-                  </Button>
-                </Group>
-                {upcomingCalendarReminders.length === 0 ? (
-                  <Text size="sm" c="dimmed">
-                    На ближайшую неделю напоминаний нет. Добавьте напоминание на вкладке «Напоминания» в календаре.
-                  </Text>
-                ) : (
-                  <Stack gap="sm">
-                    {upcomingCalendarReminders.map((reminder) => (
-                      <Group key={reminder.id} gap={8} wrap="nowrap" align="flex-start">
-                        <ThemeIcon variant="light" color="orange" size={28} radius="md">
-                          <IconBellRinging size={14} />
-                        </ThemeIcon>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <Text size="sm" fw={500} truncate>
-                            {reminder.title}
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            {dayjs(reminder.datetime).format('D MMMM, HH:mm')}
-                          </Text>
-                        </div>
-                      </Group>
-                    ))}
-                  </Stack>
-                )}
-              </Card>
-
-              <Card withBorder padding="lg">
-                <Group justify="space-between" mb="md">
-                  <Title order={4}>Заметки на сегодня</Title>
-                  <Button
-                    component={Link}
-                    to={`/notes/new?date=${dayjs().format('YYYY-MM-DD')}`}
-                    state={{ from: '/dashboard' }}
-                    variant="subtle"
-                    size="xs"
-                  >
-                    Добавить
-                  </Button>
-                </Group>
-                {todayNotes.length === 0 ? (
-                  <Text size="sm" c="dimmed">
-                    На сегодня нет закреплённых заметок. Создайте заметку или чек-лист и закрепите её за сегодняшней датой.
-                  </Text>
-                ) : (
-                  <Stack gap="sm">
-                    {todayNotes.map((note) => (
-                      <NoteCard
-                        key={note.id}
-                        note={note}
-                        onOpen={() => navigate(`/notes/${note.id}`, { state: { from: '/dashboard' } })}
-                        onEdit={() => navigate(`/notes/${note.id}/edit`, { state: { from: '/dashboard' } })}
-                        onDelete={() =>
-                          confirmDelete({
-                            what: 'заметку',
-                            name: note.title,
-                            notice: 'Заметка удалена',
-                            queryKey: NOTES_KEY,
-                            id: note.id,
-                            perform: () => deleteNote(note.id),
-                          })
-                        }
-                        onToggleItem={(itemId) => toggleTodoItem(note.id, itemId)}
-                      />
-                    ))}
-                  </Stack>
-                )}
-              </Card>
-
-              <Card withBorder padding="lg">
-                <Title order={4} mb="md">
-                  Последние пациенты
-                </Title>
-                {recentPatients.length === 0 ? (
-                  <Text size="sm" c="dimmed">
-                    Пока нет пациентов с визитами.
-                  </Text>
-                ) : (
-                  <Stack gap="md">
-                    {recentPatients.map((patient) => {
-                      const age = calcAge(patient.birthDate);
-                      const lastVisit = patient.visits[0];
-                      return (
-                        <Link
-                          key={patient.id}
-                          to={`/patients/${patient.id}`}
-                          style={{ textDecoration: 'none', color: 'inherit' }}
-                        >
-                          <Group justify="space-between" wrap="nowrap">
-                            <Group gap={8} wrap="nowrap">
-                              <Avatar size={32} radius="xl" color="brand">
-                                {getInitials(patient.fullName)}
-                              </Avatar>
-                              <div style={{ overflow: 'hidden' }}>
-                                <Text size="sm" fw={500} truncate>
-                                  {patient.fullName}
-                                  {age !== null ? `, ${age}` : ''}
-                                </Text>
-                                <Text size="xs" c="dimmed" truncate>
-                                  {lastVisit.diagnosis || 'Без диагноза'}
-                                </Text>
-                              </div>
-                            </Group>
-                            <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-                              {dayjs(lastVisit.date).format('D MMM')}
-                            </Text>
-                          </Group>
-                        </Link>
-                      );
-                    })}
-                  </Stack>
-                )}
-              </Card>
-            </Stack>
-          </Grid.Col>
-        </Grid>
+        {!editing && shown.length > 0 && layout.all.length > shown.length && (
+          <Title order={6} c="dimmed" fw={400} style={{ textAlign: 'center' }}>
+            <Text span size="xs" c="dimmed">
+              Показано {shown.length} из {layout.all.length} карточек · «Настроить», чтобы изменить
+            </Text>
+          </Title>
+        )}
       </Stack>
     </Container>
   );
