@@ -8,6 +8,7 @@
  * It is loaded with a dynamic import on purpose. It is the largest dependency in the bundle and is
  * needed only at the moment a Word file is actually opened, which for most sessions is never.
  */
+import { inlineImageSource } from './shrinkImage';
 import { assertReadableDocx } from './wordFormat';
 
 export interface DocxRead {
@@ -112,6 +113,11 @@ export async function readDocx(bytes: Uint8Array): Promise<DocxRead> {
   // A Uint8Array view may be a window onto a larger buffer; hand over exactly this document.
   const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 
+  const base64ToBytes = (base64: string): Uint8Array => {
+    const binary = atob(base64);
+    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  };
+
   const result = await convert(
     // mammoth ships two readers and picks one by the bundler's `browser` field: the browser one
     // takes `arrayBuffer`, the Node one takes `buffer`, and both then call the same unzip. Naming
@@ -130,6 +136,15 @@ export async function readDocx(bytes: Uint8Array): Promise<DocxRead> {
         'u => u',
         'strike => s',
       ],
+      /**
+       * Replaces mammoth's default handler, which inlines every picture at Word's own resolution.
+       * See shrinkImage.ts for why that resolution is the wrong one to carry around.
+       */
+      convertImage: mammoth.images.imgElement(async (image) => ({
+        src: await inlineImageSource(base64ToBytes(await image.readAsBase64String()), image.contentType),
+        // `altText` is on the object but missing from mammoth's typings.
+        alt: (image as { altText?: string }).altText ?? '',
+      })),
     },
   );
 

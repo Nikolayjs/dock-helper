@@ -5,6 +5,14 @@ import { unzipSync, strFromU8 } from 'fflate';
 import { readImageSize } from './imageSize';
 import { detectWordFormat } from './wordFormat';
 import { readDocx } from './readDocx';
+import {
+  MAX_IMAGE_WIDTH,
+  MAX_INLINE_BYTES,
+  pngHasAlpha,
+  shouldShrink,
+  shrinkImage,
+  targetWidth,
+} from './shrinkImage';
 import { docxFileName, escapeXml, htmlToDocxBytes } from './writeDocx';
 
 /** Smallest valid PNG: 1×1, transparent. Used wherever a test needs real image bytes. */
@@ -239,5 +247,40 @@ describe('import warnings', () => {
     const docx = htmlToDocxBytes({ title: 't', html: '<table><tr><td>a</td></tr></table>' });
     const back = await readDocx(docx);
     expect(back.warnings.filter((w) => w.includes('w:tblPrEx'))).toHaveLength(0);
+  });
+});
+
+describe('shrinkImage', () => {
+  it('leaves a small picture alone — a logo or a diagram is not worth re-encoding', () => {
+    expect(shouldShrink(50 * 1024)).toBe(false);
+    expect(shouldShrink(MAX_INLINE_BYTES)).toBe(false);
+    expect(shouldShrink(MAX_INLINE_BYTES + 1)).toBe(true);
+  });
+
+  it('never enlarges: a picture narrower than the cap keeps its width', () => {
+    expect(targetWidth(800)).toBe(800);
+    expect(targetWidth(4000)).toBe(MAX_IMAGE_WIDTH);
+  });
+
+  it('spots the PNG colour types that carry transparency', () => {
+    const png = (colourType: number) => {
+      const b = new Uint8Array(32);
+      b.set([0x89, 0x50, 0x4e, 0x47]);
+      b[25] = colourType;
+      return b;
+    };
+    expect(pngHasAlpha(png(6))).toBe(true); // truecolour + alpha
+    expect(pngHasAlpha(png(4))).toBe(true); // greyscale + alpha
+    expect(pngHasAlpha(png(2))).toBe(false); // truecolour
+    expect(pngHasAlpha(png(0))).toBe(false); // greyscale
+    // The 1×1 fixture really is RGBA — a transparent pixel has to be.
+    expect(pngHasAlpha(bytesFromBase64(PNG_1PX_BASE64))).toBe(true);
+  });
+
+  it('keeps the original when it cannot decode — a picture is never lost to this', async () => {
+    // jsdom has no canvas, which is exactly the "browser cannot do it" branch.
+    const big = new Uint8Array(MAX_INLINE_BYTES + 10);
+    big.set([0x89, 0x50, 0x4e, 0x47]);
+    expect(await shrinkImage(big, 'image/png')).toBeNull();
   });
 });
