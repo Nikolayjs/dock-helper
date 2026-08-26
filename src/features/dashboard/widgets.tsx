@@ -20,6 +20,7 @@ import { AttentionQueue } from './AttentionQueue';
 import { CardHeading } from './CardHeading';
 import { ContinueReading } from './ContinueReading';
 import { DashboardCalendar } from './DashboardCalendar';
+import { DashboardNews } from './DashboardNews';
 import { FrequentDocuments } from './FrequentDocuments';
 import { PatientStructure } from './PatientStructure';
 import { isStructureMode, type StructureMode } from './structureMode';
@@ -359,6 +360,25 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
           }
         />
         <ContinueReading reading={reading} />
+      </>
+    ),
+  },
+  {
+    id: 'news',
+    title: 'Новости медицины',
+    description: 'Самое свежее из подключённых лент, одним списком',
+    span: 4,
+    render: () => (
+      <>
+        <CardHeading
+          title="Новости медицины"
+          action={
+            <Button component={Link} to="/news" variant="subtle" size="xs">
+              Все новости
+            </Button>
+          }
+        />
+        <DashboardNews />
       </>
     ),
   },

@@ -46,9 +46,12 @@
  */
 .toolbar {
   position: sticky;
-  top: 0;
+  /* `top` проставляет компонент: это высота шапки приложения плюс просвет, а она живёт в TypeScript
+     (`layouts/shellMetrics.ts`) — с нулём панель прилипала под шапку и упиралась в неё вплотную. */
   z-index: 4;
-  padding: var(--mantine-spacing-xs) 0;
+  /* Панель вплотную к шапке, а отступ — внутри неё: со щелью между ними в неё просвечивало
+     проезжающее содержимое. */
+  padding: var(--mantine-spacing-sm) 0 var(--mantine-spacing-xs);
   background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8));
 }
 

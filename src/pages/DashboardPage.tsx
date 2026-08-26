@@ -60,6 +60,7 @@ import { usePlanner } from '../features/planner/usePlanner';
 import { getUpcomingReminders as getUpcomingCalendarReminders } from '../features/reminders/selectors';
 import { useReminders } from '../features/reminders/useReminders';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { HEADER_HEIGHT } from '../layouts/shellMetrics';
 
 /** Через столько месяцев без визита пациент считается выпавшим из наблюдения. */
 const LAPSED_MONTHS = 12;
@@ -193,13 +194,13 @@ export function DashboardPage() {
           wrap="wrap"
           gap="sm"
           className={editing ? `${gridClasses.toolbar} ${gridClasses.toolbarEditing}` : gridClasses.toolbar}
+          style={{ top: HEADER_HEIGHT }}
         >
-          <div>
+          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
             {editing && (
-              <Text size="sm" c="dimmed">
-                Перетаскивайте карточки за <IconLayoutGrid size={12} style={{ verticalAlign: 'middle' }} />, тяните
-                за правый край, чтобы менять ширину, и скрывайте ненужные. «Уплотнить» переставит карточки так, чтобы
-                ряды заполнялись целиком, не меняя ширин. Раскладка сохранится в этом браузере.
+              <Text size="sm" c="dimmed" lineClamp={2}>
+                Перетаскивайте за <IconLayoutGrid size={12} style={{ verticalAlign: 'middle' }} />, тяните за правый
+                край — это ширина. Раскладка сохранится в этом браузере.
               </Text>
             )}
           </div>
@@ -210,6 +211,7 @@ export function DashboardPage() {
                 size="xs"
                 leftSection={<IconLayoutDistributeHorizontal size={14} />}
                 onClick={layout.compact}
+                title="Переставит карточки и подгонит ширины так, чтобы ряды заполнялись целиком"
               >
                 Уплотнить
               </Button>
