@@ -12,12 +12,19 @@
  */
 import { zipSync, strToU8 } from 'fflate';
 
+import { columnLetter } from '../sheet/cellRef';
+import { evaluateCell, excelError, formatNumber, formulaForExcel, isError, isFormula } from '../sheet/formula';
+
 export interface XlsxInput {
   /** Имя листа; берётся из названия документа и приводится к тому, что разрешает Excel. */
   sheetName: string;
   columns: string[];
   rows: string[][];
+  /** Строка итогов, если врач её завёл: идёт последней и печатается полужирным, как заголовки. */
+  totals?: string[] | null;
 }
+
+export { columnLetter };
 
 const MAIN_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 const REL_BASE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -41,17 +48,6 @@ function escapeXml(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
-/** A, B, … Z, AA, AB — та же система, что в адресах ячеек Excel. */
-export function columnLetter(index: number): string {
-  let result = '';
-  let n = index;
-  while (n >= 0) {
-    result = String.fromCharCode(65 + (n % 26)) + result;
-    n = Math.floor(n / 26) - 1;
-  }
-  return result;
-}
-
 /**
  * Числом ячейка становится, только если это простое целое или десятичная дробь с точкой, не длиннее
  * девяти знаков в целой части и без ведущего нуля.
@@ -72,11 +68,34 @@ export function numericValue(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function cellXml(reference: string, value: string, header: boolean): string {
-  const style = header ? ' s="1"' : '';
+/**
+ * Формульная ячейка: в файл уходит **сама формула**, а рядом — вычисленное нами значение.
+ *
+ * Значение здесь не дубль, а обязательная часть: без него Excel показывает пустую ячейку до первого
+ * пересчёта, а просмотрщики, которые не считают вовсе (в том числе наш импортёр и предпросмотр
+ * почты), не показали бы ничего никогда. При открытии Excel пересчитает формулу и заменит наше
+ * значение своим — если они разойдутся, верным окажется его.
+ */
+function formulaCellXml(reference: string, raw: string, grid: string[][], row: number, col: number): string {
+  const formula = escapeXml(formulaForExcel(raw));
+  const value = evaluateCell(grid, row, col);
+
+  if (isError(value)) return `<c r="${reference}" t="e"><f>${formula}</f><v>${escapeXml(excelError(value.error))}</v></c>`;
+  if (typeof value === 'number') return `<c r="${reference}"><f>${formula}</f><v>${formatNumber(value)}</v></c>`;
+  if (typeof value === 'boolean') return `<c r="${reference}" t="b"><f>${formula}</f><v>${value ? 1 : 0}</v></c>`;
+  // t="str" — это формула, вернувшая текст; inlineStr для формульной ячейки недопустим.
+  return `<c r="${reference}" t="str"><f>${formula}</f><v>${escapeXml(value)}</v></c>`;
+}
+
+function cellXml(reference: string, value: string, bold: boolean, grid: string[][], row: number, col: number): string {
+  const style = bold ? ' s="1"' : '';
+  if (isFormula(value)) {
+    const cell = formulaCellXml(reference, value, grid, row, col);
+    return bold ? cell.replace(/^<c r="[^"]+"/, (head) => `${head} s="1"`) : cell;
+  }
   if (!value) return `<c r="${reference}"${style}/>`;
 
-  const number = header ? null : numericValue(value);
+  const number = bold ? null : numericValue(value);
   if (number !== null) return `<c r="${reference}"${style}><v>${number}</v></c>`;
 
   // xml:space="preserve" — иначе разборщик съест ведущие и хвостовые пробелы, а в ячейке
@@ -84,8 +103,10 @@ function cellXml(reference: string, value: string, header: boolean): string {
   return `<c r="${reference}"${style} t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
 }
 
-function rowXml(cells: string[], rowNumber: number, header: boolean): string {
-  const body = cells.map((value, index) => cellXml(`${columnLetter(index)}${rowNumber}`, value, header)).join('');
+function rowXml(cells: string[], rowNumber: number, bold: boolean, grid: string[][]): string {
+  const body = cells
+    .map((value, index) => cellXml(`${columnLetter(index)}${rowNumber}`, value, bold, grid, rowNumber, index))
+    .join('');
   return `<row r="${rowNumber}">${body}</row>`;
 }
 
@@ -93,22 +114,36 @@ function rowXml(cells: string[], rowNumber: number, header: boolean): string {
  * Ширина по самой длинной ячейке столбца, в разумных пределах: узкий столбец режет текст, широкий
  * выталкивает соседей за экран.
  */
-function columnWidths(input: XlsxInput): number[] {
+function columnWidths(input: XlsxInput, grid: string[][]): number[] {
   return input.columns.map((column, index) => {
-    const longest = input.rows.reduce((max, row) => Math.max(max, (row[index] ?? '').length), column.length);
+    // По вычисленным значениям: столбец из формул иначе мерился бы длиной их текста, а в файле
+    // видны будут числа.
+    let longest = column.length;
+    for (let row = 1; row < grid.length; row++) {
+      const raw = grid[row][index] ?? '';
+      longest = Math.max(longest, isFormula(raw) ? displayLength(grid, row + 1, index) : raw.length);
+    }
     return Math.min(60, Math.max(8, longest + 2));
   });
 }
 
+function displayLength(grid: string[][], row: number, col: number): number {
+  const value = evaluateCell(grid, row, col);
+  if (isError(value)) return value.error.length;
+  if (typeof value === 'number') return formatNumber(value).length;
+  return String(value).length;
+}
+
 function sheetXml(input: XlsxInput): string {
-  const widths = columnWidths(input);
+  const grid = gridOf(input);
+  const widths = columnWidths(input, grid);
   const cols = widths.length
     ? `<cols>${widths
         .map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`)
         .join('')}</cols>`
     : '';
 
-  const rows = [rowXml(input.columns, 1, true), ...input.rows.map((row, index) => rowXml(row, index + 2, false))].join('');
+  const rows = grid.map((cells, index) => rowXml(cells, index + 1, index === 0 || (!!input.totals && index === grid.length - 1), grid)).join('');
 
   // Заголовок закреплён: реестр на двести строк без этого листается вслепую.
   return (
@@ -122,6 +157,11 @@ function sheetXml(input: XlsxInput): string {
     `<sheetData>${rows}</sheetData>` +
     '</worksheet>'
   );
+}
+
+/** Лист целиком, в той же нумерации, что видят формулы: заголовки — строка 1. */
+function gridOf(input: XlsxInput): string[][] {
+  return input.totals ? [input.columns, ...input.rows, input.totals] : [input.columns, ...input.rows];
 }
 
 /**

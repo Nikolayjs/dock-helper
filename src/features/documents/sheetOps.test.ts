@@ -3,11 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   addColumn,
   addRow,
+  addTotalsRow,
+  buildGrid,
   isSheetEmpty,
   parseClipboardGrid,
   pasteInto,
   removeColumn,
   removeRow,
+  removeTotalsRow,
+  sortRows,
   setCell,
   setColumnName,
   trimTrailingRows,
@@ -139,5 +143,120 @@ describe('перед сохранением', () => {
     expect(isSheetEmpty({ columns: ['А', 'Б'], rows: [['', ''], ['  ', '']] })).toBe(true);
     expect(isSheetEmpty({ columns: ['А'], rows: [['раз']] })).toBe(false);
     expect(isSheetEmpty(null)).toBe(true);
+  });
+});
+
+// ─── Формулы, итоги и сортировка ─────────────────────────────────────────────
+
+const register = (): DocumentSheet => ({
+  columns: ['Пациент', 'Дней', 'Сумма'],
+  rows: [
+    ['Иванов', '14', '=B2*600'],
+    ['Петрова', '3', '=B3*600'],
+    ['Абрамов', '7', '=B4*600'],
+  ],
+});
+
+describe('строка итогов', () => {
+  it('суммирует только числовые столбцы и подписывает первый прочий', () => {
+    const totals = addTotalsRow(register()).totals!;
+    expect(totals).toEqual(['Итого', '=СУММ(B2:B4)', '=СУММ(C2:C4)']);
+  });
+
+  it('второй раз не заводится', () => {
+    const once = addTotalsRow(register());
+    expect(addTotalsRow(once)).toBe(once);
+  });
+
+  it('удаляется', () => {
+    expect(removeTotalsRow(addTotalsRow(register())).totals).toBeNull();
+  });
+
+  it('дотягивается до новой последней строки', () => {
+    // Иначе добавленная строка молча не попала бы в сумму — неверное число, которое ничем себя
+    // не выдаёт.
+    const grown = addRow(addTotalsRow(register()));
+    expect(grown.totals![1]).toBe('=СУММ(B2:B5)');
+  });
+
+  it('подтягивается и при удалении строки', () => {
+    const shrunk = removeRow(addTotalsRow(register()), 0);
+    expect(shrunk.totals![1]).toBe('=СУММ(B2:B3)');
+  });
+
+  it('не трогает диапазон, который врач сузил намеренно', () => {
+    const narrowed: DocumentSheet = { ...register(), totals: ['', '=СУММ(B2:B3)', ''] };
+    expect(addRow(narrowed).totals![1]).toBe('=СУММ(B2:B3)');
+  });
+
+  it('едет вместе со столбцами', () => {
+    const withColumn = addColumn(addTotalsRow(register()), 0);
+    expect(withColumn.totals).toHaveLength(4);
+    expect(withColumn.totals![1]).toBe('');
+    expect(removeColumn(withColumn, 0).totals).toHaveLength(3);
+  });
+});
+
+describe('сортировка', () => {
+  it('по числовому столбцу — по величине', () => {
+    const sorted = sortRows(register(), 1, 'asc');
+    expect(sorted.rows.map((row) => row[0])).toEqual(['Петрова', 'Абрамов', 'Иванов']);
+  });
+
+  it('по убыванию', () => {
+    expect(sortRows(register(), 1, 'desc').rows.map((row) => row[0])).toEqual(['Иванов', 'Абрамов', 'Петрова']);
+  });
+
+  it('по тексту — по алфавиту', () => {
+    expect(sortRows(register(), 0, 'asc').rows.map((row) => row[0])).toEqual(['Абрамов', 'Иванов', 'Петрова']);
+  });
+
+  it('формулы уезжают вместе со своей строкой', () => {
+    // Без сдвига формула считала бы по чужим данным и не сказала бы об этом.
+    const sorted = sortRows(register(), 1, 'asc');
+    expect(sorted.rows.map((row) => row[2])).toEqual(['=B2*600', '=B3*600', '=B4*600']);
+    expect(sorted.rows[0]).toEqual(['Петрова', '3', '=B2*600']);
+  });
+
+  it('сортирует по вычисленному значению, а не по тексту формулы', () => {
+    // Посимвольно все три ячейки столбца «Сумма» разные, но осмысленный порядок — по результату.
+    const sorted = sortRows(register(), 2, 'desc');
+    expect(sorted.rows.map((row) => row[1])).toEqual(['14', '7', '3']);
+  });
+
+  it('абсолютные ссылки при сортировке не двигаются', () => {
+    const withRate: DocumentSheet = {
+      columns: ['Пациент', 'Дней', 'Сумма'],
+      rows: [
+        ['Иванов', '14', '=B2*$B$1'],
+        ['Петрова', '3', '=B3*$B$1'],
+      ],
+    };
+    expect(sortRows(withRate, 1, 'asc').rows[0][2]).toBe('=B2*$B$1');
+  });
+
+  it('пустые ячейки всегда внизу', () => {
+    const gaps: DocumentSheet = { columns: ['А'], rows: [[''], ['2'], ['1']] };
+    expect(sortRows(gaps, 0, 'asc').rows).toEqual([['1'], ['2'], ['']]);
+    expect(sortRows(gaps, 0, 'desc').rows).toEqual([['2'], ['1'], ['']]);
+  });
+
+  it('строка итогов не сортируется', () => {
+    const sorted = sortRows(addTotalsRow(register()), 1, 'asc');
+    expect(sorted.totals![1]).toBe('=СУММ(B2:B4)');
+  });
+
+  it('сохраняет порядок равных значений', () => {
+    const ties: DocumentSheet = { columns: ['А', 'Б'], rows: [['1', 'первый'], ['1', 'второй']] };
+    expect(sortRows(ties, 0, 'asc').rows.map((row) => row[1])).toEqual(['первый', 'второй']);
+  });
+});
+
+describe('buildGrid', () => {
+  it('складывает лист так же, как его нумерует Excel', () => {
+    const grid = buildGrid(addTotalsRow(register()));
+    expect(grid[0]).toEqual(['Пациент', 'Дней', 'Сумма']);
+    expect(grid[1][0]).toBe('Иванов');
+    expect(grid[4][0]).toBe('Итого');
   });
 });

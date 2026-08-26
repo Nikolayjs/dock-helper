@@ -1,3 +1,5 @@
+import { columnLetter, FIRST_DATA_ROW, shiftFormula } from '../../lib/sheet/cellRef';
+import { evaluateGrid, isFormula, literalValue } from '../../lib/sheet/formula';
 import { MAX_IMPORT_COLUMNS, MAX_IMPORT_ROWS } from '../../lib/xlsx/readSheet';
 import type { DocumentSheet } from './types';
 
@@ -16,6 +18,23 @@ function columnName(index: number): string {
   return `Столбец ${index + 1}`;
 }
 
+/**
+ * Лист целиком, как его видят формулы: нулевая строка — заголовки (строка 1 в адресах Excel),
+ * дальше данные, и последней — строка итогов, если она есть.
+ *
+ * Нумерация здесь и в Excel одна и та же намеренно. Формула, которую врач печатает в приложении,
+ * попадает в файл дословно, и перевод адресов между «нашей» и «экселевской» системой был бы местом,
+ * где ошибиться легко, а заметить трудно.
+ */
+export function buildGrid(sheet: DocumentSheet): string[][] {
+  return sheet.totals ? [sheet.columns, ...sheet.rows, sheet.totals] : [sheet.columns, ...sheet.rows];
+}
+
+/** Номер последней строки данных в адресах Excel; равен `HEADER_ROW`, если строк нет. */
+export function lastDataRow(sheet: DocumentSheet): number {
+  return sheet.rows.length + 1;
+}
+
 export function setCell(sheet: DocumentSheet, rowIndex: number, columnIndex: number, value: string): DocumentSheet {
   const rows = sheet.rows.map((row, index) => {
     if (index !== rowIndex) return row;
@@ -26,6 +45,13 @@ export function setCell(sheet: DocumentSheet, rowIndex: number, columnIndex: num
   return { ...sheet, rows };
 }
 
+export function setTotalsCell(sheet: DocumentSheet, columnIndex: number, value: string): DocumentSheet {
+  if (!sheet.totals) return sheet;
+  const totals = [...sheet.totals];
+  totals[columnIndex] = value;
+  return { ...sheet, totals };
+}
+
 export function setColumnName(sheet: DocumentSheet, columnIndex: number, name: string): DocumentSheet {
   const columns = [...sheet.columns];
   columns[columnIndex] = name;
@@ -34,11 +60,38 @@ export function setColumnName(sheet: DocumentSheet, columnIndex: number, name: s
 
 export function addRow(sheet: DocumentSheet): DocumentSheet {
   if (sheet.rows.length >= MAX_ROWS) return sheet;
-  return { ...sheet, rows: [...sheet.rows, sheet.columns.map(() => '')] };
+  const rows = [...sheet.rows, sheet.columns.map(() => '')];
+  return { ...sheet, rows, totals: retargetTotals(sheet, rows.length) };
 }
 
 export function removeRow(sheet: DocumentSheet, rowIndex: number): DocumentSheet {
-  return { ...sheet, rows: sheet.rows.filter((_, index) => index !== rowIndex) };
+  const rows = sheet.rows.filter((_, index) => index !== rowIndex);
+  return { ...sheet, rows, totals: retargetTotals(sheet, rows.length) };
+}
+
+/**
+ * Дотягивает диапазоны строки итогов до нового конца таблицы.
+ *
+ * Без этого добавленная строка молча не попадала бы в сумму: `=СУММ(C2:C11)` осталось бы считать
+ * первые десять строк из одиннадцати. В реестре это не косметика — это неверное число на бумаге,
+ * которое ничем себя не выдаёт. Двигается только тот конец диапазона, который **стоял ровно на
+ * прежней последней строке**: диапазон, который врач сузил намеренно, не трогается.
+ */
+function retargetTotals(sheet: DocumentSheet, newRowCount: number): string[] | null | undefined {
+  if (!sheet.totals) return sheet.totals;
+  const previousLast = lastDataRow(sheet);
+  const nextLast = newRowCount + 1;
+  if (previousLast === nextLast) return sheet.totals;
+
+  return sheet.totals.map((cell) =>
+    isFormula(cell)
+      ? cell.replace(
+          /(\$?[A-Za-z]{1,3}\$?)(\d{1,7}):(\$?[A-Za-z]{1,3}\$?)(\d{1,7})/g,
+          (whole, fromCol: string, fromRow: string, toCol: string, toRow: string) =>
+            Number(toRow) === previousLast ? `${fromCol}${fromRow}:${toCol}${nextLast}` : whole,
+        )
+      : cell,
+  );
 }
 
 /** Новый столбец встаёт справа от указанного; без указания — в конец. */
@@ -46,14 +99,17 @@ export function addColumn(sheet: DocumentSheet, afterIndex?: number): DocumentSh
   if (sheet.columns.length >= MAX_COLUMNS) return sheet;
   const at = afterIndex === undefined ? sheet.columns.length : afterIndex + 1;
 
-  const columns = [...sheet.columns];
-  columns.splice(at, 0, columnName(sheet.columns.length));
-  const rows = sheet.rows.map((row) => {
-    const next = [...row];
-    next.splice(at, 0, '');
+  const insert = <T,>(list: T[], value: T): T[] => {
+    const next = [...list];
+    next.splice(at, 0, value);
     return next;
-  });
-  return { columns, rows };
+  };
+
+  return {
+    columns: insert(sheet.columns, columnName(sheet.columns.length)),
+    rows: sheet.rows.map((row) => insert(row, '')),
+    totals: sheet.totals ? insert(sheet.totals, '') : sheet.totals,
+  };
 }
 
 /**
@@ -62,11 +118,107 @@ export function addColumn(sheet: DocumentSheet, afterIndex?: number): DocumentSh
  */
 export function removeColumn(sheet: DocumentSheet, columnIndex: number): DocumentSheet {
   if (sheet.columns.length <= 1) return sheet;
+  const without = <T,>(list: T[]): T[] => list.filter((_, index) => index !== columnIndex);
   return {
-    columns: sheet.columns.filter((_, index) => index !== columnIndex),
-    rows: sheet.rows.map((row) => row.filter((_, index) => index !== columnIndex)),
+    columns: without(sheet.columns),
+    rows: sheet.rows.map(without),
+    totals: sheet.totals ? without(sheet.totals) : sheet.totals,
   };
 }
+
+// ─── Строка итогов ───────────────────────────────────────────────────────────
+
+/**
+ * Заводит строку итогов: сумму под каждым числовым столбцом.
+ *
+ * Числовым столбец считается по данным, а не по названию: если под заголовком «Дней» лежат числа,
+ * их складывают, а под «Пациент» — нет. Первый столбец, в котором суммировать нечего, подписывается
+ * словом «Итого», иначе строка выглядела бы оборванной.
+ */
+export function addTotalsRow(sheet: DocumentSheet): DocumentSheet {
+  if (sheet.totals) return sheet;
+  const last = lastDataRow(sheet);
+  // По вычисленным значениям, а не по тексту ячеек: столбец `=B2*600` — это как раз тот столбец,
+  // который и хотят просуммировать, а сырым текстом он выглядит как строка.
+  const computed = evaluateGrid(buildGrid(sheet));
+
+  const totals = sheet.columns.map((_, columnIndex) => {
+    const numeric = computed
+      .slice(1, sheet.rows.length + 1)
+      .some((row) => typeof literalValue(row[columnIndex] ?? '') === 'number');
+    if (!numeric) return '';
+    return `=СУММ(${columnLetter(columnIndex)}${FIRST_DATA_ROW}:${columnLetter(columnIndex)}${last})`;
+  });
+
+  const firstEmpty = totals.findIndex((cell) => cell === '');
+  if (firstEmpty !== -1) totals[firstEmpty] = 'Итого';
+
+  return { ...sheet, totals };
+}
+
+export function removeTotalsRow(sheet: DocumentSheet): DocumentSheet {
+  return { ...sheet, totals: null };
+}
+
+// ─── Сортировка ──────────────────────────────────────────────────────────────
+
+export type SortDirection = 'asc' | 'desc';
+
+/**
+ * Сравнение как в реестре: числа по величине, текст по алфавиту, пустые всегда внизу.
+ *
+ * Пустые не участвуют в направлении сортировки специально. «Показать сначала незаполненные» —
+ * не то, чего хотят, нажимая «по убыванию»: пустая ячейка это отсутствие данных, а не наименьшее
+ * из них.
+ */
+function compareCells(a: string, b: string, direction: SortDirection): number {
+  const emptyA = a.trim() === '';
+  const emptyB = b.trim() === '';
+  if (emptyA && emptyB) return 0;
+  if (emptyA) return 1;
+  if (emptyB) return -1;
+
+  const left = literalValue(a);
+  const right = literalValue(b);
+  const sign = direction === 'asc' ? 1 : -1;
+
+  if (typeof left === 'number' && typeof right === 'number') return (left - right) * sign;
+  // Числа выше текста при любом направлении: смешанный столбец иначе перемешивал бы их вперемежку.
+  if (typeof left === 'number') return -1;
+  if (typeof right === 'number') return 1;
+  return String(left).localeCompare(String(right), 'ru') * sign;
+}
+
+/**
+ * Сортирует строки данных по столбцу.
+ *
+ * Две вещи, без которых сортировка врала бы:
+ *
+ * 1. **Сравниваются вычисленные значения, а не текст.** Столбец `=A2*600` — это числа, и сортировать
+ *    его по строке «=A2*600» бессмысленно: все ячейки одинаковы посимвольно.
+ * 2. **Относительные ссылки уезжают вместе со своей строкой.** Формула `=B5*600`, переехавшая в
+ *    строку 3, обязана стать `=B3*600` — иначе она посчитает по чужим данным и не скажет об этом.
+ *    Абсолютные (`$B$1`) остаются на месте, в этом и весь их смысл.
+ *
+ * Строка итогов не участвует — она вообще не строка данных.
+ */
+export function sortRows(sheet: DocumentSheet, columnIndex: number, direction: SortDirection): DocumentSheet {
+  const computed = evaluateGrid(buildGrid(sheet));
+
+  const ordered = sheet.rows
+    .map((row, index) => ({ row, index, key: computed[index + 1]?.[columnIndex] ?? '' }))
+    .sort((a, b) => compareCells(a.key, b.key, direction) || a.index - b.index);
+
+  const rows = ordered.map((entry, newIndex) => {
+    const delta = newIndex - entry.index;
+    if (delta === 0 || !entry.row.some(isFormula)) return entry.row;
+    return entry.row.map((cell) => (isFormula(cell) ? shiftFormula(cell, delta, 0) : cell));
+  });
+
+  return { ...sheet, rows };
+}
+
+// ─── Буфер обмена ────────────────────────────────────────────────────────────
 
 /**
  * Разбирает то, что кладёт в буфер обмена Excel: ячейки через табуляцию, строки через перевод
@@ -128,12 +280,7 @@ export function parseClipboardGrid(text: string): string[][] {
  * обрезать его по текущему размеру сетки значило бы молча потерять данные. Новые столбцы получают
  * имена по номеру; переименовать их — одно нажатие, а вот восстановить потерянный столбец нечем.
  */
-export function pasteInto(
-  sheet: DocumentSheet,
-  rowIndex: number,
-  columnIndex: number,
-  grid: string[][],
-): DocumentSheet {
+export function pasteInto(sheet: DocumentSheet, rowIndex: number, columnIndex: number, grid: string[][]): DocumentSheet {
   const width = Math.min(MAX_COLUMNS, Math.max(sheet.columns.length, columnIndex + Math.max(...grid.map((r) => r.length))));
   const height = Math.min(MAX_ROWS, Math.max(sheet.rows.length, rowIndex + grid.length));
 
@@ -150,8 +297,19 @@ export function pasteInto(
     });
   });
 
-  return { columns, rows };
+  const totals = sheet.totals
+    ? Array.from({ length: width }, (_, index) => sheet.totals?.[index] ?? '')
+    : sheet.totals;
+
+  return retargetSheet({ columns, rows, totals }, sheet);
 }
+
+/** Вставка меняет число строк, а значит диапазоны итогов надо дотянуть — тем же правилом. */
+function retargetSheet(next: DocumentSheet, previous: DocumentSheet): DocumentSheet {
+  return { ...next, totals: retargetTotals({ ...previous, totals: next.totals }, next.rows.length) };
+}
+
+// ─── Перед сохранением ───────────────────────────────────────────────────────
 
 /**
  * Убирает пустые строки с конца перед сохранением.
@@ -162,10 +320,11 @@ export function pasteInto(
 export function trimTrailingRows(sheet: DocumentSheet): DocumentSheet {
   const rows = [...sheet.rows];
   while (rows.length > 0 && rows[rows.length - 1].every((cell) => cell.trim() === '')) rows.pop();
-  return { ...sheet, rows };
+  if (rows.length === sheet.rows.length) return sheet;
+  return { ...sheet, rows, totals: retargetTotals(sheet, rows.length) };
 }
 
 /** Пустая таблица — та, в которой ничего не написано ни в одной ячейке. Заголовки не в счёт. */
 export function isSheetEmpty(sheet: DocumentSheet | null): boolean {
-  return !sheet || sheet.rows.every((row) => row.every((cell) => cell.trim() === ''));
+  return !sheet || (sheet.rows.every((row) => row.every((cell) => cell.trim() === '')) && !sheet.totals);
 }

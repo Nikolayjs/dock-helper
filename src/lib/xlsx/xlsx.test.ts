@@ -4,6 +4,7 @@ import readXlsxFile from 'read-excel-file/node';
 
 import { cellsToStrings } from './readSheet';
 import { columnLetter, numericValue, sheetNameFrom, sheetToXlsxBytes, xlsxFileName } from './writeXlsx';
+import { ERRORS } from '../sheet/formula';
 
 /**
  * Читает только что записанный файл тем же разборщиком, которым приложение читает чужие таблицы.
@@ -191,14 +192,14 @@ describe('cellsToStrings', () => {
         ['Пациент', 'Дата', null],
         ['Иванов', new Date(Date.UTC(2026, 8, 12)), 3],
       ]),
-    ).toEqual({
+    ).toMatchObject({
       columns: ['Пациент', 'Дата', 'Столбец 3'],
       rows: [['Иванов', '12.09.2026', '3']],
     });
   });
 
   it('выравнивает строки по числу заголовков', () => {
-    expect(cellsToStrings([['А', 'Б'], ['только одна'], ['раз', 'два', 'лишняя']])).toEqual({
+    expect(cellsToStrings([['А', 'Б'], ['только одна'], ['раз', 'два', 'лишняя']])).toMatchObject({
       columns: ['А', 'Б'],
       rows: [
         ['только одна', ''],
@@ -208,13 +209,93 @@ describe('cellsToStrings', () => {
   });
 
   it('пропускает пустые строки в начале файла', () => {
-    expect(cellsToStrings([[], [null, null], ['Пациент'], ['Иванов']])).toEqual({
+    expect(cellsToStrings([[], [null, null], ['Пациент'], ['Иванов']])).toMatchObject({
       columns: ['Пациент'],
       rows: [['Иванов']],
+      // Строка «Иванов» была четвёртой в файле — это и нужно, чтобы сдвинуть её формулы.
+      sourceRows: [4],
     });
   });
 
   it('на пустом файле отдаёт пустую таблицу, а не падает', () => {
-    expect(cellsToStrings([])).toEqual({ columns: [], rows: [] });
+    expect(cellsToStrings([])).toEqual({ columns: [], rows: [], sourceRows: [] });
+  });
+});
+
+
+describe('формулы в файле', () => {
+  const bytes = sheetToXlsxBytes({
+    sheetName: 'Реестр',
+    columns: ['Пациент', 'Дней', 'Сумма'],
+    rows: [
+      ['Иванов', '14', '=B2*600'],
+      ['Петрова', '3', '=B3*600'],
+    ],
+    totals: ['Итого', '=СУММ(B2:B3)', '=СУММ(C2:C3)'],
+  });
+  const sheet = partOf(bytes, 'xl/worksheets/sheet1.xml');
+
+  it('пишет саму формулу, а не только результат', () => {
+    // Число без формулы означало бы, что Excel её никогда не пересчитает: правка соседней ячейки
+    // оставила бы итог прежним.
+    expect(sheet).toContain('<c r="C2"><f>B2*600</f><v>8400</v></c>');
+  });
+
+  it('переводит русские имена функций на английские', () => {
+    // Формат хранит имена только по-английски; русский Excel покажет их по-русски сам.
+    expect(sheet).toContain('<f>SUM(B2:B3)</f>');
+    expect(sheet).not.toContain('СУММ');
+  });
+
+  it('кладёт рядом вычисленное значение', () => {
+    // Без него ячейка пуста до первого пересчёта, а в просмотрщиках без движка — навсегда.
+    expect(sheet).toContain('<f>SUM(C2:C3)</f><v>10200</v>');
+  });
+
+  it('печатает строку итогов полужирным, как заголовки', () => {
+    expect(sheet).toContain('<c r="A4" s="1" t="inlineStr">');
+    expect(sheet).toMatch(/<c r="B4" s="1"><f>SUM/);
+  });
+
+  it('ошибку отдаёт в том виде, в каком её понимает Excel', () => {
+    const broken = partOf(
+      sheetToXlsxBytes({ sheetName: 'Л', columns: ['A'], rows: [['0'], ['=1/A2']] }),
+      'xl/worksheets/sheet1.xml',
+    );
+    expect(broken).toContain('<c r="A3" t="e"><f>1/A2</f><v>#DIV/0!</v></c>');
+    expect(broken).not.toContain(ERRORS.div0);
+  });
+
+  it('формулу, вернувшую текст, помечает t="str"', () => {
+    const text = partOf(
+      sheetToXlsxBytes({ sheetName: 'Л', columns: ['A'], rows: [['1'], ['=ЕСЛИ(A2>0;"есть";"нет")']] }),
+      'xl/worksheets/sheet1.xml',
+    );
+    expect(text).toContain('<c r="A3" t="str"><f>IF(A2&gt;0,&quot;есть&quot;,&quot;нет&quot;)</f><v>есть</v></c>');
+  });
+
+  it('ширина столбца считается по результату, а не по длине формулы', () => {
+    const wide = partOf(
+      sheetToXlsxBytes({ sheetName: 'Л', columns: ['И'], rows: [['1'], ['=A2+A2+A2+A2+A2+A2+A2']] }),
+      'xl/worksheets/sheet1.xml',
+    );
+    expect(wide).toContain('<col min="1" max="1" width="8"');
+  });
+});
+
+describe('круговой тест с формулами', () => {
+  it('Excel-совместимый разборщик читает закешированные значения', async () => {
+    const rows = await roundTrip({
+      sheetName: 'Реестр',
+      columns: ['Дней', 'Сумма'],
+      rows: [
+        ['14', '=A2*600'],
+        ['3', '=A3*600'],
+      ],
+      totals: ['Итого', '=СУММ(B2:B3)'],
+    });
+    expect(rows[1]).toEqual([14, 8400]);
+    expect(rows[2]).toEqual([3, 1800]);
+    expect(rows[3]).toEqual(['Итого', 10200]);
   });
 });

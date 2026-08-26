@@ -10,6 +10,14 @@ export type DoctorDocumentKind = 'text' | 'sheet';
 export interface DocumentSheet {
   columns: string[];
   rows: string[][];
+  /**
+   * Строка итогов — если врач её завёл.
+   *
+   * Отдельным полем, а не последней строкой среди прочих, ровно по одной причине: её **нельзя
+   * сортировать**. Сортировка переставляет строки данных, и итог, оказавшийся посреди реестра,
+   * — это не мелкий изъян, а неверная бумага.
+   */
+  totals?: string[] | null;
 }
 
 export interface DoctorDocument {

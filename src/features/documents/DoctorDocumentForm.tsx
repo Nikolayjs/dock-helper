@@ -62,7 +62,7 @@ export function DoctorDocumentForm({
         notifications.show({ message: 'В файле не нашлось ни одной заполненной строки', color: 'yellow' });
         return;
       }
-      setSheet(imported);
+      setSheet({ columns: imported.columns, rows: imported.rows, totals: null });
       if (!title.trim()) setTitle(file.name.replace(/\.(xlsx|csv|txt)$/i, ''));
       notifications.show({
         message: `Таблица перенесена: ${imported.rows.length} строк, ${imported.columns.length} столбцов`,
@@ -82,7 +82,12 @@ export function DoctorDocumentForm({
   const exportSheet = async () => {
     try {
       const clean = trimTrailingRows(sheet);
-      await downloadXlsx({ sheetName: title.trim() || 'Таблица', columns: clean.columns, rows: clean.rows });
+      await downloadXlsx({
+        sheetName: title.trim() || 'Таблица',
+        columns: clean.columns,
+        rows: clean.rows,
+        totals: clean.totals,
+      });
     } catch {
       notifications.show({ message: 'Не удалось собрать файл .xlsx', color: 'red' });
     }

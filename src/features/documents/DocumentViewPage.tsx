@@ -46,6 +46,7 @@ export function DocumentViewPage() {
           sheetName: doc.title,
           columns: doc.sheet?.columns ?? [],
           rows: doc.sheet?.rows ?? [],
+          totals: doc.sheet?.totals,
         });
       } else {
         await downloadDocx({ title: doc.title, html: doc.content });
