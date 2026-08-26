@@ -1,6 +1,6 @@
 import { buildDrugIndex, drugNameOptions, normalizeDrugName, resolveDrug } from '../drugs/drugIndex';
 import type { DrugIndex, ResolvedDrug } from '../drugs/drugIndex';
-import type { Drug } from '../drugs/types';
+import type { DrugSummary } from '../drugs/types';
 import { SEVERITY_RANK } from './types';
 import type { DrugInteraction } from './types';
 
@@ -20,7 +20,7 @@ export type { DrugIndex, ResolvedDrug };
  * Names to offer in the picker: the whole formulary — МНН and trade names alike — plus any drug a
  * rule mentions that has no directory entry yet, so no existing rule becomes unreachable.
  */
-export function getKnownDrugNames(drugs: Drug[], interactions: DrugInteraction[]): string[] {
+export function getKnownDrugNames(drugs: DrugSummary[], interactions: DrugInteraction[]): string[] {
   const names = drugNameOptions(drugs);
   const known = new Set(names.map(normalizeDrugName));
   const index = buildDrugIndex(drugs);
@@ -79,7 +79,7 @@ export function resolveEnteredDrugs(entered: string[], index: DrugIndex): Resolv
 }
 
 /** Rules that mention this drug — shown on its card in the directory. */
-export function interactionsForDrug(drug: Drug, interactions: DrugInteraction[], index: DrugIndex): DrugInteraction[] {
+export function interactionsForDrug(drug: DrugSummary, interactions: DrugInteraction[], index: DrugIndex): DrugInteraction[] {
   const inn = normalizeDrugName(drug.inn);
   return interactions
     .filter((interaction) => {
@@ -91,7 +91,7 @@ export function interactionsForDrug(drug: Drug, interactions: DrugInteraction[],
 }
 
 /** The other drug in a rule, given one side of it. */
-export function otherDrugIn(interaction: DrugInteraction, drug: Drug, index: DrugIndex): string {
+export function otherDrugIn(interaction: DrugInteraction, drug: DrugSummary, index: DrugIndex): string {
   const inn = normalizeDrugName(drug.inn);
   return resolveDrug(interaction.drugA, index).inn === inn ? interaction.drugB : interaction.drugA;
 }

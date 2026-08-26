@@ -1,4 +1,5 @@
-import type { Drug } from './types';
+import type { DrugSummary } from './types';
+
 
 /**
  * The name index that lets the interaction check and the directory talk about the same drug.
@@ -22,12 +23,12 @@ export interface DrugIndex {
   /** Normalized МНН *and* every trade name → the МНН. */
   innByName: Map<string, string>;
   /** Normalized МНН → the directory entry. */
-  byInn: Map<string, Drug>;
+  byInn: Map<string, DrugSummary>;
 }
 
-export function buildDrugIndex(drugs: Drug[]): DrugIndex {
+export function buildDrugIndex(drugs: DrugSummary[]): DrugIndex {
   const innByName = new Map<string, string>();
-  const byInn = new Map<string, Drug>();
+  const byInn = new Map<string, DrugSummary>();
 
   for (const drug of drugs) {
     const inn = normalizeDrugName(drug.inn);
@@ -51,7 +52,7 @@ export interface ResolvedDrug {
   /** The МНН the check will use — falls back to the entered text when the drug is unknown. */
   inn: string;
   /** The directory entry, when there is one. */
-  drug: Drug | null;
+  drug: DrugSummary | null;
   /** True when the entered text was a trade name, i.e. the МНН shown is not what was typed. */
   viaBrandName: boolean;
 }
@@ -70,7 +71,7 @@ export function resolveDrug(entered: string, index: DrugIndex): ResolvedDrug {
  * Autocomplete entries for the drug picker: every МНН and every trade name, each on its own, so
  * the doctor finds the drug under whichever name they know it by.
  */
-export function drugNameOptions(drugs: Drug[]): string[] {
+export function drugNameOptions(drugs: DrugSummary[]): string[] {
   const names = new Set<string>();
   for (const drug of drugs) {
     if (drug.inn.trim()) names.add(drug.inn.trim());
@@ -82,7 +83,7 @@ export function drugNameOptions(drugs: Drug[]): string[] {
 }
 
 /** Distinct pharmacological groups — used to autocomplete the field in the editor, not to filter. */
-export function drugGroups(drugs: Drug[]): string[] {
+export function drugGroups(drugs: DrugSummary[]): string[] {
   const groups = new Set<string>();
   for (const drug of drugs) {
     const group = drug.pharmGroup.trim();
@@ -92,7 +93,7 @@ export function drugGroups(drugs: Drug[]): string[] {
 }
 
 /** Categories actually present, with how many drugs each holds — the directory's filter. */
-export function drugCategoryCounts(drugs: Drug[]): Map<string, number> {
+export function drugCategoryCounts(drugs: DrugSummary[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const drug of drugs) {
     const category = drug.category.trim() || 'Без раздела';
@@ -102,7 +103,7 @@ export function drugCategoryCounts(drugs: Drug[]): Map<string, number> {
 }
 
 /** Matches a drug against a free-text query across МНН, trade names, group and ATC code. */
-export function drugMatchesQuery(drug: Drug, query: string): boolean {
+export function drugMatchesQuery(drug: DrugSummary, query: string): boolean {
   const q = normalizeDrugName(query);
   if (!q) return true;
   const haystack = [drug.inn, ...drug.brandNames, drug.pharmGroup, drug.category, drug.atcCode].map(normalizeDrugName);

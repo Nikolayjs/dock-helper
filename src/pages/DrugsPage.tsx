@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { DrugCategoriesModal } from '../features/drugs/DrugCategoriesModal';
 import { DRUG_SORT_KEYS, DrugTable, drugSortValue, type DrugSortKey } from '../features/drugs/DrugTable';
-import type { Drug } from '../features/drugs/types';
+import type { DrugSummary } from '../features/drugs/types';
 import { QUERY_KEY as DRUGS_KEY, useDrugs } from '../features/drugs/useDrugs';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { sortRows, useTableSort } from '../lib/tableSort';
@@ -58,7 +58,7 @@ export function DrugsPage() {
 
   const isFiltering = search.trim() !== '' || category !== ALL_CATEGORIES;
 
-  const handleDelete = (drug: Drug) =>
+  const handleDelete = (drug: DrugSummary) =>
     confirmDelete({
       what: 'препарат',
       name: drug.inn,

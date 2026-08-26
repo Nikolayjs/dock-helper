@@ -3,7 +3,7 @@ import { IconAlertTriangle, IconEdit, IconTrash } from '@tabler/icons-react';
 
 import { SortableTh } from '../../components/common/SortableTh';
 import type { SortState, SortValue } from '../../lib/tableSort';
-import type { Drug } from './types';
+import type { DrugSummary } from './types';
 
 /**
  * The formulary, one drug per row.
@@ -29,19 +29,19 @@ export const DRUG_SORT_KEYS: readonly DrugSortKey[] = [
 ];
 
 interface DrugTableProps {
-  drugs: Drug[];
+  drugs: DrugSummary[];
   /** Normalised МНН → how many rules mention it. */
   interactionCounts: Map<string, number>;
   normalizeInn: (inn: string) => string;
   sort: SortState<DrugSortKey>;
   onSort: (key: DrugSortKey) => void;
-  onOpen: (drug: Drug) => void;
-  onEdit: (drug: Drug) => void;
-  onDelete: (drug: Drug) => void;
+  onOpen: (drug: DrugSummary) => void;
+  onEdit: (drug: DrugSummary) => void;
+  onDelete: (drug: DrugSummary) => void;
 }
 
 export function drugSortValue(
-  drug: Drug,
+  drug: DrugSummary,
   key: DrugSortKey,
   interactionCounts: Map<string, number>,
   normalizeInn: (inn: string) => string,

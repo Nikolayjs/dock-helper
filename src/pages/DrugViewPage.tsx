@@ -7,7 +7,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { buildDrugIndex, normalizeDrugName } from '../features/drugs/drugIndex';
 import { DRUG_TEXT_FIELDS } from '../features/drugs/types';
-import type { Drug } from '../features/drugs/types';
+import type { Drug, DrugSummary } from '../features/drugs/types';
 import { QUERY_KEY as DRUGS_KEY, useDrug, useDrugs } from '../features/drugs/useDrugs';
 import { InteractionForm } from '../features/interactions/InteractionForm';
 import { interactionsForDrug, otherDrugIn } from '../features/interactions/interactionEngine';
@@ -162,7 +162,7 @@ function InteractionsSection({
   index,
 }: {
   drug: Drug;
-  drugs: Drug[];
+  drugs: DrugSummary[];
   related: ReturnType<typeof interactionsForDrug>;
   index: ReturnType<typeof buildDrugIndex>;
 }) {
