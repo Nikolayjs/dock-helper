@@ -1,22 +1,28 @@
 import { useMemo, useState } from 'react';
 import { Alert, Button, Card, Container, Group, SimpleGrid, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconInfoCircle, IconPlus, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { QuestionnaireCard } from '../features/diagnostics/QuestionnaireCard';
 import type { Questionnaire } from '../features/diagnostics/types';
-import { useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
+import { QUERY_KEY as QUESTIONNAIRES_KEY, useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 export function QuestionnairesPage() {
   const navigate = useNavigate();
   const { questionnaires, deleteQuestionnaire } = useQuestionnaires();
+  const confirmDelete = useDeleteWithConfirm();
   const [search, setSearch] = useState('');
 
-  const handleDelete = (q: Questionnaire) => {
-    deleteQuestionnaire(q.id);
-    notifications.show({ message: 'Анкета удалена', color: 'gray' });
-  };
+  const handleDelete = (q: Questionnaire) =>
+    confirmDelete({
+      what: 'анкету',
+      name: q.title,
+      notice: 'Анкета удалена',
+      queryKey: QUESTIONNAIRES_KEY,
+      id: q.id,
+      perform: () => deleteQuestionnaire(q.id),
+    });
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();

@@ -1,16 +1,17 @@
 import { Badge, Button, Card, Checkbox, Container, Group, Progress, Stack, Text, Title, Typography } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import { useNotes } from './useNotes';
+import { QUERY_KEY as NOTES_KEY, useNotes } from './useNotes';
+import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 
 export function NoteViewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { notes, deleteNote, toggleTodoItem } = useNotes();
+  const confirmDelete = useDeleteWithConfirm();
   const note = notes.find((n) => n.id === id);
 
   const from = (location.state as { from?: string } | null)?.from;
@@ -33,11 +34,17 @@ export function NoteViewPage() {
 
   const doneCount = note.items.filter((item) => item.done).length;
 
-  const handleDelete = () => {
-    deleteNote(note.id);
-    notifications.show({ message: 'Заметка удалена', color: 'gray' });
-    navigate(backTo);
-  };
+  const handleDelete = () =>
+    confirmDelete({
+      what: 'заметку',
+      name: note.title,
+      notice: 'Заметка удалена',
+      queryKey: NOTES_KEY,
+      id: note.id,
+      perform: () => deleteNote(note.id),
+      // Leaves the page as soon as it is confirmed; the undo window keeps running from the list.
+      onConfirmed: () => navigate(backTo),
+    });
 
   return (
     <Container size="md" px={0}>

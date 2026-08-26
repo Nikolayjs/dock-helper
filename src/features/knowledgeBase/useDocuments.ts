@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createHttpRepository } from '../../lib/httpRepository';
 import type { KnowledgeDocument, KnowledgeKind } from './types';
 
-const QUERY_KEY = ['knowledge-documents'];
+/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+export const QUERY_KEY = ['knowledge-documents'];
 
 export type DocumentInput = Pick<KnowledgeDocument, 'kind' | 'title' | 'summary' | 'content' | 'tags' | 'author'>;
 

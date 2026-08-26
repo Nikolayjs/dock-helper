@@ -1,27 +1,33 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, Container, Group, SimpleGrid, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconNotes, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { NoteCard } from '../features/notes/NoteCard';
 import { stripHtml } from '../features/notes/textPreview';
 import type { Note, NoteKind } from '../features/notes/types';
-import { useNotes } from '../features/notes/useNotes';
+import { QUERY_KEY as NOTES_KEY, useNotes } from '../features/notes/useNotes';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 type KindFilter = 'all' | NoteKind;
 
 export function NotesPage() {
   const { notes, deleteNote, toggleTodoItem } = useNotes();
+  const confirmDelete = useDeleteWithConfirm();
   const navigate = useNavigate();
 
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [search, setSearch] = useState('');
 
-  const handleDelete = (note: Note) => {
-    deleteNote(note.id);
-    notifications.show({ message: 'Заметка удалена', color: 'gray' });
-  };
+  const handleDelete = (note: Note) =>
+    confirmDelete({
+      what: 'заметку',
+      name: note.title,
+      notice: 'Заметка удалена',
+      queryKey: NOTES_KEY,
+      id: note.id,
+      perform: () => deleteNote(note.id),
+    });
 
   const filtered = useMemo(() => {
     return notes.filter((note) => {

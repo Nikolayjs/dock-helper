@@ -6,14 +6,16 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { DocumentTemplateForm } from './DocumentTemplateForm';
 import { LayoutTemplateForm } from './LayoutTemplateForm';
-import { useDocumentTemplates } from './useDocumentTemplates';
+import { QUERY_KEY as TEMPLATES_KEY, useDocumentTemplates } from './useDocumentTemplates';
 import type { DocumentTemplateInput } from './useDocumentTemplates';
+import { useDeleteWithConfirm } from '../../deletion/deleteConfirmContext';
 
 export function DocumentTemplateEditorPage() {
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
   const navigate = useNavigate();
   const { templates, isLoading, addTemplate, updateTemplate, deleteTemplate } = useDocumentTemplates();
+  const confirmDelete = useDeleteWithConfirm();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   const editingTemplate = isEditMode ? templates.find((t) => t.id === id) : undefined;
@@ -53,11 +55,17 @@ export function DocumentTemplateEditorPage() {
     navigate('/patients/documents');
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!editingTemplate) return;
-    await deleteTemplate(editingTemplate.id);
-    notifications.show({ message: 'Документ удалён', color: 'gray' });
-    navigate('/patients/documents');
+    confirmDelete({
+      what: 'шаблон документа',
+      name: editingTemplate.title,
+      notice: 'Документ удалён',
+      queryKey: TEMPLATES_KEY,
+      id: editingTemplate.id,
+      perform: () => deleteTemplate(editingTemplate.id),
+      onConfirmed: () => navigate('/patients/documents'),
+    });
   };
 
   return (

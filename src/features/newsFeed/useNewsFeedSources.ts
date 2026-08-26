@@ -5,7 +5,8 @@ import { createHttpRepository } from '../../lib/httpRepository';
 import { DEFAULT_NEWS_SOURCES } from './types';
 import type { NewsFeedSource } from './types';
 
-const QUERY_KEY = ['news-feed-sources'];
+/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+export const QUERY_KEY = ['news-feed-sources'];
 const repo = createHttpRepository<NewsFeedSource, { url: string; title: string }>('/news-feed-sources');
 
 /**

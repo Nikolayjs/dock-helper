@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createHttpRepository, request } from '../../lib/httpRepository';
 import type { Patient, PatientVisit } from './types';
 
-const QUERY_KEY = ['patients'];
+/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+export const QUERY_KEY = ['patients'];
 
 export type PatientInput = Pick<Patient, 'fullName' | 'sex' | 'birthDate' | 'phone' | 'reminderDate' | 'reminderNote'>;
 export type VisitInput = Pick<PatientVisit, 'date' | 'diagnosis' | 'diagnosisCode' | 'note' | 'referralCategory' | 'referralDestination'>;

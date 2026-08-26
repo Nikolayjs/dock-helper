@@ -26,13 +26,15 @@ import { NewsCard } from '../features/newsFeed/NewsCard';
 import { discoverFeed } from '../features/newsFeed/discoverFeed';
 import type { NewsFeedItem } from '../features/newsFeed/types';
 import { useNewsFeedItems } from '../features/newsFeed/useNewsFeedItems';
-import { useNewsFeedSources } from '../features/newsFeed/useNewsFeedSources';
+import { QUERY_KEY as NEWS_SOURCES_KEY, useNewsFeedSources } from '../features/newsFeed/useNewsFeedSources';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 const PAGE_SIZE = 12;
 
 export function NewsPage() {
   const navigate = useNavigate();
   const { sources, addSource, removeSource } = useNewsFeedSources();
+  const confirmDelete = useDeleteWithConfirm();
   const { bySource, allItems, isLoading, refetchAll } = useNewsFeedItems(sources);
 
   const [activeSourceId, setActiveSourceId] = useState<string>('all');
@@ -89,10 +91,19 @@ export function NewsPage() {
     }
   };
 
-  const handleRemoveSource = async (id: string) => {
-    await removeSource(id);
-    if (activeSourceId === id) setActiveSourceId('all');
-    notifications.show({ message: 'Источник удалён', color: 'gray' });
+  const handleRemoveSource = (id: string) => {
+    const source = sources.find((item) => item.id === id);
+    confirmDelete({
+      what: 'источник',
+      name: source?.title || source?.url,
+      notice: 'Источник удалён',
+      queryKey: NEWS_SOURCES_KEY,
+      id,
+      perform: () => removeSource(id),
+      onConfirmed: () => {
+        if (activeSourceId === id) setActiveSourceId('all');
+      },
+    });
   };
 
   const handleOpenItem = (item: NewsFeedItem) => {

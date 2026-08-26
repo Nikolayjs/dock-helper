@@ -1,20 +1,26 @@
 import { Container } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconArticle } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { KnowledgeGrid } from '../features/knowledgeBase/KnowledgeGrid';
 import type { KnowledgeDocument } from '../features/knowledgeBase/types';
-import { useDocuments } from '../features/knowledgeBase/useDocuments';
+import { QUERY_KEY as KNOWLEDGE_KEY, useDocuments } from '../features/knowledgeBase/useDocuments';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 export function ArticlesPage() {
   const { documents, deleteDocument } = useDocuments('article');
+  const confirmDelete = useDeleteWithConfirm();
   const navigate = useNavigate();
 
-  const handleDelete = (doc: KnowledgeDocument) => {
-    deleteDocument(doc.id);
-    notifications.show({ message: 'Статья удалена', color: 'gray' });
-  };
+  const handleDelete = (doc: KnowledgeDocument) =>
+    confirmDelete({
+      what: 'статью',
+      name: doc.title,
+      notice: 'Статья удалена',
+      queryKey: KNOWLEDGE_KEY,
+      id: doc.id,
+      perform: () => deleteDocument(doc.id),
+    });
 
   return (
     <Container size="xl" px={0}>

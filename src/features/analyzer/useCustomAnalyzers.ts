@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createHttpRepository } from '../../lib/httpRepository';
 import type { BackendLabTest, CreateLabTestPayload } from './customTypes';
 
-const QUERY_KEY = ['lab-tests'];
+/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+export const QUERY_KEY = ['lab-tests'];
 const repo = createHttpRepository<BackendLabTest, CreateLabTestPayload>('/custom-lab-tests');
 
 export function useCustomAnalyzers() {

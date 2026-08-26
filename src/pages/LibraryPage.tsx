@@ -6,12 +6,14 @@ import { useNavigate } from 'react-router-dom';
 import { BookEditModal } from '../features/library/BookEditModal';
 import { LibraryGrid } from '../features/library/LibraryGrid';
 import type { Book } from '../features/library/types';
-import { useLibrary } from '../features/library/useLibrary';
+import { QUERY_KEY as LIBRARY_KEY, useLibrary } from '../features/library/useLibrary';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 export function LibraryPage() {
   const { books, addBook, isAdding, updateMeta, deleteBook } = useLibrary();
   const navigate = useNavigate();
   const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const confirmDelete = useDeleteWithConfirm();
 
   const handleAddFiles = async (files: File[]) => {
     for (const file of files) {
@@ -26,10 +28,15 @@ export function LibraryPage() {
     }
   };
 
-  const handleDelete = (book: Book) => {
-    deleteBook(book.id);
-    notifications.show({ message: 'Книга удалена', color: 'gray' });
-  };
+  const handleDelete = (book: Book) =>
+    confirmDelete({
+      what: 'книгу',
+      name: book.title,
+      notice: 'Книга удалена',
+      queryKey: LIBRARY_KEY,
+      id: book.id,
+      perform: () => deleteBook(book.id),
+    });
 
   return (
     <Container size="xl" px={0}>

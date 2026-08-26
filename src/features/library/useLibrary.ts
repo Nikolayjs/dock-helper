@@ -8,7 +8,8 @@ import { fetchBookFile, updateBookProgress, uploadBook } from './libraryApi';
 import { extractPdfMeta } from './pdfMeta';
 import type { Book, BookFormat, BookMetaInput } from './types';
 
-const QUERY_KEY = ['library-books'];
+/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+export const QUERY_KEY = ['library-books'];
 const repo = createHttpRepository<Book, never, BookMetaInput>('/library');
 
 function detectFormat(fileName: string): BookFormat | null {

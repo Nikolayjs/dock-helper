@@ -19,7 +19,8 @@ import {
 } from '../features/analyzer/customTypes';
 import { LabTestForm } from '../features/analyzer/LabTestForm';
 import type { Sex } from '../features/analyzer/types';
-import { useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
+import { QUERY_KEY as LAB_TESTS_KEY, useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -57,6 +58,7 @@ export function AnalyzerBuilderPage() {
   const navigate = useNavigate();
   const seedAnalytes = (useLocation().state as { seedAnalytes?: ParsedAnalyte[] } | null)?.seedAnalytes;
   const { customTests, addTest, updateTest, deleteTest } = useCustomAnalyzers();
+  const confirmDelete = useDeleteWithConfirm();
 
   const editingTest = isEditMode ? customTests.find((t) => t.id === id) : undefined;
 
@@ -197,11 +199,17 @@ export function AnalyzerBuilderPage() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!editingTest) return;
-    await deleteTest(editingTest.id);
-    notifications.show({ message: 'Анализ удалён', color: 'gray' });
-    navigate('/analyzer');
+    confirmDelete({
+      what: 'анализ',
+      name: editingTest.title,
+      notice: 'Анализ удалён',
+      queryKey: LAB_TESTS_KEY,
+      id: editingTest.id,
+      perform: () => deleteTest(editingTest.id),
+      onConfirmed: () => navigate('/analyzer'),
+    });
   };
 
   return (

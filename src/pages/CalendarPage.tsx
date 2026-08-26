@@ -6,28 +6,40 @@ import { useNavigate } from 'react-router-dom';
 
 import { NotesCalendarView } from '../features/notes/NotesCalendarView';
 import type { Note } from '../features/notes/types';
-import { useNotes } from '../features/notes/useNotes';
+import { QUERY_KEY as NOTES_KEY, useNotes } from '../features/notes/useNotes';
 import { RemindersCalendarView } from '../features/reminders/RemindersCalendarView';
-import { useReminders } from '../features/reminders/useReminders';
+import { QUERY_KEY as REMINDERS_KEY, useReminders } from '../features/reminders/useReminders';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 type CalendarTab = 'notes' | 'reminders';
 
 export function CalendarPage() {
   const { notes, deleteNote, toggleTodoItem } = useNotes();
   const { reminders, addReminder, updateReminder, deleteReminder } = useReminders();
+  const confirmDelete = useDeleteWithConfirm();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'));
   const [tab, setTab] = useState<CalendarTab>('notes');
 
-  const handleDeleteNote = (note: Note) => {
-    deleteNote(note.id);
-    notifications.show({ message: 'Заметка удалена', color: 'gray' });
-  };
+  const handleDeleteNote = (note: Note) =>
+    confirmDelete({
+      what: 'заметку',
+      name: note.title,
+      notice: 'Заметка удалена',
+      queryKey: NOTES_KEY,
+      id: note.id,
+      perform: () => deleteNote(note.id),
+    });
 
-  const handleDeleteReminder = (id: string) => {
-    deleteReminder(id);
-    notifications.show({ message: 'Напоминание удалено', color: 'gray' });
-  };
+  const handleDeleteReminder = (id: string) =>
+    confirmDelete({
+      what: 'напоминание',
+      name: reminders.find((reminder) => reminder.id === id)?.title,
+      notice: 'Напоминание удалено',
+      queryKey: REMINDERS_KEY,
+      id,
+      perform: () => deleteReminder(id),
+    });
 
   return (
     <Container size="xl" px={0}>

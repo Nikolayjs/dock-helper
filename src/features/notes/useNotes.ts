@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createHttpRepository, request } from '../../lib/httpRepository';
 import type { Note } from './types';
 
-const QUERY_KEY = ['notes'];
+/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+export const QUERY_KEY = ['notes'];
 
 export type NoteInput = Pick<Note, 'kind' | 'title' | 'content' | 'items' | 'pinnedDate' | 'color'>;
 

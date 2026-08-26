@@ -1,18 +1,19 @@
 import { useMemo } from 'react';
 import { Badge, Button, Container, Group, Stack } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconTag } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { KnowledgeGrid } from '../features/knowledgeBase/KnowledgeGrid';
 import type { KnowledgeDocument } from '../features/knowledgeBase/types';
-import { useAllDocuments } from '../features/knowledgeBase/useDocuments';
+import { QUERY_KEY as KNOWLEDGE_KEY, useAllDocuments } from '../features/knowledgeBase/useDocuments';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 export function KnowledgeTagPage() {
   const { tag: encodedTag } = useParams();
   const tag = decodeURIComponent(encodedTag ?? '');
   const navigate = useNavigate();
   const { documents, deleteDocument } = useAllDocuments();
+  const confirmDelete = useDeleteWithConfirm();
 
   const tagged = useMemo(() => documents.filter((doc) => doc.tags.includes(tag)), [documents, tag]);
 
@@ -24,10 +25,15 @@ export function KnowledgeTagPage() {
     navigate(doc.kind === 'guideline' ? `/guidelines/${doc.id}/edit` : `/articles/${doc.id}/edit`);
   };
 
-  const handleDelete = (doc: KnowledgeDocument) => {
-    deleteDocument(doc.id);
-    notifications.show({ message: doc.kind === 'guideline' ? 'Рекомендация удалена' : 'Статья удалена', color: 'gray' });
-  };
+  const handleDelete = (doc: KnowledgeDocument) =>
+    confirmDelete({
+      what: doc.kind === 'guideline' ? 'рекомендацию' : 'статью',
+      name: doc.title,
+      notice: doc.kind === 'guideline' ? 'Рекомендация удалена' : 'Статья удалена',
+      queryKey: KNOWLEDGE_KEY,
+      id: doc.id,
+      perform: () => deleteDocument(doc.id),
+    });
 
   return (
     <Container size="xl" px={0}>

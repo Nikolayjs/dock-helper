@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createHttpRepository, request } from '../../lib/httpRepository';
 import type { DispensaryObservation, DispensaryRecord, DispensaryRemovalReason } from './types';
 
-const QUERY_KEY = ['dispensary-records'];
+/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+export const QUERY_KEY = ['dispensary-records'];
 
 export type DispensaryRecordInput = Pick<DispensaryRecord, 'patientId' | 'diagnosis' | 'diagnosisCode' | 'registeredDate' | 'nextVisitDate'>;
 export type ObservationInput = Pick<DispensaryObservation, 'date' | 'outcome' | 'ovl' | 'sanatorium' | 'campRest' | 'note'>;

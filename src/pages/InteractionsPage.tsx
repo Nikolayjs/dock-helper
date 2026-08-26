@@ -28,7 +28,8 @@ import { buildDrugIndex, checkInteractions, getKnownDrugNames, resolveEnteredDru
 import type { ResolvedDrug } from '../features/interactions/interactionEngine';
 import { SEVERITY_COLOR, SEVERITY_LABELS, SEVERITY_OPTIONS } from '../features/interactions/types';
 import type { InteractionSeverity } from '../features/interactions/types';
-import { useDrugInteractions, type DrugInteractionInput } from '../features/interactions/useDrugInteractions';
+import { QUERY_KEY as INTERACTIONS_KEY, useDrugInteractions, type DrugInteractionInput } from '../features/interactions/useDrugInteractions';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 const EMPTY_FORM: DrugInteractionInput = { drugA: '', drugB: '', severity: 'moderate', mechanism: '', recommendation: '' };
 
@@ -36,6 +37,7 @@ export function InteractionsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { interactions, isLoading, addInteraction, deleteInteraction } = useDrugInteractions();
+  const confirmDelete = useDeleteWithConfirm();
   const { drugs, isLoading: drugsLoading } = useDrugs();
   const [entered, setEntered] = useState<string[]>([]);
   const [manageOpen, setManageOpen] = useState(false);
@@ -78,9 +80,16 @@ export function InteractionsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    await deleteInteraction(id);
-    notifications.show({ message: 'Взаимодействие удалено', color: 'gray' });
+  const handleDelete = (id: string) => {
+    const interaction = interactions.find((item) => item.id === id);
+    confirmDelete({
+      what: 'взаимодействие',
+      name: interaction ? `${interaction.drugA} + ${interaction.drugB}` : undefined,
+      notice: 'Взаимодействие удалено',
+      queryKey: INTERACTIONS_KEY,
+      id,
+      perform: () => deleteInteraction(id),
+    });
   };
 
   return (

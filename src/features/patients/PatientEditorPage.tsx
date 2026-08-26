@@ -5,12 +5,15 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { PatientForm } from './PatientForm';
 import type { PatientInput } from './usePatients';
-import { usePatients } from './usePatients';
+import { QUERY_KEY as PATIENTS_KEY, usePatients } from './usePatients';
+import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
+import { visitsWarning } from './deleteWarnings';
 
 export function PatientEditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { patients, addPatient, updatePatient, deletePatient } = usePatients();
+  const confirmDelete = useDeleteWithConfirm();
   const editingPatient = id ? patients.find((p) => p.id === id) : undefined;
 
   if (id && !editingPatient) {
@@ -42,9 +45,16 @@ export function PatientEditorPage() {
 
   const handleDelete = () => {
     if (!editingPatient) return;
-    deletePatient(editingPatient.id);
-    notifications.show({ message: 'Пациент удалён', color: 'gray' });
-    navigate('/patients');
+    confirmDelete({
+      what: 'пациента',
+      name: editingPatient.fullName,
+      alsoRemoves: visitsWarning(editingPatient.visits.length),
+      notice: 'Пациент удалён',
+      queryKey: PATIENTS_KEY,
+      id: editingPatient.id,
+      perform: () => deletePatient(editingPatient.id),
+      onConfirmed: () => navigate('/patients'),
+    });
   };
 
   return (

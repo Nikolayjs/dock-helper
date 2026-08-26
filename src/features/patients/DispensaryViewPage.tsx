@@ -9,10 +9,13 @@ import { OUTCOME_COLORS, OUTCOME_LABELS, REMOVAL_REASON_LABELS } from './dispens
 import { ObservationForm } from './ObservationForm';
 import { RemovalForm } from './RemovalForm';
 import type { DispensaryObservation, DispensaryRemovalReason } from './types';
-import { useDispensary } from './useDispensary';
+import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from './useDispensary';
 import type { ObservationInput } from './useDispensary';
 import { usePatients } from './usePatients';
 import { getReminderStatus } from './utils';
+import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
+import { observationsWarning } from './deleteWarnings';
+import { hideObservation } from './hideNested';
 
 const STATUS_COLOR: Record<'overdue' | 'today' | 'upcoming', string> = {
   overdue: 'red',
@@ -25,6 +28,7 @@ export function DispensaryViewPage() {
   const navigate = useNavigate();
   const { patients } = usePatients();
   const { records, deleteRecord, removeFromRegistry, reinstateRecord, addObservation, updateObservation, deleteObservation } = useDispensary();
+  const confirmDelete = useDeleteWithConfirm();
   const record = records.find((r) => r.id === id);
 
   const [observationEditor, setObservationEditor] = useState<DispensaryObservation | 'new' | null>(null);
@@ -47,11 +51,17 @@ export function DispensaryViewPage() {
   const nextVisitStatus = record.status === 'active' && record.nextVisitDate ? getReminderStatus(record.nextVisitDate) : null;
   const sortedObservations = [...record.observations].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
 
-  const handleDeleteRecord = () => {
-    deleteRecord(record.id);
-    notifications.show({ message: 'Карта учёта удалена', color: 'gray' });
-    navigate('/patients');
-  };
+  const handleDeleteRecord = () =>
+    confirmDelete({
+      what: 'карту учёта',
+      name: patient?.fullName,
+      alsoRemoves: observationsWarning(record.observations.length),
+      notice: 'Карта учёта удалена',
+      queryKey: DISPENSARY_KEY,
+      id: record.id,
+      perform: () => deleteRecord(record.id),
+      onConfirmed: () => navigate('/patients'),
+    });
 
   const handleRemove = (date: string, reason: DispensaryRemovalReason) => {
     removeFromRegistry(record.id, date, reason);
@@ -76,9 +86,21 @@ export function DispensaryViewPage() {
   };
 
   const handleDeleteObservation = (observationId: string) => {
-    deleteObservation(record.id, observationId);
-    notifications.show({ message: 'Осмотр удалён', color: 'gray' });
-    if (observationEditor && observationEditor !== 'new' && observationEditor.id === observationId) setObservationEditor(null);
+    const observation = record.observations.find((item) => item.id === observationId);
+    confirmDelete({
+      what: 'осмотр',
+      name: observation ? dayjs(observation.date).format('D MMMM YYYY') : undefined,
+      notice: 'Осмотр удалён',
+      queryKey: DISPENSARY_KEY,
+      // An observation is not a row of the register: it has to be taken out of its card.
+      hide: hideObservation(record.id, observationId),
+      perform: () => deleteObservation(record.id, observationId),
+      onConfirmed: () => {
+        if (observationEditor && observationEditor !== 'new' && observationEditor.id === observationId) {
+          setObservationEditor(null);
+        }
+      },
+    });
   };
 
   return (

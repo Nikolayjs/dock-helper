@@ -41,8 +41,9 @@ import {
   parseFormula,
 } from '../lib/formulaEngine';
 import { CALCULATOR_CATEGORIES, type CalculatorDefinition, type InterpretationRange } from '../features/calculators/types';
-import { useCalculators } from '../features/calculators/useCalculators';
+import { QUERY_KEY as CALCULATORS_KEY, useCalculators } from '../features/calculators/useCalculators';
 import { useCustomCategories } from '../features/calculators/useCustomCategories';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const RESERVED_NAMES = new Set([...FORMULA_FUNCTION_NAMES, ...FORMULA_CONSTANT_NAMES]);
@@ -57,6 +58,7 @@ export function CalculatorBuilderPage() {
   const isEditMode = Boolean(id);
   const navigate = useNavigate();
   const { calculators, addCalculator, updateCalculator, deleteCalculator } = useCalculators();
+  const confirmDelete = useDeleteWithConfirm();
   const { categories: customCategories, addCategory } = useCustomCategories();
 
   const editingCalculator = isEditMode ? calculators.find((calc) => calc.id === id) : undefined;
@@ -190,11 +192,17 @@ export function CalculatorBuilderPage() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!editingCalculator) return;
-    await deleteCalculator(editingCalculator.id);
-    notifications.show({ message: 'Калькулятор удалён', color: 'gray' });
-    navigate('/calculators');
+    confirmDelete({
+      what: 'калькулятор',
+      name: editingCalculator.title,
+      notice: 'Калькулятор удалён',
+      queryKey: CALCULATORS_KEY,
+      id: editingCalculator.id,
+      perform: () => deleteCalculator(editingCalculator.id),
+      onConfirmed: () => navigate('/calculators'),
+    });
   };
 
   return (

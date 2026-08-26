@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Alert, Button, Card, Container, Group, SegmentedControl, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconChartBar, IconClipboardHeart, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,8 +8,10 @@ import { PatientImportModal } from '../features/patients/import/PatientImportMod
 import { PatientTable } from '../features/patients/PatientTable';
 import type { DispensaryRecord } from '../features/patients/types';
 import type { Patient } from '../features/patients/types';
-import { useDispensary } from '../features/patients/useDispensary';
-import { usePatients } from '../features/patients/usePatients';
+import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from '../features/patients/useDispensary';
+import { QUERY_KEY as PATIENTS_KEY, usePatients } from '../features/patients/usePatients';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { observationsWarning, visitsWarning } from '../features/patients/deleteWarnings';
 
 const DISCLAIMER_KEY = 'medassist:patients-disclaimer-dismissed';
 
@@ -20,6 +21,7 @@ type DispensaryFilter = 'active' | 'all';
 export function PatientsPage() {
   const { patients, deletePatient, importPatients } = usePatients();
   const { records, deleteRecord } = useDispensary();
+  const confirmDelete = useDeleteWithConfirm();
   const navigate = useNavigate();
   const [tab, setTab] = useState<PatientsTab>('all');
   const [search, setSearch] = useState('');
@@ -32,15 +34,29 @@ export function PatientsPage() {
     setDisclaimerDismissed(true);
   };
 
-  const handleDelete = (patient: Patient) => {
-    deletePatient(patient.id);
-    notifications.show({ message: 'Пациент удалён', color: 'gray' });
-  };
+  const patientsById = useMemo(() => new Map(patients.map((p) => [p.id, p])), [patients]);
 
-  const handleDeleteRecord = (record: DispensaryRecord) => {
-    deleteRecord(record.id);
-    notifications.show({ message: 'Карта учёта удалена', color: 'gray' });
-  };
+  const handleDelete = (patient: Patient) =>
+    confirmDelete({
+      what: 'пациента',
+      name: patient.fullName,
+      alsoRemoves: visitsWarning(patient.visits.length),
+      notice: 'Пациент удалён',
+      queryKey: PATIENTS_KEY,
+      id: patient.id,
+      perform: () => deletePatient(patient.id),
+    });
+
+  const handleDeleteRecord = (record: DispensaryRecord) =>
+    confirmDelete({
+      what: 'карту учёта',
+      name: patientsById.get(record.patientId)?.fullName,
+      alsoRemoves: observationsWarning(record.observations.length),
+      notice: 'Карта учёта удалена',
+      queryKey: DISPENSARY_KEY,
+      id: record.id,
+      perform: () => deleteRecord(record.id),
+    });
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -63,8 +79,6 @@ export function PatientsPage() {
       return b.createdAt.localeCompare(a.createdAt);
     });
   }, [filtered]);
-
-  const patientsById = useMemo(() => new Map(patients.map((p) => [p.id, p])), [patients]);
 
   const dispensaryFiltered = useMemo(() => {
     return dispensaryFilter === 'active' ? records.filter((r) => r.status === 'active') : records;

@@ -16,7 +16,6 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconBellRinging,
   IconCalendarStats,
@@ -41,13 +40,14 @@ import {
 } from '../features/dashboard/selectors';
 import type { ReferralPeriod } from '../features/dashboard/selectors';
 import { NoteCard } from '../features/notes/NoteCard';
-import { useNotes } from '../features/notes/useNotes';
+import { QUERY_KEY as NOTES_KEY, useNotes } from '../features/notes/useNotes';
 import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from '../features/patients/referralUtils';
 import { calcAge, formatAge, getInitials } from '../features/patients/utils';
 import { usePatients } from '../features/patients/usePatients';
 import type { ReminderStatus } from '../features/patients/utils';
 import { getUpcomingReminders as getUpcomingCalendarReminders } from '../features/reminders/selectors';
 import { useReminders } from '../features/reminders/useReminders';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 const REFERRAL_PERIOD_LABEL: Record<ReferralPeriod, string> = {
   month: 'Месяц',
@@ -71,6 +71,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const { patients } = usePatients();
   const { notes, deleteNote, toggleTodoItem } = useNotes();
+  const confirmDelete = useDeleteWithConfirm();
   const { reminders } = useReminders();
   const [referralPeriod, setReferralPeriod] = useState<ReferralPeriod>('month');
 
@@ -369,10 +370,16 @@ export function DashboardPage() {
                         note={note}
                         onOpen={() => navigate(`/notes/${note.id}`, { state: { from: '/dashboard' } })}
                         onEdit={() => navigate(`/notes/${note.id}/edit`, { state: { from: '/dashboard' } })}
-                        onDelete={() => {
-                          deleteNote(note.id);
-                          notifications.show({ message: 'Заметка удалена', color: 'gray' });
-                        }}
+                        onDelete={() =>
+                          confirmDelete({
+                            what: 'заметку',
+                            name: note.title,
+                            notice: 'Заметка удалена',
+                            queryKey: NOTES_KEY,
+                            id: note.id,
+                            perform: () => deleteNote(note.id),
+                          })
+                        }
                         onToggleItem={(itemId) => toggleTodoItem(note.id, itemId)}
                       />
                     ))}

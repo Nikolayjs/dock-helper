@@ -5,7 +5,8 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 
 import { NoteForm } from './NoteForm';
 import type { NoteInput } from './useNotes';
-import { useNotes } from './useNotes';
+import { QUERY_KEY as NOTES_KEY, useNotes } from './useNotes';
+import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 
 export function NoteEditorPage() {
   const { id } = useParams();
@@ -13,6 +14,7 @@ export function NoteEditorPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { notes, addNote, updateNote, deleteNote } = useNotes();
+  const confirmDelete = useDeleteWithConfirm();
   const editingNote = id ? notes.find((n) => n.id === id) : undefined;
 
   const from = (location.state as { from?: string } | null)?.from;
@@ -49,9 +51,15 @@ export function NoteEditorPage() {
 
   const handleDelete = () => {
     if (!editingNote) return;
-    deleteNote(editingNote.id);
-    notifications.show({ message: 'Заметка удалена', color: 'gray' });
-    navigate(fallbackTo);
+    confirmDelete({
+      what: 'заметку',
+      name: editingNote.title,
+      notice: 'Заметка удалена',
+      queryKey: NOTES_KEY,
+      id: editingNote.id,
+      perform: () => deleteNote(editingNote.id),
+      onConfirmed: () => navigate(fallbackTo),
+    });
   };
 
   return (

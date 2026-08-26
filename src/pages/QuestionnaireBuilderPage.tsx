@@ -8,7 +8,8 @@ import { DiagnosticSession } from '../features/diagnostics/DiagnosticSession';
 import { DiseaseEditorRow, type DraftDisease } from '../features/diagnostics/builder/DiseaseEditorRow';
 import { SymptomPoolEditor, type DraftSymptom } from '../features/diagnostics/builder/SymptomPoolEditor';
 import type { Questionnaire } from '../features/diagnostics/types';
-import { slugifyQuestionnaireId, useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
+import { QUERY_KEY as QUESTIONNAIRES_KEY, slugifyQuestionnaireId, useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 function emptySymptom(): DraftSymptom {
   return { uid: crypto.randomUUID(), id: crypto.randomUUID(), label: '', generalPrevalence: 0.3 };
@@ -23,6 +24,7 @@ export function QuestionnaireBuilderPage() {
   const isEditMode = Boolean(id);
   const navigate = useNavigate();
   const { questionnaires, addQuestionnaire, updateQuestionnaire, deleteQuestionnaire } = useQuestionnaires();
+  const confirmDelete = useDeleteWithConfirm();
 
   const editingQuestionnaire = isEditMode ? questionnaires.find((q) => q.id === id) : undefined;
 
@@ -107,11 +109,17 @@ export function QuestionnaireBuilderPage() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!editingQuestionnaire) return;
-    await deleteQuestionnaire(editingQuestionnaire.id);
-    notifications.show({ message: 'Анкета удалена', color: 'gray' });
-    navigate('/diagnostics');
+    confirmDelete({
+      what: 'анкету',
+      name: editingQuestionnaire.title,
+      notice: 'Анкета удалена',
+      queryKey: QUESTIONNAIRES_KEY,
+      id: editingQuestionnaire.id,
+      perform: () => deleteQuestionnaire(editingQuestionnaire.id),
+      onConfirmed: () => navigate('/diagnostics'),
+    });
   };
 
   return (

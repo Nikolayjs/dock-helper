@@ -1,22 +1,23 @@
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { Alert, Badge, Button, Card, Container, Group, Loader, Stack, Text, Title } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconEdit, IconPill, IconTestPipe, IconTrash } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { buildDrugIndex, normalizeDrugName } from '../features/drugs/drugIndex';
 import { DRUG_TEXT_FIELDS } from '../features/drugs/types';
 import type { Drug } from '../features/drugs/types';
-import { useDrugs } from '../features/drugs/useDrugs';
+import { QUERY_KEY as DRUGS_KEY, useDrugs } from '../features/drugs/useDrugs';
 import { interactionsForDrug, otherDrugIn } from '../features/interactions/interactionEngine';
 import { SEVERITY_COLOR, SEVERITY_LABELS } from '../features/interactions/types';
 import { useDrugInteractions } from '../features/interactions/useDrugInteractions';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 export function DrugViewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { drugs, isLoading, deleteDrug } = useDrugs();
+  const confirmDelete = useDeleteWithConfirm();
   const { interactions } = useDrugInteractions();
 
   const drug = drugs.find((item) => item.id === id);
@@ -46,11 +47,16 @@ export function DrugViewPage() {
     );
   }
 
-  const handleDelete = async () => {
-    await deleteDrug(drug.id);
-    notifications.show({ message: 'Препарат удалён из справочника', color: 'gray' });
-    navigate('/drugs');
-  };
+  const handleDelete = () =>
+    confirmDelete({
+      what: 'препарат',
+      name: drug.inn,
+      notice: 'Препарат удалён из справочника',
+      queryKey: DRUGS_KEY,
+      id: drug.id,
+      perform: () => deleteDrug(drug.id),
+      onConfirmed: () => navigate('/drugs'),
+    });
 
   return (
     <Container size="md" px={0}>

@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createHttpRepository } from '../../../lib/httpRepository';
 import type { DocumentTemplate } from './templateTypes';
 
-const QUERY_KEY = ['document-templates'];
+/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+export const QUERY_KEY = ['document-templates'];
 
 /**
  * `kind` and `layout` are optional so that the Tiptap form keeps posting exactly what it always

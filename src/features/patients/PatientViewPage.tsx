@@ -19,11 +19,14 @@ import { DispensaryCard } from './DispensaryCard';
 import { useDocumentTemplates } from './documents/useDocumentTemplates';
 import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from './referralUtils';
 import type { PatientVisit } from './types';
-import { useDispensary } from './useDispensary';
-import { usePatients } from './usePatients';
+import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from './useDispensary';
+import { QUERY_KEY as PATIENTS_KEY, usePatients } from './usePatients';
 import type { VisitInput } from './usePatients';
 import { calcAge, formatAge, getInitials, getReminderStatus } from './utils';
 import { VisitForm } from './VisitForm';
+import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
+import { observationsWarning, visitsWarning } from './deleteWarnings';
+import { hideVisit } from './hideNested';
 
 const REMINDER_COLOR: Record<'overdue' | 'today' | 'upcoming', string> = {
   overdue: 'red',
@@ -41,6 +44,7 @@ export function PatientViewPage() {
   const navigate = useNavigate();
   const { patients, deletePatient, addVisit, updateVisit, deleteVisit } = usePatients();
   const { records: dispensaryRecords, deleteRecord: deleteDispensaryRecord } = useDispensary();
+  const confirmDelete = useDeleteWithConfirm();
   const { templates } = useDocumentTemplates();
   const patient = patients.find((p) => p.id === id);
 
@@ -64,11 +68,17 @@ export function PatientViewPage() {
   const sortedVisits = [...patient.visits].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   const patientDispensaryRecords = dispensaryRecords.filter((r) => r.patientId === patient.id);
 
-  const handleDeletePatient = () => {
-    deletePatient(patient.id);
-    notifications.show({ message: 'Пациент удалён', color: 'gray' });
-    navigate('/patients');
-  };
+  const handleDeletePatient = () =>
+    confirmDelete({
+      what: 'пациента',
+      name: patient.fullName,
+      alsoRemoves: visitsWarning(patient.visits.length),
+      notice: 'Пациент удалён',
+      queryKey: PATIENTS_KEY,
+      id: patient.id,
+      perform: () => deletePatient(patient.id),
+      onConfirmed: () => navigate('/patients'),
+    });
 
   const handleSaveVisit = (input: VisitInput) => {
     if (visitEditor && visitEditor !== 'new') {
@@ -82,9 +92,19 @@ export function PatientViewPage() {
   };
 
   const handleDeleteVisit = (visitId: string) => {
-    deleteVisit(patient.id, visitId);
-    notifications.show({ message: 'Визит удалён', color: 'gray' });
-    if (visitEditor && visitEditor !== 'new' && visitEditor.id === visitId) setVisitEditor(null);
+    const visit = patient.visits.find((item) => item.id === visitId);
+    confirmDelete({
+      what: 'визит',
+      name: visit ? `${dayjs(visit.date).format('D MMMM YYYY')} — ${visit.diagnosis || 'без диагноза'}` : undefined,
+      notice: 'Визит удалён',
+      queryKey: PATIENTS_KEY,
+      // A visit is not a row of the patient list: it has to be taken out of its patient.
+      hide: hideVisit(patient.id, visitId),
+      perform: () => deleteVisit(patient.id, visitId),
+      onConfirmed: () => {
+        if (visitEditor && visitEditor !== 'new' && visitEditor.id === visitId) setVisitEditor(null);
+      },
+    });
   };
 
   return (
@@ -166,10 +186,17 @@ export function PatientViewPage() {
                 patientName={patient.fullName}
                 onOpen={() => navigate(`/patients/dispensary/${record.id}`)}
                 onEdit={() => navigate(`/patients/dispensary/${record.id}/edit`)}
-                onDelete={() => {
-                  deleteDispensaryRecord(record.id);
-                  notifications.show({ message: 'Карта учёта удалена', color: 'gray' });
-                }}
+                onDelete={() =>
+                  confirmDelete({
+                    what: 'карту учёта',
+                    name: patient.fullName,
+                    alsoRemoves: observationsWarning(record.observations.length),
+                    notice: 'Карта учёта удалена',
+                    queryKey: DISPENSARY_KEY,
+                    id: record.id,
+                    perform: () => deleteDispensaryRecord(record.id),
+                  })
+                }
               />
             ))}
           </Stack>
