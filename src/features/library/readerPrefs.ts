@@ -6,9 +6,10 @@ export const PDF_ZOOM_MIN = 0.6;
 export const PDF_ZOOM_MAX = 2.4;
 export const PDF_ZOOM_DEFAULT = 1.2;
 
-export const FB2_FONT_SCALE_MIN = 0.8;
-export const FB2_FONT_SCALE_MAX = 1.8;
-export const FB2_FONT_SCALE_DEFAULT = 1;
+/** Type size for the reflowable reader — shared by FB2 and DOCX, which is one reading preference. */
+export const READER_FONT_SCALE_MIN = 0.8;
+export const READER_FONT_SCALE_MAX = 1.8;
+export const READER_FONT_SCALE_DEFAULT = 1;
 
 export const DJVU_ZOOM_MIN = 0.6;
 export const DJVU_ZOOM_MAX = 2.4;
@@ -16,13 +17,14 @@ export const DJVU_ZOOM_DEFAULT = 1;
 
 interface ReaderPrefs {
   pdfZoom: number;
+  /** Stored under its original name so an existing setting survives the rename to `reader`. */
   fb2FontScale: number;
   djvuZoom: number;
 }
 
 const DEFAULT_PREFS: ReaderPrefs = {
   pdfZoom: PDF_ZOOM_DEFAULT,
-  fb2FontScale: FB2_FONT_SCALE_DEFAULT,
+  fb2FontScale: READER_FONT_SCALE_DEFAULT,
   djvuZoom: DJVU_ZOOM_DEFAULT,
 };
 
@@ -33,7 +35,7 @@ function readPrefs(): ReaderPrefs {
     const parsed = JSON.parse(raw);
     return {
       pdfZoom: typeof parsed.pdfZoom === 'number' ? parsed.pdfZoom : PDF_ZOOM_DEFAULT,
-      fb2FontScale: typeof parsed.fb2FontScale === 'number' ? parsed.fb2FontScale : FB2_FONT_SCALE_DEFAULT,
+      fb2FontScale: typeof parsed.fb2FontScale === 'number' ? parsed.fb2FontScale : READER_FONT_SCALE_DEFAULT,
       djvuZoom: typeof parsed.djvuZoom === 'number' ? parsed.djvuZoom : DJVU_ZOOM_DEFAULT,
     };
   } catch {
@@ -53,11 +55,11 @@ export function setPdfZoom(zoom: number): void {
   writePrefs({ pdfZoom: zoom });
 }
 
-export function getFb2FontScale(): number {
+export function getReaderFontScale(): number {
   return readPrefs().fb2FontScale;
 }
 
-export function setFb2FontScale(scale: number): void {
+export function setReaderFontScale(scale: number): void {
   writePrefs({ fb2FontScale: scale });
 }
 

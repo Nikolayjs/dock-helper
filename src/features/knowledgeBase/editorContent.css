@@ -1,0 +1,51 @@
+/*
+ * Tables inside the editor. ProseMirror gives a table no appearance of its own — without borders
+ * the cells are invisible and the doctor cannot tell where one ends, so these rules are what make
+ * the feature usable rather than decoration.
+ */
+.mantine-RichTextEditor-content .ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 1em 0;
+  overflow: hidden;
+}
+
+.mantine-RichTextEditor-content .ProseMirror td,
+.mantine-RichTextEditor-content .ProseMirror th {
+  border: 1px solid var(--mantine-color-gray-4);
+  padding: 6px 8px;
+  vertical-align: top;
+  position: relative;
+  min-width: 2em;
+}
+
+.mantine-RichTextEditor-content .ProseMirror th {
+  font-weight: 600;
+  text-align: left;
+  background: var(--mantine-color-default-hover);
+}
+
+/* The cell or range the caret is in, so it is obvious which cells an action will apply to. */
+.mantine-RichTextEditor-content .ProseMirror .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--mantine-color-brand-light);
+  pointer-events: none;
+}
+
+/* Drag handle on a column border. */
+.mantine-RichTextEditor-content .ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background: var(--mantine-color-brand-5);
+  pointer-events: none;
+}
+
+.mantine-RichTextEditor-content .ProseMirror.resize-cursor {
+  cursor: col-resize;
+}

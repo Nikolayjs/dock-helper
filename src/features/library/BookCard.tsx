@@ -1,5 +1,5 @@
 import { ActionIcon, Badge, Card, Group, Progress, Stack, Text, ThemeIcon } from '@mantine/core';
-import { IconBook2, IconEdit, IconFileTypePdf, IconScan, IconTrash } from '@tabler/icons-react';
+import { IconBook2, IconEdit, IconFileTypeDocx, IconFileTypePdf, IconScan, IconTrash } from '@tabler/icons-react';
 
 import type { Book } from './types';
 
@@ -10,8 +10,13 @@ interface BookCardProps {
   onDelete: () => void;
 }
 
-const FORMAT_LABEL: Record<Book['format'], string> = { pdf: 'PDF', fb2: 'FB2', djvu: 'DjVu' };
-const FORMAT_ICON: Record<Book['format'], typeof IconBook2> = { pdf: IconFileTypePdf, fb2: IconBook2, djvu: IconScan };
+const FORMAT_LABEL: Record<Book['format'], string> = { pdf: 'PDF', docx: 'DOCX', fb2: 'FB2', djvu: 'DjVu' };
+const FORMAT_ICON: Record<Book['format'], typeof IconBook2> = {
+  pdf: IconFileTypePdf,
+  docx: IconFileTypeDocx,
+  fb2: IconBook2,
+  djvu: IconScan,
+};
 
 function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
@@ -20,7 +25,8 @@ function formatSize(bytes: number): string {
 
 function progressPercent(book: Book): number | null {
   if (!book.progress) return null;
-  if (book.format === 'fb2') return Math.round(book.progress.location * 100);
+  // Reflowable formats have no pages, so their progress is already a fraction of the whole.
+  if (book.format === 'fb2' || book.format === 'docx') return Math.round(book.progress.location * 100);
   return book.pageCount ? Math.round((book.progress.location / book.pageCount) * 100) : null;
 }
 

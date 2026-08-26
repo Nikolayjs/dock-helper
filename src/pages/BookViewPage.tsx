@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { Badge, Button, Container, Group, Image, Stack, Text, ThemeIcon, Title } from '@mantine/core';
-import { IconArrowLeft, IconBook2, IconBookmark, IconEdit, IconFileTypePdf, IconScan, IconTrash } from '@tabler/icons-react';
+import {
+  IconArrowLeft,
+  IconBook2,
+  IconBookmark,
+  IconEdit,
+  IconFileTypeDocx,
+  IconFileTypePdf,
+  IconScan,
+  IconTrash,
+} from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -9,8 +18,13 @@ import type { Book } from '../features/library/types';
 import { QUERY_KEY as LIBRARY_KEY, useBook } from '../features/library/useLibrary';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
-const FORMAT_LABEL: Record<Book['format'], string> = { pdf: 'PDF', fb2: 'FB2', djvu: 'DjVu' };
-const FORMAT_ICON: Record<Book['format'], typeof IconBook2> = { pdf: IconFileTypePdf, fb2: IconBook2, djvu: IconScan };
+const FORMAT_LABEL: Record<Book['format'], string> = { pdf: 'PDF', docx: 'DOCX', fb2: 'FB2', djvu: 'DjVu' };
+const FORMAT_ICON: Record<Book['format'], typeof IconBook2> = {
+  pdf: IconFileTypePdf,
+  docx: IconFileTypeDocx,
+  fb2: IconBook2,
+  djvu: IconScan,
+};
 
 function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;

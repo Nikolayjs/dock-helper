@@ -2,23 +2,37 @@ import { useEffect, useRef, useState } from 'react';
 import { ActionIcon, Group, Stack } from '@mantine/core';
 import { IconMinus, IconPlus } from '@tabler/icons-react';
 
-import './fb2Content.css';
-import { FB2_FONT_SCALE_MAX, FB2_FONT_SCALE_MIN, getFb2FontScale, setFb2FontScale } from './readerPrefs';
+import './flowReader.css';
+import { READER_FONT_SCALE_MAX, READER_FONT_SCALE_MIN, getReaderFontScale, setReaderFontScale } from './readerPrefs';
 
 const BASE_FONT_SIZE = 16;
 
-interface Fb2ReaderProps {
+interface FlowReaderProps {
   bodyHtml: string;
+  /** Format-specific styling layered over the shared `.flow-reader` typography. */
+  contentClassName?: string;
   initialProgress?: number;
   /** Hides the font-size toolbar, for distraction-free reading on small screens. */
   immersive?: boolean;
   onProgressChange?: (fraction: number) => void;
 }
 
-export function Fb2Reader({ bodyHtml, initialProgress = 0, immersive, onProgressChange }: Fb2ReaderProps) {
+/**
+ * The reader for formats that reflow: FB2 and DOCX. Neither has pages of its own — the text is a
+ * single stream that the window's width decides the shape of — so position is a scroll fraction
+ * rather than a page number, and the only control that means anything is type size. PDF and DjVu
+ * are the opposite (fixed pages, a zoom level) and have their own readers.
+ */
+export function FlowReader({
+  bodyHtml,
+  contentClassName,
+  initialProgress = 0,
+  immersive,
+  onProgressChange,
+}: FlowReaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const restoredRef = useRef(false);
-  const [fontScale, setFontScale] = useState(() => getFb2FontScale());
+  const [fontScale, setFontScale] = useState(() => getReaderFontScale());
 
   useEffect(() => {
     const el = containerRef.current;
@@ -53,8 +67,11 @@ export function Fb2Reader({ bodyHtml, initialProgress = 0, immersive, onProgress
 
   const adjustFontScale = (delta: number) => {
     setFontScale((prev) => {
-      const next = Math.min(FB2_FONT_SCALE_MAX, Math.max(FB2_FONT_SCALE_MIN, Math.round((prev + delta) * 100) / 100));
-      setFb2FontScale(next);
+      const next = Math.min(
+        READER_FONT_SCALE_MAX,
+        Math.max(READER_FONT_SCALE_MIN, Math.round((prev + delta) * 100) / 100),
+      );
+      setReaderFontScale(next);
       return next;
     });
   };
@@ -63,17 +80,17 @@ export function Fb2Reader({ bodyHtml, initialProgress = 0, immersive, onProgress
     <Stack align="center" gap="md" w="100%">
       {!immersive && (
         <Group>
-          <ActionIcon variant="subtle" color="gray" onClick={() => adjustFontScale(-0.1)}>
+          <ActionIcon variant="subtle" color="gray" onClick={() => adjustFontScale(-0.1)} title="Мельче">
             <IconMinus size={16} />
           </ActionIcon>
-          <ActionIcon variant="subtle" color="gray" onClick={() => adjustFontScale(0.1)}>
+          <ActionIcon variant="subtle" color="gray" onClick={() => adjustFontScale(0.1)} title="Крупнее">
             <IconPlus size={16} />
           </ActionIcon>
         </Group>
       )}
       <div
         ref={containerRef}
-        className="fb2-reader"
+        className={contentClassName ? `flow-reader ${contentClassName}` : 'flow-reader'}
         style={{
           maxHeight: immersive ? '92vh' : '75vh',
           overflowY: 'auto',

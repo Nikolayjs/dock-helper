@@ -1,13 +1,19 @@
-import { Button, Group, Stack, TagsInput, Text, TextInput, Textarea } from '@mantine/core';
-import { IconPhoto, IconTrash } from '@tabler/icons-react';
+import { Button, Group, Menu, Stack, TagsInput, Text, TextInput, Textarea } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
+import { IconDownload, IconFileTypeDocx, IconPhoto, IconTable, IconTrash } from '@tabler/icons-react';
 import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
+import { TableKit } from '@tiptap/extension-table';
 import { Underline } from '@tiptap/extension-underline';
 import { useEditor } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
 import { RichTextEditor } from '@mantine/tiptap';
 import { useRef, useState } from 'react';
 
+import './editorContent.css';
+import { downloadDocx } from '../../lib/docx/downloadDocx';
+import { readDocxFile } from '../../lib/docx/readDocx';
+import { LEGACY_DOC_MESSAGE } from '../../lib/docx/wordFormat';
 import type { KnowledgeDocument } from './types';
 import type { DocumentInput } from './useDocuments';
 
@@ -36,9 +42,19 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
   const [tags, setTags] = useState<string[]>(initialDocument?.tags ?? []);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const wordInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
 
   const editor = useEditor({
-    extensions: [StarterKit, Underline, Link, Image.configure({ allowBase64: true })],
+    extensions: [
+      StarterKit,
+      Underline,
+      Link,
+      Image.configure({ allowBase64: true }),
+      // Tables exist here for the sake of Word: a protocol or a dosing chart arrives as a table, and
+      // a schema without one would drop it silently on import.
+      TableKit.configure({ table: { resizable: true } }),
+    ],
     content: initialDocument?.content ?? '',
     editorProps: {
       handlePaste: (view, event) => {
@@ -58,6 +74,59 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
   const insertImageFile = async (file: File) => {
     const src = await fileToDataUrl(file);
     editor?.chain().focus().setImage({ src }).run();
+  };
+
+  /**
+   * Word in, article out. An empty editor is replaced; one with text in it gets the document
+   * inserted at the caret instead — importing must never be a way to lose what is already written.
+   */
+  const importWordFile = async (file: File) => {
+    if (!editor) return;
+    if (file.name.split('.').pop()?.toLowerCase() === 'doc') {
+      notifications.show({ message: LEGACY_DOC_MESSAGE, color: 'red', autoClose: 12_000 });
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const parsed = await readDocxFile(file);
+      if (editor.isEmpty) editor.commands.setContent(parsed.html);
+      else editor.chain().focus().insertContent(parsed.html).run();
+
+      if (!title.trim()) setTitle(parsed.title || file.name.replace(/\.docx$/i, ''));
+
+      notifications.show({
+        message: parsed.warnings.length
+          ? `Документ перенесён. Кое-что перенести не удалось (${parsed.warnings.length}) — пролистайте текст и проверьте.`
+          : 'Документ перенесён в редактор',
+        color: parsed.warnings.length ? 'yellow' : 'teal',
+      });
+    } catch (error) {
+      notifications.show({
+        message: error instanceof Error ? error.message : 'Не удалось прочитать файл Word',
+        color: 'red',
+        autoClose: 12_000,
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const exportWord = async () => {
+    if (!editor) return;
+    try {
+      await downloadDocx({
+        title: title.trim() || 'Документ',
+        author: initialDocument?.author,
+        html: editor.getHTML(),
+      });
+    } catch {
+      notifications.show({ message: 'Не удалось собрать файл .docx', color: 'red' });
+    }
+  };
+
+  const runOnTable = (action: (chain: ReturnType<NonNullable<typeof editor>['chain']>) => unknown) => {
+    if (editor) action(editor.chain().focus());
   };
 
   const canSave = title.trim().length > 0;
@@ -93,14 +162,28 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
       <TagsInput label="Теги" placeholder="Например: кардиология" value={tags} onChange={setTags} />
 
       <div>
-        <Group justify="space-between" mb={6}>
+        <Group justify="space-between" mb={6} wrap="wrap" gap="xs">
           <Text size="sm" fw={500}>
             Текст
           </Text>
-          <Text size="xs" c="dimmed">
-            Совет: <Text span ff="monospace">[[Название заметки]]</Text> создаёт связь — она появится на графе знаний
-          </Text>
+          <Group gap="xs">
+            <Button
+              size="compact-xs"
+              variant="light"
+              leftSection={<IconFileTypeDocx size={14} />}
+              loading={importing}
+              onClick={() => wordInputRef.current?.click()}
+            >
+              Импорт из Word
+            </Button>
+            <Button size="compact-xs" variant="subtle" leftSection={<IconDownload size={14} />} onClick={() => void exportWord()}>
+              Скачать .docx
+            </Button>
+          </Group>
         </Group>
+        <Text size="xs" c="dimmed" mb={6}>
+          Совет: <Text span ff="monospace">[[Название заметки]]</Text> создаёт связь — она появится на графе знаний
+        </Text>
         <RichTextEditor editor={editor}>
           <RichTextEditor.Toolbar sticky stickyOffset={0}>
             <RichTextEditor.ControlsGroup>
@@ -136,6 +219,31 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
               >
                 <IconPhoto size={16} stroke={1.5} />
               </RichTextEditor.Control>
+
+              <Menu shadow="md" position="bottom-start">
+                <Menu.Target>
+                  <RichTextEditor.Control aria-label="Таблица" title="Таблица">
+                    <IconTable size={16} stroke={1.5} />
+                  </RichTextEditor.Control>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item
+                    onClick={() => runOnTable((chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}
+                  >
+                    Вставить таблицу 3 × 3
+                  </Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item onClick={() => runOnTable((chain) => chain.addRowAfter().run())}>Строка ниже</Menu.Item>
+                  <Menu.Item onClick={() => runOnTable((chain) => chain.addColumnAfter().run())}>Столбец справа</Menu.Item>
+                  <Menu.Item onClick={() => runOnTable((chain) => chain.deleteRow().run())}>Удалить строку</Menu.Item>
+                  <Menu.Item onClick={() => runOnTable((chain) => chain.deleteColumn().run())}>Удалить столбец</Menu.Item>
+                  <Menu.Item onClick={() => runOnTable((chain) => chain.mergeOrSplit().run())}>Объединить / разделить</Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item color="red" onClick={() => runOnTable((chain) => chain.deleteTable().run())}>
+                    Удалить таблицу
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
             </RichTextEditor.ControlsGroup>
 
             <RichTextEditor.ControlsGroup>
@@ -159,6 +267,18 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
           onChange={(e) => {
             const file = e.currentTarget.files?.[0];
             if (file) void insertImageFile(file);
+            e.currentTarget.value = '';
+          }}
+        />
+        <input
+          ref={wordInputRef}
+          type="file"
+          accept=".doc,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.currentTarget.files?.[0];
+            if (file) void importWordFile(file);
+            // Cleared so picking the same file twice in a row still fires a change event.
             e.currentTarget.value = '';
           }}
         />

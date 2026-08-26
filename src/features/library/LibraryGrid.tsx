@@ -35,7 +35,7 @@ export function LibraryGrid({ books, isAdding, onAddFiles, onOpen, onEdit, onDel
           onChange={(e) => setSearch(e.currentTarget.value)}
           w={280}
         />
-        <FileButton onChange={onAddFiles} accept=".pdf,.fb2,.djvu,.djv,application/pdf" multiple>
+        <FileButton onChange={onAddFiles} accept=".pdf,.docx,.fb2,.djvu,.djv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
           {(props) => (
             <Button {...props} leftSection={<IconPlus size={18} />} loading={isAdding}>
               Добавить книгу
@@ -52,7 +52,7 @@ export function LibraryGrid({ books, isAdding, onAddFiles, onOpen, onEdit, onDel
             </ThemeIcon>
             <Text fw={600}>Пока нет книг</Text>
             <Text size="sm" c="dimmed" ta="center" maw={360}>
-              Загрузите файлы в формате PDF, FB2 или DjVu — обложка и описание определятся автоматически.
+              Загрузите файлы в формате PDF, DOCX, FB2 или DjVu — обложка и описание определятся автоматически.
             </Text>
           </Stack>
         </Card>

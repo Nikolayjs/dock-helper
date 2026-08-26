@@ -1,9 +1,10 @@
 import { Badge, Button, Container, Group, Stack, Text, Title, Typography } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconArrowLeft, IconDownload, IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { downloadDocx } from '../../lib/docx/downloadDocx';
 import type { KnowledgeKind } from './types';
 import { useAllDocuments, useDocuments } from './useDocuments';
 import { renderWikiLinks } from './wikiLinks';
@@ -52,6 +53,15 @@ export function KnowledgeViewPage({ kind, basePath, notFoundText, backLabel, del
           <Group gap="xs">
             <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
               Удалить
+            </Button>
+            <Button
+              variant="subtle"
+              leftSection={<IconDownload size={16} />}
+              /* The stored HTML, not the rendered one: wiki links resolve to routes of this app,
+                 which mean nothing in a file someone opens in Word. */
+              onClick={() => void downloadDocx({ title: doc.title, author: doc.author, html: doc.content })}
+            >
+              Скачать .docx
             </Button>
             <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`${basePath}/${doc.id}/edit`)}>
               Редактировать

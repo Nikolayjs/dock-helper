@@ -1,7 +1,7 @@
-export type BookFormat = 'pdf' | 'fb2' | 'djvu';
+export type BookFormat = 'pdf' | 'fb2' | 'djvu' | 'docx';
 
 export interface BookProgress {
-  /** PDF/DjVu: 1-based current page. FB2: scroll fraction from 0 to 1. */
+  /** PDF/DjVu: 1-based current page. FB2/DOCX: scroll fraction from 0 to 1. */
   location: number;
   updatedAt: string;
 }

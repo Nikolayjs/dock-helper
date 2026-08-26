@@ -4,10 +4,11 @@ import { IconArrowLeft, IconArrowsMaximize, IconArrowsMinimize } from '@tabler/i
 import { Link, useParams } from 'react-router-dom';
 
 import { DjvuReader } from '../features/library/DjvuReader';
-import { Fb2Reader } from '../features/library/Fb2Reader';
-import { decodeFb2Text, parseFb2, type Fb2Content } from '../features/library/fb2';
+import { FlowReader } from '../features/library/FlowReader';
+import { decodeFb2Text, parseFb2 } from '../features/library/fb2';
 import { PdfReader } from '../features/library/PdfReader';
 import { loadBookFile, useBook } from '../features/library/useLibrary';
+import { readDocx } from '../lib/docx/readDocx';
 
 const SAVE_DEBOUNCE_MS = 800;
 
@@ -16,7 +17,8 @@ export function BookReaderPage() {
   const { book, updateProgress } = useBook(id);
   const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [djvuData, setDjvuData] = useState<ArrayBuffer | null>(null);
-  const [fb2Content, setFb2Content] = useState<Fb2Content | null>(null);
+  // FB2 and DOCX both end up as one HTML stream for FlowReader; only the converter differs.
+  const [flowHtml, setFlowHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [immersive, setImmersive] = useState(false);
 
@@ -47,7 +49,7 @@ export function BookReaderPage() {
     setError(null);
     setPdfData(null);
     setDjvuData(null);
-    setFb2Content(null);
+    setFlowHtml(null);
 
     loadBookFile(book.id)
       .then(async (blob) => {
@@ -62,12 +64,17 @@ export function BookReaderPage() {
           setPdfData(buffer);
         } else if (book.format === 'djvu') {
           setDjvuData(buffer);
+        } else if (book.format === 'docx') {
+          const parsed = await readDocx(new Uint8Array(buffer));
+          if (!cancelled) setFlowHtml(parsed.html);
         } else {
-          setFb2Content(parseFb2(decodeFb2Text(buffer)));
+          setFlowHtml(parseFb2(decodeFb2Text(buffer)).bodyHtml);
         }
       })
-      .catch(() => {
-        if (!cancelled) setError('Не удалось открыть файл книги');
+      .catch((cause) => {
+        // A Word file carries its own diagnosis — "save it as .docx" is nothing the generic
+        // message could say, and it is the one a doctor can act on.
+        if (!cancelled) setError(cause instanceof Error && cause.message ? cause.message : 'Не удалось открыть файл книги');
       });
 
     return () => {
@@ -165,11 +172,12 @@ export function BookReaderPage() {
           </Center>
         ))}
 
-      {!error && book.format === 'fb2' &&
-        (fb2Content ? (
+      {!error && (book.format === 'fb2' || book.format === 'docx') &&
+        (flowHtml !== null ? (
           <Container size="md" px={0}>
-            <Fb2Reader
-              bodyHtml={fb2Content.bodyHtml}
+            <FlowReader
+              bodyHtml={flowHtml}
+              contentClassName={book.format === 'docx' ? 'docx-content' : 'fb2-content'}
               initialProgress={book.progress?.location ?? 0}
               immersive={immersive}
               onProgressChange={(fraction) => handleProgress(fraction)}
