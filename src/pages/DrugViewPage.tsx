@@ -8,7 +8,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { buildDrugIndex, normalizeDrugName } from '../features/drugs/drugIndex';
 import { DRUG_TEXT_FIELDS } from '../features/drugs/types';
 import type { Drug } from '../features/drugs/types';
-import { QUERY_KEY as DRUGS_KEY, useDrugs } from '../features/drugs/useDrugs';
+import { QUERY_KEY as DRUGS_KEY, useDrug, useDrugs } from '../features/drugs/useDrugs';
 import { InteractionForm } from '../features/interactions/InteractionForm';
 import { interactionsForDrug, otherDrugIn } from '../features/interactions/interactionEngine';
 import { SEVERITY_COLOR, SEVERITY_LABELS } from '../features/interactions/types';
@@ -18,11 +18,13 @@ import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext'
 export function DrugViewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { drugs, isLoading, deleteDrug } = useDrugs();
+  const { drugs, deleteDrug } = useDrugs();
+  // Список отдаёт только имена — простыни показаний и противопоказаний тянем по id,
+  // и только для той карточки, которую действительно открыли.
+  const { drug, isLoading } = useDrug(id);
   const confirmDelete = useDeleteWithConfirm();
   const { interactions } = useDrugInteractions();
 
-  const drug = drugs.find((item) => item.id === id);
   const index = useMemo(() => buildDrugIndex(drugs), [drugs]);
   const related = useMemo(() => (drug ? interactionsForDrug(drug, interactions, index) : []), [drug, interactions, index]);
 

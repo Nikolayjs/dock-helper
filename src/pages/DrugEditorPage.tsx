@@ -8,12 +8,14 @@ import { drugGroups, normalizeDrugName } from '../features/drugs/drugIndex';
 import { DRUG_TEXT_FIELDS, EMPTY_DRUG } from '../features/drugs/types';
 import { useDrugCategories } from '../features/drugs/useDrugCategories';
 import type { DrugInput } from '../features/drugs/types';
-import { useDrugs } from '../features/drugs/useDrugs';
+import { useDrug, useDrugs } from '../features/drugs/useDrugs';
 
 export function DrugEditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { drugs, createDrug, updateDrug } = useDrugs();
+  // Форму заполняет полная карточка, а список рядом нужен только для проверки дубля МНН.
+  const { drug: existing } = useDrug(id);
   const [form, setForm] = useState<DrugInput>(EMPTY_DRUG);
   const [isSaving, setIsSaving] = useState(false);
   const [loadedId, setLoadedId] = useState<string | null>(null);
@@ -29,15 +31,20 @@ export function DrugEditorPage() {
     setCategorySearch(name);
   };
 
-  const existing = id ? drugs.find((drug) => drug.id === id) : undefined;
   const groups = useMemo(() => drugGroups(drugs), [drugs]);
 
   useEffect(() => {
     // The list arrives asynchronously, so fill the form once the record shows up — and only once,
     // or every refetch would wipe out what the doctor has typed since.
     if (!existing || loadedId === existing.id) return;
-    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = existing;
-    setForm(rest);
+    // Берём ровно поля формы, а не всё, что вернул сервер: запись несёт и служебные колонки
+    // (workspaceId и прочее), а отправленные обратно они отвергаются валидацией целиком — форма
+    // молча перестаёт сохраняться.
+    setForm(
+      Object.fromEntries(
+        Object.keys(EMPTY_DRUG).map((key) => [key, existing[key as keyof typeof existing]]),
+      ) as DrugInput,
+    );
     setLoadedId(existing.id);
   }, [existing, loadedId]);
 

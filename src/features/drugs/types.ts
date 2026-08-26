@@ -1,4 +1,11 @@
-export interface Drug {
+/**
+ * Препарат в том объёме, в каком его отдаёт список.
+ *
+ * Ровно те поля, по которым ищут, фильтруют и сопоставляют торговое название с правилом
+ * взаимодействия. Длинные тексты сюда не входят: на них приходится две трети ответа, а показываются
+ * они только на карточке, которая запрашивается отдельно по id.
+ */
+export interface DrugSummary {
   id: string;
   /** МНН — the canonical name every interaction rule is written in. */
   inn: string;
@@ -8,14 +15,18 @@ export interface Drug {
   category: string;
   pharmGroup: string;
   atcCode: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Полная карточка: приходит только с `GET /drugs/:id`. */
+export interface Drug extends DrugSummary {
   forms: string[];
   indications: string;
   dosing: string;
   contraindications: string;
   sideEffects: string;
   notes: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export type DrugInput = Omit<Drug, 'id' | 'createdAt' | 'updatedAt'>;
