@@ -12,14 +12,17 @@ import {
 import dayjs from 'dayjs';
 import { Link } from 'react-router-dom';
 
-import { RankedBarList } from '../../components/common/RankedBarList';
 import { StatCard } from '../../components/common/StatCard';
 import { NoteCard } from '../notes/NoteCard';
 import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from '../patients/referralUtils';
 import { calcAge, getInitials } from '../patients/utils';
-import { AgeSexPyramid } from './AgeSexPyramid';
-import { CardHeading } from './CardHeading';
 import { AttentionQueue } from './AttentionQueue';
+import { CardHeading } from './CardHeading';
+import { ContinueReading } from './ContinueReading';
+import { DashboardCalendar } from './DashboardCalendar';
+import { FrequentDocuments } from './FrequentDocuments';
+import { PatientStructure } from './PatientStructure';
+import { isStructureMode, type StructureMode } from './structureMode';
 import type { DashboardContext } from './dashboardContext';
 
 /**
@@ -197,27 +200,51 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
 
   // ── Картина практики ──────────────────────────────────────────────────────
   {
-    id: 'age-sex',
-    title: 'Кого вы лечите',
-    description: 'Возрастно-половая структура всех пациентов',
+    id: 'structure',
+    title: 'Структура пациентов',
+    description: 'Диагнозы, возраст, пол — по выбору или всё сразу',
     span: 6,
-    render: ({ ageSex, undatedCount }) => (
-      <>
-        <CardHeading title="Кого вы лечите" caption="Возраст и пол всех пациентов в базе" />
-        <AgeSexPyramid bands={ageSex} undatedCount={undatedCount} />
-      </>
-    ),
+    render: (ctx) => {
+      const stored = ctx.widgetSettings.get('structure');
+      const mode: StructureMode = stored && isStructureMode(stored) ? stored : 'diagnoses';
+      return (
+        <>
+          <CardHeading
+            title="Структура пациентов"
+            caption={
+              mode === 'diagnoses'
+                ? 'Диагнозы по числу визитов; одинаковые коды МКБ сведены вместе'
+                : 'Кого вы лечите — по данным карточек пациентов'
+            }
+          />
+          <PatientStructure
+            mode={mode}
+            onModeChange={(next) => ctx.widgetSettings.set('structure', next)}
+            diagnoses={ctx.topDiagnoses}
+            age={ctx.ageDistribution}
+            sex={ctx.sexDistribution}
+            undatedCount={ctx.undatedCount}
+          />
+        </>
+      );
+    },
   },
   {
-    id: 'top-diagnoses',
-    title: 'Чаще всего на приёме',
-    description: 'Диагнозы по числу визитов',
+    id: 'calendar',
+    title: 'Календарь',
+    description: 'Месяц с отметками и что запланировано на выбранный день',
     span: 6,
-    isEmpty: ({ topDiagnoses }) => topDiagnoses.length === 0,
-    render: ({ topDiagnoses }) => (
+    render: ({ allNotes, allReminders }) => (
       <>
-        <CardHeading title="Чаще всего на приёме" caption="Диагнозы по числу визитов; одинаковые коды МКБ сведены вместе" />
-        <RankedBarList items={topDiagnoses} emptyMessage="Пока не из чего построить: у визитов не заполнен диагноз." />
+        <CardHeading
+          title="Календарь"
+          action={
+            <Button component={Link} to="/calendar" variant="subtle" size="xs">
+              Открыть
+            </Button>
+          }
+        />
+        <DashboardCalendar notes={allNotes} reminders={allReminders} />
       </>
     ),
   },
@@ -315,6 +342,46 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
     ),
   },
 
+  // ── Быстрый доступ ────────────────────────────────────────────────────────
+  {
+    id: 'continue-reading',
+    title: 'Продолжить чтение',
+    description: 'Книга, которую вы читали последней, с того же места',
+    span: 4,
+    render: ({ reading }) => (
+      <>
+        <CardHeading
+          title="Продолжить чтение"
+          action={
+            <Button component={Link} to="/library" variant="subtle" size="xs">
+              Библиотека
+            </Button>
+          }
+        />
+        <ContinueReading reading={reading} />
+      </>
+    ),
+  },
+  {
+    id: 'frequent-documents',
+    title: 'Частые документы',
+    description: 'Бланки, которые вы печатаете чаще всего — сразу к выбору пациента',
+    span: 4,
+    render: ({ frequentTemplates, templatesById }) => (
+      <>
+        <CardHeading
+          title="Частые документы"
+          action={
+            <Button component={Link} to="/patients/documents" variant="subtle" size="xs">
+              Все бланки
+            </Button>
+          }
+        />
+        <FrequentDocuments ranked={frequentTemplates} templatesById={templatesById} />
+      </>
+    ),
+  },
+
   // ── Дела ──────────────────────────────────────────────────────────────────
   {
     id: 'notes',
@@ -374,27 +441,33 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
             </Button>
           }
         />
-        <Stack gap="sm">
-          {dueCards.slice(0, 6).map((card) => {
-            const overdue = dayjs(card.dueDate).isBefore(dayjs(), 'day');
-            return (
-              <Group key={card.id} gap={8} wrap="nowrap" align="flex-start">
-                <ThemeIcon variant="light" color={overdue ? 'red' : 'brand'} size={28} radius="md">
-                  <IconClipboardList size={14} />
-                </ThemeIcon>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <Text size="sm" fw={500} truncate>
-                    {card.title}
-                  </Text>
-                  <Text size="xs" c={overdue ? 'red' : 'dimmed'}>
-                    {dayjs(card.dueDate).format('D MMMM')}
-                    {overdue ? ' · просрочено' : ''}
-                  </Text>
-                </div>
-              </Group>
-            );
-          })}
-        </Stack>
+        {dueCards.length === 0 ? (
+          <Text size="sm" c="dimmed">
+            Нет задач со сроком на ближайшую неделю. Поставьте карточке в планере дату — она появится здесь.
+          </Text>
+        ) : (
+          <Stack gap="sm">
+            {dueCards.slice(0, 6).map((card) => {
+              const overdue = dayjs(card.dueDate).isBefore(dayjs(), 'day');
+              return (
+                <Group key={card.id} gap={8} wrap="nowrap" align="flex-start">
+                  <ThemeIcon variant="light" color={overdue ? 'red' : 'brand'} size={28} radius="md">
+                    <IconClipboardList size={14} />
+                  </ThemeIcon>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <Text size="sm" fw={500} truncate>
+                      {card.title}
+                    </Text>
+                    <Text size="xs" c={overdue ? 'red' : 'dimmed'}>
+                      {dayjs(card.dueDate).format('D MMMM')}
+                      {overdue ? ' · просрочено' : ''}
+                    </Text>
+                  </div>
+                </Group>
+              );
+            })}
+          </Stack>
+        )}
       </>
     ),
   },
@@ -407,31 +480,37 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
     render: ({ patientReminders }) => (
       <>
         <CardHeading title="Напоминания о визитах" />
-        <Stack gap="sm">
-          {patientReminders.map(({ patient, status }) => (
-            <Group key={patient.id} gap={8} wrap="nowrap" align="flex-start">
-              <ThemeIcon
-                variant="light"
-                color={status === 'overdue' ? 'red' : status === 'today' ? 'orange' : 'teal'}
-                size={28}
-                radius="md"
-              >
-                <IconBellRinging size={14} />
-              </ThemeIcon>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <Link to={`/patients/${patient.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <Text size="sm" fw={500} truncate>
-                    {patient.fullName}
+        {patientReminders.length === 0 ? (
+          <Text size="sm" c="dimmed">
+            Ни у кого не проставлена дата следующего визита. Она задаётся в карточке пациента.
+          </Text>
+        ) : (
+          <Stack gap="sm">
+            {patientReminders.map(({ patient, status }) => (
+              <Group key={patient.id} gap={8} wrap="nowrap" align="flex-start">
+                <ThemeIcon
+                  variant="light"
+                  color={status === 'overdue' ? 'red' : status === 'today' ? 'orange' : 'teal'}
+                  size={28}
+                  radius="md"
+                >
+                  <IconBellRinging size={14} />
+                </ThemeIcon>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <Link to={`/patients/${patient.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <Text size="sm" fw={500} truncate>
+                      {patient.fullName}
+                    </Text>
+                  </Link>
+                  <Text size="xs" c="dimmed">
+                    {dayjs(patient.reminderDate).format('D MMMM')}
+                    {patient.reminderNote ? ` · ${patient.reminderNote}` : ''}
                   </Text>
-                </Link>
-                <Text size="xs" c="dimmed">
-                  {dayjs(patient.reminderDate).format('D MMMM')}
-                  {patient.reminderNote ? ` · ${patient.reminderNote}` : ''}
-                </Text>
-              </div>
-            </Group>
-          ))}
-        </Stack>
+                </div>
+              </Group>
+            ))}
+          </Stack>
+        )}
       </>
     ),
   },
@@ -451,23 +530,29 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
             </Button>
           }
         />
-        <Stack gap="sm">
-          {calendarReminders.map((reminder) => (
-            <Group key={reminder.id} gap={8} wrap="nowrap" align="flex-start">
-              <ThemeIcon variant="light" color="orange" size={28} radius="md">
-                <IconBellRinging size={14} />
-              </ThemeIcon>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <Text size="sm" fw={500} truncate>
-                  {reminder.title}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {dayjs(reminder.datetime).format('D MMMM, HH:mm')}
-                </Text>
-              </div>
-            </Group>
-          ))}
-        </Stack>
+        {calendarReminders.length === 0 ? (
+          <Text size="sm" c="dimmed">
+            На ближайшую неделю напоминаний нет.
+          </Text>
+        ) : (
+          <Stack gap="sm">
+            {calendarReminders.map((reminder) => (
+              <Group key={reminder.id} gap={8} wrap="nowrap" align="flex-start">
+                <ThemeIcon variant="light" color="orange" size={28} radius="md">
+                  <IconBellRinging size={14} />
+                </ThemeIcon>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <Text size="sm" fw={500} truncate>
+                    {reminder.title}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {dayjs(reminder.datetime).format('D MMMM, HH:mm')}
+                  </Text>
+                </div>
+              </Group>
+            ))}
+          </Stack>
+        )}
       </>
     ),
   },
@@ -485,7 +570,11 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
             const age = calcAge(patient.birthDate);
             const lastVisit = patient.visits[0];
             return (
-              <Link key={patient.id} to={`/patients/${patient.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link
+                key={patient.id}
+                to={`/patients/${patient.id}`}
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
                 <Group justify="space-between" wrap="nowrap">
                   <Group gap={8} wrap="nowrap">
                     <Avatar size={32} radius="xl" color="brand">

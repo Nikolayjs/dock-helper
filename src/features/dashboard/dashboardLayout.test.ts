@@ -58,8 +58,8 @@ describe('moveWidget', () => {
 
 describe('readLayout', () => {
   it('round-trips what was written', () => {
-    writeLayout({ order: ['b', 'a'], hidden: ['c'], spans: { a: 6 } });
-    expect(readLayout()).toEqual({ order: ['b', 'a'], hidden: ['c'], spans: { a: 6 } });
+    writeLayout({ order: ['b', 'a'], hidden: ['c'], spans: { a: 6 }, settings: { s: 'age' } });
+    expect(readLayout()).toEqual({ order: ['b', 'a'], hidden: ['c'], spans: { a: 6 }, settings: { s: 'age' } });
   });
 
   it('falls back to the default when storage holds nonsense', () => {
@@ -71,9 +71,14 @@ describe('readLayout', () => {
     expect(readLayout()).toEqual(EMPTY_LAYOUT);
   });
 
-  it('reads a layout saved before widths existed', () => {
+  it('reads a layout saved before widths and per-card choices existed', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ order: ['b'], hidden: [] }));
-    expect(readLayout()).toEqual({ order: ['b'], hidden: [], spans: {} });
+    expect(readLayout()).toEqual({ order: ['b'], hidden: [], spans: {}, settings: {} });
+  });
+
+  it('keeps only per-card choices that are strings', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ settings: { a: 'age', b: 7, c: null } }));
+    expect(readLayout().settings).toEqual({ a: 'age' });
   });
 
   it('keeps only widths that are numbers, and pulls them into range', () => {

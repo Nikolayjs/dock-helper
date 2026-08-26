@@ -8,6 +8,7 @@
 import dayjs from 'dayjs';
 
 import type { BarItem } from '../../components/common/RankedBarList';
+import type { Book } from '../library/types';
 import type { DispensaryRecord, Patient, PatientVisit } from '../patients/types';
 
 /** Today at midnight — every comparison here is by calendar day, never by clock time. */
@@ -175,14 +176,11 @@ export function getVisitLoad(patients: Patient[], period: LoadPeriod): LoadPoint
   });
 }
 
-// ── Возрастно-половая структура ─────────────────────────────────────────────
+// ── Разрезы по пациентам ────────────────────────────────────────────────────
 
-export interface AgeBand {
+export interface Slice {
   label: string;
-  male: number;
-  female: number;
-  /** Neither recorded, or a birth date that cannot be read. */
-  unknownSex: number;
+  value: number;
 }
 
 const BAND_EDGES = [18, 30, 40, 50, 60, 70];
@@ -200,33 +198,39 @@ function bandIndex(age: number): number {
 }
 
 /**
- * The practice's population by age and sex. Bands are the ones Russian outpatient reporting
- * already uses, so the picture lines up with the forms rather than needing translation.
+ * Patients by age band. The bands are the ones Russian outpatient reporting already uses, so the
+ * picture lines up with the forms instead of needing translation.
  *
- * Patients with no birth date are left out entirely — an unknown age has no band to sit in, and
- * inventing one would quietly distort the shape. The count of those is returned separately by
- * {@link countUndated} so the chart can say how many it is not showing.
+ * A patient with no birth date is left out rather than guessed into a band; {@link countUndated}
+ * says how many, so the card can admit what it is not showing.
  */
-export function getAgeSexStructure(patients: Patient[]): AgeBand[] {
-  const bands: AgeBand[] = Array.from({ length: BAND_EDGES.length + 1 }, (_, index) => ({
-    label: bandLabel(index),
-    male: 0,
-    female: 0,
-    unknownSex: 0,
-  }));
+export function getAgeDistribution(patients: Patient[]): Slice[] {
+  const counts = new Array(BAND_EDGES.length + 1).fill(0) as number[];
 
   for (const patient of patients) {
     if (!patient.birthDate) continue;
     const age = dayjs().diff(dayjs(patient.birthDate), 'year');
     if (!Number.isFinite(age) || age < 0) continue;
-
-    const band = bands[bandIndex(age)];
-    if (patient.sex === 'male') band.male += 1;
-    else if (patient.sex === 'female') band.female += 1;
-    else band.unknownSex += 1;
+    counts[bandIndex(age)] += 1;
   }
 
-  return bands;
+  return counts.map((value, index) => ({ label: bandLabel(index), value }));
+}
+
+const SEX_LABEL = { male: 'Мужчины', female: 'Женщины', unknown: 'Не указан' } as const;
+
+/** Patients by sex, with the unrecorded ones counted rather than dropped. */
+export function getSexDistribution(patients: Patient[]): Slice[] {
+  const counts = { male: 0, female: 0, unknown: 0 };
+  for (const patient of patients) {
+    if (patient.sex === 'male') counts.male += 1;
+    else if (patient.sex === 'female') counts.female += 1;
+    else counts.unknown += 1;
+  }
+
+  return (Object.keys(counts) as (keyof typeof counts)[])
+    .filter((key) => counts[key] > 0)
+    .map((key) => ({ label: SEX_LABEL[key], value: counts[key] }));
 }
 
 export function countUndated(patients: Patient[]): number {
@@ -270,4 +274,40 @@ export function getTopDiagnoses(patients: Patient[], limit = 8): BarItem[] {
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
     .slice(0, limit)
     .map((group) => ({ label: group.label, value: group.count, code: group.code }));
+}
+
+// ── Чтение ──────────────────────────────────────────────────────────────────
+
+export interface ReadingProgress {
+  book: Book;
+  /** 0–100. Reflowable formats store a fraction; paged ones a page number. */
+  percent: number | null;
+  readAt: string;
+}
+
+/**
+ * The book to carry on with: the one read most recently, not the one added most recently.
+ *
+ * A book with no progress is skipped — it has not been opened, so there is nothing to continue,
+ * and offering it would push the half-read book off the card.
+ */
+export function getContinueReading(books: Book[]): ReadingProgress | null {
+  let latest: ReadingProgress | null = null;
+
+  for (const book of books) {
+    if (!book.progress) continue;
+    const readAt = book.progress.updatedAt;
+    if (latest && readAt <= latest.readAt) continue;
+
+    const percent =
+      book.pageCount && book.pageCount > 0
+        ? Math.min(100, Math.round((book.progress.location / book.pageCount) * 100))
+        : book.pageCount === null
+          ? Math.min(100, Math.round(book.progress.location * 100))
+          : null;
+
+    latest = { book, percent, readAt };
+  }
+
+  return latest;
 }

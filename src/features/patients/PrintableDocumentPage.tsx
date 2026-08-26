@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Container, Group, Loader, Select, Stack, Text } from '@mantine/core';
 import { IconArrowLeft, IconInfoCircle, IconPrinter, IconSettings } from '@tabler/icons-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -6,6 +6,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { COPIES_PER_SHEET_OPTIONS, copiesPerSheet, planSheet } from './documents/layoutTypes';
 import { TemplateDocument } from './documents/TemplateDocument';
 import { useDocumentTemplates } from './documents/useDocumentTemplates';
+import { recordTemplateUse } from '../dashboard/documentUsage';
 import { usePatients } from './usePatients';
 
 export function PrintableDocumentPage() {
@@ -23,6 +24,13 @@ export function PrintableDocumentPage() {
 
   const templateIdParam = searchParams.get('templateId');
   const template = templates.find((t) => t.id === templateIdParam) ?? templates[0];
+
+  // Единственный след, который печать вообще оставляет: у шаблона в базе нет истории. Считается
+  // один раз на открытие документа — из этого дашборд собирает список частых бланков.
+  useEffect(() => {
+    if (template) recordTemplateUse(template.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template?.id]);
 
   if (patientsLoading || templatesLoading) {
     return (

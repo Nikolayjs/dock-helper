@@ -28,12 +28,15 @@ import { useNavigate } from 'react-router-dom';
 import { SortableWidget } from '../features/dashboard/SortableWidget';
 import { useDashboardLayout } from '../features/dashboard/useDashboardLayout';
 import type { DashboardContext } from '../features/dashboard/dashboardContext';
+import { rankTemplates, readUsage } from '../features/dashboard/documentUsage';
 import {
   countUndated,
-  getAgeSexStructure,
+  getAgeDistribution,
+  getContinueReading,
   getDispensaryQueue,
   getLapsedPatients,
   getMonthlyVisitCount,
+  getSexDistribution,
   getTopDiagnoses,
   getVisitLoad,
   type LoadPeriod,
@@ -49,6 +52,8 @@ import {
 } from '../features/dashboard/selectors';
 import { QUERY_KEY as NOTES_KEY, useNotes } from '../features/notes/useNotes';
 import type { Note } from '../features/notes/types';
+import { useDocumentTemplates } from '../features/patients/documents/useDocumentTemplates';
+import { useLibrary } from '../features/library/useLibrary';
 import { useDispensary } from '../features/patients/useDispensary';
 import { usePatients } from '../features/patients/usePatients';
 import { usePlanner } from '../features/planner/usePlanner';
@@ -66,6 +71,8 @@ export function DashboardPage() {
   const { notes, deleteNote, toggleTodoItem } = useNotes();
   const { cards } = usePlanner();
   const { reminders } = useReminders();
+  const { books } = useLibrary();
+  const { templates } = useDocumentTemplates();
   const confirmDelete = useDeleteWithConfirm();
 
   const [editing, setEditing] = useState(false);
@@ -86,9 +93,19 @@ export function DashboardPage() {
   const monthlyVisits = useMemo(() => getMonthlyVisitCount(patients), [patients]);
   const lapsed = useMemo(() => getLapsedPatients(patients, LAPSED_MONTHS), [patients]);
   const visitLoad = useMemo(() => getVisitLoad(patients, loadPeriod), [patients, loadPeriod]);
-  const ageSex = useMemo(() => getAgeSexStructure(patients), [patients]);
+  const ageDistribution = useMemo(() => getAgeDistribution(patients), [patients]);
+  const sexDistribution = useMemo(() => getSexDistribution(patients), [patients]);
   const undatedCount = useMemo(() => countUndated(patients), [patients]);
   const topDiagnoses = useMemo(() => getTopDiagnoses(patients), [patients]);
+  const reading = useMemo(() => getContinueReading(books), [books]);
+
+  // Счётчик печати живёт в localStorage и меняется на другой странице, так что перечитывать его
+  // на каждый рендер незачем — возвращение на дашборд пересоздаёт компонент вместе с ним.
+  const templatesById = useMemo(() => new Map(templates.map((t) => [t.id, t])), [templates]);
+  const frequentTemplates = useMemo(
+    () => rankTemplates(readUsage(), new Set(templatesById.keys())),
+    [templatesById],
+  );
 
   const referralRange = useMemo(() => getReferralPeriodRange(referralPeriod), [referralPeriod]);
   const referralBreakdown = useMemo(
@@ -125,9 +142,16 @@ export function DashboardPage() {
     visitLoad,
     loadPeriod,
     setLoadPeriod,
-    ageSex,
+    ageDistribution,
+    sexDistribution,
     undatedCount,
     topDiagnoses,
+    reading,
+    frequentTemplates,
+    templatesById,
+    allNotes: notes,
+    allReminders: reminders,
+    widgetSettings: { get: layout.settingOf, set: layout.setSetting },
     referrals: {
       period: referralPeriod,
       setPeriod: setReferralPeriod,

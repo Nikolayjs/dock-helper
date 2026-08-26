@@ -3,7 +3,17 @@ import type { Patient } from '../patients/types';
 import type { PlannerCard } from '../planner/types';
 import type { Reminder } from '../reminders/types';
 import type { BarItem } from '../../components/common/RankedBarList';
-import type { AgeBand, DispensaryQueue, LapsedPatient, LoadPeriod, LoadPoint, VisitCount } from './practice';
+import type { DocumentTemplate } from '../patients/documents/templateTypes';
+import type { RankedTemplate } from './documentUsage';
+import type {
+  DispensaryQueue,
+  LapsedPatient,
+  LoadPeriod,
+  LoadPoint,
+  ReadingProgress,
+  Slice,
+  VisitCount,
+} from './practice';
 import type { getReferralBreakdown, ReferralEntry, ReferralPeriod, UpcomingReminder } from './selectors';
 
 /**
@@ -22,9 +32,22 @@ export interface DashboardContext {
   loadPeriod: LoadPeriod;
   setLoadPeriod: (period: LoadPeriod) => void;
 
-  ageSex: AgeBand[];
+  ageDistribution: Slice[];
+  sexDistribution: Slice[];
   undatedCount: number;
   topDiagnoses: BarItem[];
+
+  reading: ReadingProgress | null;
+  frequentTemplates: RankedTemplate[];
+  templatesById: Map<string, DocumentTemplate>;
+  allNotes: Note[];
+  allReminders: Reminder[];
+
+  /** Per-card choices kept with the layout — which cut «Структура пациентов» shows, and the like. */
+  widgetSettings: {
+    get: (id: string) => string | undefined;
+    set: (id: string, value: string) => void;
+  };
 
   referrals: {
     period: ReferralPeriod;

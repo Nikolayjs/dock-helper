@@ -2,13 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   countUndated,
-  getAgeSexStructure,
+  getAgeDistribution,
+  getContinueReading,
   getDispensaryQueue,
   getLapsedPatients,
   getMonthlyVisitCount,
+  getSexDistribution,
   getTopDiagnoses,
   getVisitLoad,
 } from './practice';
+import type { Book } from '../library/types';
 import type { DispensaryRecord, Patient, PatientVisit } from '../patients/types';
 
 /** Every expectation below is written against this date. */
@@ -175,35 +178,96 @@ describe('getVisitLoad', () => {
   });
 });
 
-describe('getAgeSexStructure', () => {
+describe('getAgeDistribution', () => {
   it('puts each age in its band, on the boundaries too', () => {
     const patients = [
-      patient('child', { birthDate: '2009-08-27', sex: 'male' }), // 16
-      patient('just18', { birthDate: '2008-08-26', sex: 'male' }), // 18 today
-      patient('sixtynine', { birthDate: '1957-08-27', sex: 'female' }), // 68
-      patient('seventy', { birthDate: '1956-08-26', sex: 'female' }), // 70 today
+      patient('child', { birthDate: '2009-08-27' }), // 16
+      patient('just18', { birthDate: '2008-08-26' }), // 18 сегодня
+      patient('sixtyeight', { birthDate: '1957-08-27' }), // 68
+      patient('seventy', { birthDate: '1956-08-26' }), // 70 сегодня
     ];
-    const bands = getAgeSexStructure(patients);
-    const byLabel = Object.fromEntries(bands.map((band) => [band.label, band]));
+    const byLabel = Object.fromEntries(getAgeDistribution(patients).map((band) => [band.label, band.value]));
 
-    expect(byLabel['0–17'].male).toBe(1);
-    expect(byLabel['18–29'].male).toBe(1);
-    expect(byLabel['60–69'].female).toBe(1);
-    expect(byLabel['70+'].female).toBe(1);
+    expect(byLabel['0–17']).toBe(1);
+    expect(byLabel['18–29']).toBe(1);
+    expect(byLabel['60–69']).toBe(1);
+    expect(byLabel['70+']).toBe(1);
   });
 
-  it('counts a patient whose sex is unrecorded separately, not as one of the two', () => {
-    const bands = getAgeSexStructure([patient('x', { birthDate: '1980-01-01' })]);
-    const band = bands.find((b) => b.label === '40–49');
-    expect(band).toMatchObject({ male: 0, female: 0, unknownSex: 1 });
+  it('keeps every band, including the empty ones', () => {
+    // Пустая полоса — это ответ: таких пациентов нет. Выкинуть её значило бы соврать о форме.
+    const bands = getAgeDistribution([patient('a', { birthDate: '1980-01-01' })]);
+    expect(bands).toHaveLength(7);
+    expect(bands.filter((band) => band.value === 0)).toHaveLength(6);
   });
 
   it('leaves out a patient with no birth date rather than inventing a band', () => {
-    const patients = [patient('nodate', { sex: 'male' }), patient('dated', { birthDate: '1980-01-01', sex: 'male' })];
-    const total = getAgeSexStructure(patients).reduce((sum, b) => sum + b.male + b.female + b.unknownSex, 0);
+    const patients = [patient('nodate'), patient('dated', { birthDate: '1980-01-01' })];
+    const total = getAgeDistribution(patients).reduce((sum, band) => sum + band.value, 0);
 
     expect(total).toBe(1);
     expect(countUndated(patients)).toBe(1);
+  });
+});
+
+describe('getSexDistribution', () => {
+  it('counts the unrecorded rather than dropping them', () => {
+    const patients = [
+      patient('m', { sex: 'male' }),
+      patient('f1', { sex: 'female' }),
+      patient('f2', { sex: 'female' }),
+      patient('unknown'),
+    ];
+    expect(getSexDistribution(patients)).toEqual([
+      { label: 'Мужчины', value: 1 },
+      { label: 'Женщины', value: 2 },
+      { label: 'Не указан', value: 1 },
+    ]);
+  });
+
+  it('omits a category nobody falls into', () => {
+    expect(getSexDistribution([patient('m', { sex: 'male' })])).toEqual([{ label: 'Мужчины', value: 1 }]);
+  });
+});
+
+describe('getContinueReading', () => {
+  const book = (id: string, extra: Partial<Book> = {}): Book => ({
+    id,
+    format: 'pdf',
+    title: `Книга ${id}`,
+    author: '',
+    description: '',
+    coverDataUrl: null,
+    fileName: `${id}.pdf`,
+    fileSize: 1,
+    pageCount: null,
+    progress: null,
+    addedAt: TODAY,
+    updatedAt: TODAY,
+    ...extra,
+  });
+
+  it('takes the book read last, not the one added last', () => {
+    const books = [
+      book('old', { progress: { location: 10, updatedAt: '2026-08-01T10:00:00Z' } }),
+      book('fresh', { progress: { location: 3, updatedAt: '2026-08-25T10:00:00Z' } }),
+      book('never'),
+    ];
+    expect(getContinueReading(books)?.book.id).toBe('fresh');
+  });
+
+  it('skips books that were never opened', () => {
+    expect(getContinueReading([book('a'), book('b')])).toBeNull();
+  });
+
+  it('reads a paged book as a share of its pages', () => {
+    const books = [book('pdf', { pageCount: 200, progress: { location: 50, updatedAt: '2026-08-20T10:00:00Z' } })];
+    expect(getContinueReading(books)?.percent).toBe(25);
+  });
+
+  it('reads a reflowable book straight from its fraction', () => {
+    const books = [book('docx', { format: 'docx', progress: { location: 0.42, updatedAt: '2026-08-20T10:00:00Z' } })];
+    expect(getContinueReading(books)?.percent).toBe(42);
   });
 });
 

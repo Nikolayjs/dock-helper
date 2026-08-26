@@ -42,6 +42,13 @@ export function useDashboardLayout() {
     [ordered, layout, save],
   );
 
+  const setSetting = useCallback(
+    (id: string, value: string) => {
+      save({ ...layout, settings: { ...layout.settings, [id]: value } });
+    },
+    [layout, save],
+  );
+
   const setSpan = useCallback(
     (id: string, span: number) => {
       save({ ...layout, spans: { ...layout.spans, [id]: clampSpan(span) } });
@@ -52,7 +59,10 @@ export function useDashboardLayout() {
   const reset = useCallback(() => save(EMPTY_LAYOUT), [save]);
 
   const isCustomised =
-    layout.order.length > 0 || layout.hidden.length > 0 || Object.keys(layout.spans).length > 0;
+    layout.order.length > 0 ||
+    layout.hidden.length > 0 ||
+    Object.keys(layout.spans).length > 0 ||
+    Object.keys(layout.settings).length > 0;
 
   return {
     /** Ordered and switched on — what the page draws. */
@@ -63,6 +73,9 @@ export function useDashboardLayout() {
     /** The doctor's width if they set one, otherwise the widget's own. */
     spanOf: (widget: DashboardWidget) => layout.spans[widget.id] ?? widget.span,
     setSpan,
+    /** The card's own choice of what to show, if the doctor made one. */
+    settingOf: (id: string) => layout.settings[id],
+    setSetting,
     isCustomised,
     toggle,
     reorder,

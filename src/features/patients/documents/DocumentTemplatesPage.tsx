@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActionIcon, Alert, Button, Card, Container, Group, Modal, Select, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { IconFileText, IconFileOff, IconInfoCircle, IconPhotoScan, IconPlus, IconPrinter, IconSearch } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { stripHtml } from '../../notes/textPreview';
 import { usePatients } from '../usePatients';
@@ -22,6 +22,18 @@ export function DocumentTemplatesPage() {
   const [search, setSearch] = useState('');
   const [printTemplate, setPrintTemplate] = useState<DocumentTemplate | null>(null);
   const [patientId, setPatientId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // `?use=<id>` открывает окно выбора пациента сразу — так карточка частых бланков на дашборде
+  // ведёт к печати, а не просто к списку. Параметр снимается, чтобы «назад» не открыл окно снова.
+  const useTemplateId = searchParams.get('use');
+  useEffect(() => {
+    // Ждём загрузки: список приходит пустым, и снять параметр раньше — значит потерять запрос.
+    if (!useTemplateId || templates.length === 0) return;
+    const requested = templates.find((template) => template.id === useTemplateId);
+    if (requested) setPrintTemplate(requested);
+    setSearchParams({}, { replace: true });
+  }, [useTemplateId, templates, setSearchParams]);
 
   const selectedPatient = patients.find((p) => p.id === patientId) ?? null;
 

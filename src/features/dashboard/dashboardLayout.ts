@@ -13,11 +13,13 @@ export interface DashboardLayout {
   hidden: string[];
   /** Widths the doctor set, out of twelve columns. Absent means the widget's own default. */
   spans: Record<string, number>;
+  /** Per-card choices — which cut a card shows, and the like. Absent means the card's default. */
+  settings: Record<string, string>;
 }
 
 export const STORAGE_KEY = 'medassist:dashboard-layout';
 
-export const EMPTY_LAYOUT: DashboardLayout = { order: [], hidden: [], spans: {} };
+export const EMPTY_LAYOUT: DashboardLayout = { order: [], hidden: [], spans: {}, settings: {} };
 
 /** Narrower than a quarter of the grid nothing here stays readable; wider than the grid is nothing. */
 export const MIN_SPAN = 3;
@@ -30,6 +32,15 @@ export function clampSpan(span: number): number {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function readSettings(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const settings: Record<string, string> = {};
+  for (const [id, choice] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof choice === 'string') settings[id] = choice;
+  }
+  return settings;
 }
 
 function readSpans(value: unknown): Record<string, number> {
@@ -49,8 +60,9 @@ export function readLayout(): DashboardLayout {
     return {
       order: isStringArray(parsed.order) ? parsed.order : [],
       hidden: isStringArray(parsed.hidden) ? parsed.hidden : [],
-      // Layouts saved before widths existed simply have none.
+      // Layouts saved before widths or per-card choices existed simply have none.
       spans: readSpans(parsed.spans),
+      settings: readSettings(parsed.settings),
     };
   } catch {
     // A corrupted preference must never take the dashboard down with it.
