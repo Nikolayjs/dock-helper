@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { Box, Button, Card, Grid, Group, ScrollArea, Stack, Text } from '@mantine/core';
-import { Calendar } from '@mantine/dates';
+import { Button, Card, Grid, Group, ScrollArea, Stack, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
 import { NoteCard } from './NoteCard';
 import type { Note } from './types';
+import { MarkedCalendar } from '../../components/common/MarkedCalendar';
 
 function formatNotesCount(count: number): string {
   const mod10 = count % 10;
@@ -53,34 +53,11 @@ export function NotesCalendarView({
     <Grid gap="lg">
       <Grid.Col span={{ base: 12, md: 5 }}>
         <Card withBorder padding="lg">
-          <Calendar
-            size="lg"
-            highlightToday
-            defaultDate={selectedDate}
-            getDayProps={(date) => ({
-              selected: date === selectedDate,
-              onClick: () => onSelectDate(date),
-            })}
-            renderDay={(date) => {
-              const count = notesByDate.get(date)?.length ?? 0;
-              return (
-                <Box pos="relative" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text size="sm">{dayjs(date).date()}</Text>
-                  <Box
-                    style={{
-                      position: 'absolute',
-                      bottom: 4,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      width: 5,
-                      height: 5,
-                      borderRadius: 999,
-                      backgroundColor: count > 0 ? 'var(--mantine-color-brand-6)' : 'transparent',
-                    }}
-                  />
-                </Box>
-              );
-            }}
+          <MarkedCalendar
+            selectedDate={selectedDate}
+            onSelectDate={onSelectDate}
+            entriesByDate={notesByDate}
+            dotColor="var(--mantine-color-brand-6)"
           />
         </Card>
       </Grid.Col>

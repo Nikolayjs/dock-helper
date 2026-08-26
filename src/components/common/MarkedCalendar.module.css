@@ -1,0 +1,28 @@
+/*
+ * A month grid that fits the width it is given.
+ *
+ * Mantine sizes a calendar by a fixed `--day-size` per size token, so `size="lg"` is 44px a cell —
+ * seven of those plus the card padding is wider than a phone, and the last column (воскресенье) was
+ * simply cut off the right edge of the screen. Nothing about that is visible on a desktop, which is
+ * why it survived.
+ *
+ * The wrapper becomes a query container so the cells are measured against the card they sit in
+ * rather than the viewport: the calendar shares a row with the day's notes on a wide screen and has
+ * the row to itself on a narrow one, and only the container knows which.
+ */
+
+.fluid {
+  container-type: inline-size;
+  width: 100%;
+}
+
+.calendar {
+  /* The cap keeps the desktop look; below it the cells shrink to whatever seven of them can share. */
+  --day-size: min(44px, calc((100cqw - 2px) / 7));
+  width: 100%;
+}
+
+/* The month table is laid out by fixed cell widths, so it needs telling to use the whole width. */
+.calendar table {
+  width: 100%;
+}

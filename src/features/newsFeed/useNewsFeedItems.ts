@@ -11,6 +11,8 @@ export interface SourceFeedState {
   isLoading: boolean;
   isError: boolean;
   errorMessage: string | null;
+  /** The live feed could not be reached, so these items are the archive alone. */
+  isStale: boolean;
   refetch: () => void;
 }
 
@@ -31,6 +33,7 @@ export function useNewsFeedItems(sources: NewsFeedSource[]) {
       isLoading: result.isLoading,
       isError: result.isError,
       errorMessage: result.error instanceof Error ? result.error.message : null,
+      isStale: result.data?.stale ?? false,
       refetch: () => void result.refetch(),
     };
   });

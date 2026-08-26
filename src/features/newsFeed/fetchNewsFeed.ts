@@ -1,8 +1,7 @@
-import { API_BASE_URL } from '../../lib/apiConfig';
-import { backendErrorMessage } from './backendError';
+import { request } from '../../lib/httpRepository';
 import type { NewsFeedItem, NewsFeedSource } from './types';
 
-interface ParsedFeedItem {
+interface ArchivedFeedItem {
   id: string;
   title: string;
   link: string;
@@ -11,39 +10,40 @@ interface ParsedFeedItem {
   thumbnail?: string;
 }
 
-interface ParsedFeedResponse {
-  items: ParsedFeedItem[];
+interface ArchivedFeedResponse {
+  items: ArchivedFeedItem[];
   feedTitle: string | null;
+  /** The live fetch failed; what came back is history only. */
+  stale: boolean;
 }
 
 export class NewsFeedError extends Error {}
 
 /**
- * Fetches one RSS/Atom feed — parsed server-side by dock-helper-api (`rss-parser`, no more going
- * through the public rss2json.com) — and maps it to our own item shape, attaching this source's id
- * and title since the backend only knows the feed URL, not which locally-managed source it belongs to.
+ * Reads one source: the backend refreshes the feed, keeps what it returned and answers with
+ * everything still inside the retention window.
+ *
+ * This used to call the stateless `parse` endpoint and show exactly what the feed held — a window of
+ * ten to a hundred items which, for a source that publishes often, is only a few days deep. An
+ * archive belongs to a workspace, so the request is now authenticated and addresses the source by
+ * id rather than by URL.
  */
-export async function fetchNewsFeed(source: NewsFeedSource): Promise<{ items: NewsFeedItem[]; feedTitle: string | null }> {
-  const endpoint = `${API_BASE_URL}/news-feed-sources/parse?url=${encodeURIComponent(source.url)}`;
-
-  let response: Response;
+export async function fetchNewsFeed(
+  source: NewsFeedSource,
+): Promise<{ items: NewsFeedItem[]; feedTitle: string | null; stale: boolean }> {
+  let data: ArchivedFeedResponse;
   try {
-    response = await fetch(endpoint);
-  } catch {
-    throw new NewsFeedError('Не удалось загрузить ленту — проверьте подключение к интернету.');
+    data = await request<ArchivedFeedResponse>(`/news-feed-sources/${source.id}/items`);
+  } catch (error) {
+    throw new NewsFeedError(error instanceof Error ? error.message : 'Не удалось загрузить ленту.');
   }
 
-  if (!response.ok) {
-    throw new NewsFeedError(await backendErrorMessage(response, `Сервис получения ленты ответил с ошибкой (${response.status}).`));
-  }
-
-  const data = (await response.json()) as ParsedFeedResponse;
-
+  // The backend knows the feed URL, not which locally-titled source it belongs to.
   const items: NewsFeedItem[] = data.items.map((item) => ({
     ...item,
     sourceId: source.id,
     sourceTitle: source.title,
   }));
 
-  return { items, feedTitle: data.feedTitle };
+  return { items, feedTitle: data.feedTitle, stale: data.stale };
 }

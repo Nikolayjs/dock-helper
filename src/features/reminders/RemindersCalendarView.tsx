@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Badge, Box, Button, Card, Grid, Group, Modal, ScrollArea, Stack, Text, ThemeIcon } from '@mantine/core';
-import { Calendar } from '@mantine/dates';
+import { Badge, Button, Card, Grid, Group, Modal, ScrollArea, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconBellRinging, IconPlus } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
@@ -8,6 +7,7 @@ import { ReminderForm } from './ReminderForm';
 import { getRemindersByDate } from './selectors';
 import type { Reminder } from './types';
 import type { ReminderInput } from './useReminders';
+import { MarkedCalendar } from '../../components/common/MarkedCalendar';
 
 interface RemindersCalendarViewProps {
   reminders: Reminder[];
@@ -60,34 +60,11 @@ export function RemindersCalendarView({
       <Grid gap="lg">
         <Grid.Col span={{ base: 12, md: 5 }}>
           <Card withBorder padding="lg">
-            <Calendar
-              size="lg"
-              highlightToday
-              defaultDate={selectedDate}
-              getDayProps={(date) => ({
-                selected: date === selectedDate,
-                onClick: () => onSelectDate(date),
-              })}
-              renderDay={(date) => {
-                const count = remindersByDate.get(date)?.length ?? 0;
-                return (
-                  <Box pos="relative" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text size="sm">{dayjs(date).date()}</Text>
-                    <Box
-                      style={{
-                        position: 'absolute',
-                        bottom: 4,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        width: 5,
-                        height: 5,
-                        borderRadius: 999,
-                        backgroundColor: count > 0 ? 'var(--mantine-color-orange-6)' : 'transparent',
-                      }}
-                    />
-                  </Box>
-                );
-              }}
+            <MarkedCalendar
+              selectedDate={selectedDate}
+              onSelectDate={onSelectDate}
+              entriesByDate={remindersByDate}
+              dotColor="var(--mantine-color-orange-6)"
             />
           </Card>
         </Grid.Col>

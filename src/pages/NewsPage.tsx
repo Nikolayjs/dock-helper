@@ -9,6 +9,7 @@ import {
   Group,
   Loader,
   Modal,
+  Select,
   SimpleGrid,
   Skeleton,
   Stack,
@@ -26,10 +27,20 @@ import { NewsCard } from '../features/newsFeed/NewsCard';
 import { discoverFeed } from '../features/newsFeed/discoverFeed';
 import type { NewsFeedItem } from '../features/newsFeed/types';
 import { useNewsFeedItems } from '../features/newsFeed/useNewsFeedItems';
+import { useNewsArchiveSettings } from '../features/newsFeed/useNewsArchiveSettings';
 import { QUERY_KEY as NEWS_SOURCES_KEY, useNewsFeedSources } from '../features/newsFeed/useNewsFeedSources';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
 const PAGE_SIZE = 12;
+
+/** Ninety days is the default: deeper than any feed reaches, and still a bounded table. */
+const RETENTION_OPTIONS = [
+  { value: '30', label: '30 дней' },
+  { value: '90', label: '90 дней' },
+  { value: '180', label: 'полгода' },
+  { value: '365', label: 'год' },
+  { value: '0', label: 'без ограничения' },
+];
 
 export function NewsPage() {
   const navigate = useNavigate();
@@ -39,6 +50,7 @@ export function NewsPage() {
 
   const [activeSourceId, setActiveSourceId] = useState<string>('all');
   const [manageOpen, setManageOpen] = useState(false);
+  const { retentionDays, setRetentionDays, isSaving: isSavingRetention } = useNewsArchiveSettings();
   const [newUrl, setNewUrl] = useState('');
   const [newTitle, setNewTitle] = useState('');
   const [isAddingSource, setIsAddingSource] = useState(false);
@@ -67,6 +79,7 @@ export function NewsPage() {
   const shownItems = visibleItems.slice(0, visibleCount);
 
   const failedSources = bySource.filter((s) => s.isError);
+  const staleSources = bySource.filter((s) => s.isStale);
 
   const handleAddSource = async () => {
     const trimmedUrl = newUrl.trim();
@@ -135,6 +148,17 @@ export function NewsPage() {
             </Button>
           </Group>
         </Group>
+
+        {/* Not an error: the feed is unreachable but its history is on screen, and saying so is
+            what stops «сегодня ничего не вышло» from being read into an outage. */}
+        {staleSources.length > 0 && (
+          <Alert color="gray" icon={<IconAlertTriangle size={18} />} title="Часть источников сейчас недоступна">
+            <Text size="sm">
+              Показан архив: {staleSources.map((s) => s.source.title).join(', ')}. Новые материалы
+              появятся, когда лента снова ответит.
+            </Text>
+          </Alert>
+        )}
 
         {failedSources.length > 0 && (
           <Alert color="orange" icon={<IconAlertTriangle size={18} />} title="Не удалось загрузить часть источников">
@@ -221,6 +245,33 @@ export function NewsPage() {
                 </Group>
               ))
             )}
+          </Stack>
+
+          <Stack gap="xs">
+            <Text size="sm" fw={500}>
+              Архив новостей
+            </Text>
+            <Text size="xs" c="dimmed">
+              RSS-лента отдаёт только последние материалы — у одних источников это неделя, у других
+              день. Всё, что лента успела показать, сохраняется здесь и остаётся доступным дольше,
+              чем на самом сайте. Архив накапливается со дня включения: то, что ленты отдали раньше,
+              вернуть неоткуда.
+            </Text>
+            <Select
+              label="Сколько хранить"
+              data={RETENTION_OPTIONS}
+              value={String(retentionDays)}
+              onChange={(value) => {
+                if (value !== null) void setRetentionDays(Number(value));
+              }}
+              allowDeselect={false}
+              disabled={isSavingRetention}
+              w={220}
+            />
+            <Text size="xs" c="dimmed">
+              Архив лежит в той же базе, что и записи пациентов, и попадает в каждую резервную
+              копию — «без ограничения» стоит выбирать осознанно.
+            </Text>
           </Stack>
 
           <Stack gap="sm">
