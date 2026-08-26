@@ -29,6 +29,7 @@ export function FavouriteCalculators() {
         <Link
           key={calculator.id}
           to={`/calculators/${calculator.id}`}
+          state={{ from: '/dashboard' }}
           style={{ textDecoration: 'none', color: 'inherit' }}
         >
           <Group gap={8} wrap="nowrap" align="flex-start">

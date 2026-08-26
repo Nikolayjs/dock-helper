@@ -53,7 +53,11 @@ export function AttentionQueue({ overdue, soon, limit = 10 }: AttentionQueueProp
             return (
               <Table.Tr key={due.record.id}>
                 <Table.Td>
-                  <Link to={`/patients/dispensary/${due.record.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Link
+                    to={`/patients/dispensary/${due.record.id}`}
+                    state={{ from: '/dashboard' }}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
                     <Text size="sm" fw={500}>
                       {due.patient?.fullName ?? 'Пациент удалён'}
                     </Text>

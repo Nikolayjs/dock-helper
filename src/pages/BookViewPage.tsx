@@ -1,15 +1,6 @@
 import { useState } from 'react';
 import { Badge, Button, Container, Group, Image, Stack, Text, ThemeIcon, Title } from '@mantine/core';
-import {
-  IconArrowLeft,
-  IconBook2,
-  IconBookmark,
-  IconEdit,
-  IconFileTypeDocx,
-  IconFileTypePdf,
-  IconScan,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconBook2, IconBookmark, IconEdit, IconFileTypeDocx, IconFileTypePdf, IconScan, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -17,6 +8,7 @@ import { BookEditModal } from '../features/library/BookEditModal';
 import type { Book } from '../features/library/types';
 import { QUERY_KEY as LIBRARY_KEY, useBook } from '../features/library/useLibrary';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { BackButton } from '../components/common/BackButton';
 
 const FORMAT_LABEL: Record<Book['format'], string> = { pdf: 'PDF', docx: 'DOCX', fb2: 'FB2', djvu: 'DjVu' };
 const FORMAT_ICON: Record<Book['format'], typeof IconBook2> = {
@@ -73,9 +65,7 @@ export function BookViewPage() {
     <Container size="md" px={0}>
       <Stack gap="lg">
         <Group justify="space-between" wrap="wrap">
-          <Button component={Link} to="/library" variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
-            К библиотеке
-          </Button>
+          <BackButton fallback={{ to: '/library', label: 'К библиотеке' }} />
           <Group gap="xs">
             <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
               Удалить

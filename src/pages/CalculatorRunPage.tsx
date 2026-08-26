@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Badge, Button, Card, Container, Group, Loader, Modal, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconEdit, IconStethoscope } from '@tabler/icons-react';
+import { IconEdit, IconStethoscope } from '@tabler/icons-react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
 import { CalculatorForm } from '../features/calculators/CalculatorForm';
 import { createDraftPreset, PresetEditorRow, type DraftPreset } from '../features/calculators/builder/PresetEditorRow';
 import { useCalculators } from '../features/calculators/useCalculators';
+import { BackButton } from '../components/common/BackButton';
 
 export function CalculatorRunPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,9 +38,9 @@ export function CalculatorRunPage() {
 
   return (
     <Container size="md" px={0}>
-      <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/calculators')} mb="lg">
-        К списку калькуляторов
-      </Button>
+      <div style={{ marginBottom: 'var(--mantine-spacing-lg)' }}>
+        <BackButton fallback={{ to: '/calculators', label: 'К списку калькуляторов' }} />
+      </div>
 
       <Card withBorder padding="xl">
         <Group justify="space-between" align="flex-start" mb="lg">

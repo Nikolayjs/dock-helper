@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Alert, Badge, Button, Card, Container, Divider, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
-import { IconAlertTriangle, IconArrowLeft, IconEdit, IconPill, IconPlus, IconTestPipe, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconEdit, IconPill, IconPlus, IconTestPipe, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -14,6 +14,7 @@ import { interactionsForDrug, otherDrugIn } from '../features/interactions/inter
 import { SEVERITY_COLOR, SEVERITY_LABELS } from '../features/interactions/types';
 import { useDrugInteractions } from '../features/interactions/useDrugInteractions';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { BackButton } from '../components/common/BackButton';
 
 export function DrugViewPage() {
   const { id } = useParams();
@@ -66,9 +67,7 @@ export function DrugViewPage() {
     <Container size="md" px={0}>
       <Stack gap="lg">
         <Group justify="space-between" wrap="wrap">
-          <Button component={Link} to="/drugs" variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
-            К справочнику
-          </Button>
+          <BackButton fallback={{ to: '/drugs', label: 'К справочнику' }} />
           <Group gap="xs">
             <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
               Удалить

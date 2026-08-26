@@ -1,10 +1,12 @@
 import { Badge, Button, Card, Checkbox, Container, Group, Progress, Stack, Text, Title, Typography } from '@mantine/core';
-import { IconArrowLeft, IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { QUERY_KEY as NOTES_KEY, useNotes } from './useNotes';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
+import { BackButton } from '../../components/common/BackButton';
+import { labelForPath, readFrom } from '../../lib/backTarget';
 
 export function NoteViewPage() {
   const { id } = useParams();
@@ -14,10 +16,10 @@ export function NoteViewPage() {
   const confirmDelete = useDeleteWithConfirm();
   const note = notes.find((n) => n.id === id);
 
-  const from = (location.state as { from?: string } | null)?.from;
-  const backTo = from === '/doctor' ? '/doctor' : from === '/calendar' ? '/calendar' : from === '/dashboard' ? '/dashboard' : '/notes';
-  const backLabel =
-    from === '/doctor' ? 'В профиль' : from === '/calendar' ? 'К календарю' : from === '/dashboard' ? 'К дашборду' : 'К списку заметок';
+  // Раньше здесь была цепочка тернарников на три известных адреса: заметка, найденная поиском из
+  // планера, всё равно уводила в список заметок. Теперь происхождение читает общий помощник.
+  const from = readFrom(location.state);
+  const { to: backTo, label: backLabel } = { to: from ?? '/notes', label: (from && labelForPath(from)) ?? 'К списку заметок' };
 
   if (!note) {
     return (
@@ -50,9 +52,7 @@ export function NoteViewPage() {
     <Container size="md" px={0}>
       <Stack gap="lg">
         <Group justify="space-between" wrap="wrap">
-          <Button component={Link} to={backTo} variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
-            {backLabel}
-          </Button>
+          <BackButton fallback={{ to: '/notes', label: 'К списку заметок' }} />
           <Group gap="xs">
             <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
               Удалить

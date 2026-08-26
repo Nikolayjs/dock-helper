@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActionIcon, Badge, Button, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconCalendarEvent, IconEdit, IconPlus, IconTrash, IconUserCheck } from '@tabler/icons-react';
+import { IconCalendarEvent, IconEdit, IconPlus, IconTrash, IconUserCheck } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -16,6 +16,7 @@ import { getReminderStatus } from './utils';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { observationsWarning } from './deleteWarnings';
 import { hideObservation } from './hideNested';
+import { BackButton } from '../../components/common/BackButton';
 
 const STATUS_COLOR: Record<'overdue' | 'today' | 'upcoming', string> = {
   overdue: 'red',
@@ -107,9 +108,7 @@ export function DispensaryViewPage() {
     <Container size="md" px={0}>
       <Stack gap="lg">
         <Group justify="space-between" wrap="wrap">
-          <Button component={Link} to="/patients" variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
-            К списку пациентов
-          </Button>
+          <BackButton fallback={{ to: '/patients', label: 'К списку пациентов' }} />
           <Group gap="xs">
             <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDeleteRecord}>
               Удалить карту

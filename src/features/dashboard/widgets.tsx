@@ -318,7 +318,11 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
                   {referrals.entries.map((entry) => (
                     <Table.Tr key={entry.visitId}>
                       <Table.Td>
-                        <Link to={`/patients/${entry.patientId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                        <Link
+                          to={`/patients/${entry.patientId}`}
+                          state={{ from: '/dashboard' }}
+                          style={{ textDecoration: 'none', color: 'inherit' }}
+                        >
                           <Text size="sm" fw={500}>
                             {entry.patientName}
                           </Text>
@@ -537,7 +541,11 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
                   <IconBellRinging size={14} />
                 </ThemeIcon>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <Link to={`/patients/${patient.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Link
+                  to={`/patients/${patient.id}`}
+                  state={{ from: '/dashboard' }}
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
                     <Text size="sm" fw={500} truncate>
                       {patient.fullName}
                     </Text>
@@ -613,6 +621,7 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
               <Link
                 key={patient.id}
                 to={`/patients/${patient.id}`}
+                state={{ from: '/dashboard' }}
                 style={{ textDecoration: 'none', color: 'inherit' }}
               >
                 <Group justify="space-between" wrap="nowrap">

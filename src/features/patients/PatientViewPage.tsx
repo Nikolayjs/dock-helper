@@ -1,17 +1,7 @@
 import { useState } from 'react';
 import { ActionIcon, Avatar, Badge, Button, Card, Container, Group, Menu, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  IconArrowLeft,
-  IconClipboardHeart,
-  IconClockExclamation,
-  IconEdit,
-  IconFileText,
-  IconPlus,
-  IconPrinter,
-  IconSettings,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconClipboardHeart, IconClockExclamation, IconEdit, IconFileText, IconPlus, IconPrinter, IconSettings, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -27,6 +17,7 @@ import { VisitForm } from './VisitForm';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { observationsWarning, visitsWarning } from './deleteWarnings';
 import { hideVisit } from './hideNested';
+import { BackButton } from '../../components/common/BackButton';
 
 const REMINDER_COLOR: Record<'overdue' | 'today' | 'upcoming', string> = {
   overdue: 'red',
@@ -111,9 +102,7 @@ export function PatientViewPage() {
     <Container size="md" px={0}>
       <Stack gap="lg">
         <Group justify="space-between" wrap="wrap">
-          <Button component={Link} to="/patients" variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
-            К списку пациентов
-          </Button>
+          <BackButton fallback={{ to: '/patients', label: 'К списку пациентов' }} />
           <Group gap="xs">
             <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDeletePatient}>
               Удалить

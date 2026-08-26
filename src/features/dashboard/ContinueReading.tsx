@@ -66,6 +66,7 @@ export function ContinueReading({ reading }: { reading: ReadingProgress | null }
         <Button
           component={Link}
           to={`/library/${book.id}/read`}
+          state={{ from: '/dashboard' }}
           size="xs"
           variant="light"
           leftSection={<IconBookmark size={14} />}

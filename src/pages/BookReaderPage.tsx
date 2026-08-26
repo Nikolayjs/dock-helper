@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActionIcon, Button, Center, Container, Group, Loader, Stack, Text, Title } from '@mantine/core';
-import { IconArrowLeft, IconArrowsMaximize, IconArrowsMinimize } from '@tabler/icons-react';
+import { IconArrowsMaximize, IconArrowsMinimize } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
 
 import { DjvuReader } from '../features/library/DjvuReader';
@@ -9,6 +9,7 @@ import { decodeFb2Text, parseFb2 } from '../features/library/fb2';
 import { PdfReader } from '../features/library/PdfReader';
 import { loadBookFile, useBook } from '../features/library/useLibrary';
 import { readDocx } from '../lib/docx/readDocx';
+import { BackButton } from '../components/common/BackButton';
 
 const SAVE_DEBOUNCE_MS = 800;
 
@@ -122,9 +123,7 @@ export function BookReaderPage() {
       style={immersive ? { background: 'var(--mantine-color-body)', minHeight: '100vh', padding: 'var(--mantine-spacing-lg)' } : undefined}
     >
       <Group justify="space-between" wrap="wrap" gap="sm">
-        <Button component={Link} to={`/library/${book.id}`} variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
-          Назад к книге
-        </Button>
+        <BackButton fallback={{ to: `/library/${book.id}`, label: 'Назад к книге' }} />
         <Title order={4} lineClamp={1} style={{ maxWidth: 420, textAlign: 'center' }}>
           {book.title}
         </Title>

@@ -41,7 +41,7 @@ export function DashboardNews({ limit = 12 }: DashboardNewsProps) {
 
   const open = (item: NewsFeedItem) => {
     const params = new URLSearchParams({ url: item.link, title: item.title, source: item.sourceTitle });
-    navigate(`/news/read?${params.toString()}`);
+    navigate(`/news/read?${params.toString()}`, { state: { from: '/dashboard' } });
   };
 
   if (isLoading && allItems.length === 0) {

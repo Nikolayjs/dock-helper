@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconArticle, IconBook2, IconCalculator, IconNotes, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useCalculators } from '../../features/calculators/useCalculators';
 import { useDocuments } from '../../features/knowledgeBase/useDocuments';
@@ -39,6 +39,7 @@ function matches(query: string, ...fields: Array<string | undefined>) {
 
 export function HeaderSearch() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { calculators } = useCalculators();
   const { documents: guidelines } = useDocuments('guideline');
   const { documents: articles } = useDocuments('article');
@@ -140,7 +141,9 @@ export function HeaderSearch() {
   const handleSelect = (path: string) => {
     setQuery('');
     setFocused(false);
-    navigate(path);
+    // Поиск — такой же переход между разделами, как ссылка с дашборда: кнопка «назад» на найденной
+    // странице должна вернуть туда, где искали, а не в раздел находки.
+    navigate(path, { state: { from: location.pathname + location.search } });
   };
 
   return (

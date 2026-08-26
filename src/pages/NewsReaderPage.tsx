@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Alert, Anchor, Badge, Button, Card, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconBookmark, IconBookmarkFilled, IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { IconBookmark, IconBookmarkFilled, IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
+import { useSearchParams } from 'react-router-dom';
 
 import { useDocuments } from '../features/knowledgeBase/useDocuments';
 import { useArticleFullText } from '../features/newsFeed/useArticleFullText';
 import './articleContent.css';
+import { BackButton } from '../components/common/BackButton';
 
 const SUMMARY_MAX_LENGTH = 200;
 
@@ -23,7 +24,6 @@ function formatPublishedDate(value: string | null | undefined): string | null {
 }
 
 export function NewsReaderPage() {
-  const navigate = useNavigate();
   const [params] = useSearchParams();
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [showSourceFrame, setShowSourceFrame] = useState(false);
@@ -64,9 +64,7 @@ export function NewsReaderPage() {
         <Alert color="orange" icon={<IconInfoCircle size={18} />} title="Ссылка не указана">
           Вернитесь к списку новостей и откройте статью из карточки.
         </Alert>
-        <Button variant="light" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/news')} w="fit-content">
-          К новостям
-        </Button>
+        <BackButton fallback={{ to: '/news', label: 'К новостям' }} />
       </Stack>
     );
   }
@@ -74,9 +72,7 @@ export function NewsReaderPage() {
   return (
     <Stack gap="lg">
       <Group justify="space-between" wrap="wrap" gap="sm">
-        <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/news')}>
-          К новостям
-        </Button>
+        <BackButton fallback={{ to: '/news', label: 'К новостям' }} />
         <Group gap="sm">
           <Button
             variant={isSaved ? 'light' : 'default'}
