@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Card, Container, Group, SegmentedControl, SimpleGrid, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Alert, Button, Card, Container, Group, SegmentedControl, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconChartBar, IconClipboardHeart, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
-import { DispensaryCard } from '../features/patients/DispensaryCard';
+import { DispensaryTable } from '../features/patients/DispensaryTable';
 import { PatientImportModal } from '../features/patients/import/PatientImportModal';
-import { PatientCard } from '../features/patients/PatientCard';
+import { PatientTable } from '../features/patients/PatientTable';
 import type { DispensaryRecord } from '../features/patients/types';
 import type { Patient } from '../features/patients/types';
 import { useDispensary } from '../features/patients/useDispensary';
@@ -63,6 +63,8 @@ export function PatientsPage() {
       return b.createdAt.localeCompare(a.createdAt);
     });
   }, [filtered]);
+
+  const patientsById = useMemo(() => new Map(patients.map((p) => [p.id, p])), [patients]);
 
   const dispensaryFiltered = useMemo(() => {
     return dispensaryFilter === 'active' ? records.filter((r) => r.status === 'active') : records;
@@ -151,17 +153,14 @@ export function PatientsPage() {
                 </Stack>
               </Card>
             ) : (
-              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-                {sorted.map((patient) => (
-                  <PatientCard
-                    key={patient.id}
-                    patient={patient}
-                    onOpen={() => navigate(`/patients/${patient.id}`)}
-                    onEdit={() => navigate(`/patients/${patient.id}/edit`)}
-                    onDelete={() => handleDelete(patient)}
-                  />
-                ))}
-              </SimpleGrid>
+              <Card withBorder padding={0}>
+                <PatientTable
+                  patients={sorted}
+                  onOpen={(patient) => navigate(`/patients/${patient.id}`)}
+                  onEdit={(patient) => navigate(`/patients/${patient.id}/edit`)}
+                  onDelete={handleDelete}
+                />
+              </Card>
             )}
           </>
         ) : (
@@ -198,18 +197,15 @@ export function PatientsPage() {
                 </Stack>
               </Card>
             ) : (
-              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-                {sortedRecords.map((record) => (
-                  <DispensaryCard
-                    key={record.id}
-                    record={record}
-                    patientName={patients.find((p) => p.id === record.patientId)?.fullName ?? 'Пациент не найден'}
-                    onOpen={() => navigate(`/patients/dispensary/${record.id}`)}
-                    onEdit={() => navigate(`/patients/dispensary/${record.id}/edit`)}
-                    onDelete={() => handleDeleteRecord(record)}
-                  />
-                ))}
-              </SimpleGrid>
+              <Card withBorder padding={0}>
+                <DispensaryTable
+                  records={sortedRecords}
+                  patientsById={patientsById}
+                  onOpen={(record) => navigate(`/patients/dispensary/${record.id}`)}
+                  onEdit={(record) => navigate(`/patients/dispensary/${record.id}/edit`)}
+                  onDelete={handleDeleteRecord}
+                />
+              </Card>
             )}
           </>
         )}

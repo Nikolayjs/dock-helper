@@ -9,6 +9,7 @@ import {
 
 import type { AnalysisResult } from './analyzerEngine';
 import type { Severity } from './types';
+import { formatParamValueWithUnit } from './formatValue';
 
 const SEVERITY_COLOR: Record<Severity, string> = {
   critical: 'red',
@@ -93,7 +94,7 @@ export function AnalyzerResults({ result }: AnalyzerResultsProps) {
             const displayValue =
               deviation.param.inputType === 'select'
                 ? deviation.param.options?.find((o) => o.value === deviation.value)?.label
-                : `${deviation.value}${deviation.param.unit ? ` ${deviation.param.unit}` : ''}`;
+                : formatParamValueWithUnit(deviation.value, deviation.param);
 
             return (
               <Card key={deviation.param.key} withBorder padding="md">

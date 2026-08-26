@@ -87,11 +87,27 @@ function looksTruncated(token: string): boolean {
   return /[/(\-–—]$/.test(token);
 }
 
+/**
+ * Tokens that never stand alone as a unit and always open a longer one — `в п/зр`, `в поле зрения`.
+ * Taking the preposition by itself is worse than reporting no unit at all: `в` matches no
+ * parameter's unit, so the guard that exists to keep a value out of the wrong field instead vetoes
+ * the right one. Only the word is joined, never a general run of tokens: the column after the unit
+ * is sometimes prose (`ммоль/л см.комм Рекомендации по интерпретации`), and swallowing it would
+ * break rows that read correctly today.
+ */
+const UNIT_PREFIXES = new Set(['в', 'кл', 'ед']);
+
 /** Skips the previous-result column to reach the unit, but stops at the first token that is neither. */
 function findUnit(tokens: string[], from: number): string | undefined {
   for (let i = from; i < Math.min(tokens.length, from + UNIT_SCAN_WINDOW); i++) {
     if (STANDALONE_NUMBER.test(tokens[i]) || DATE_LIKE.test(tokens[i])) continue;
     if (!looksLikeUnit(tokens[i]) || looksTruncated(tokens[i])) return undefined;
+
+    if (UNIT_PREFIXES.has(tokens[i].toLowerCase())) {
+      const next = tokens[i + 1];
+      if (!next || !looksLikeUnit(next) || looksTruncated(next)) return undefined;
+      return `${tokens[i]} ${next}`;
+    }
     return tokens[i];
   }
   return undefined;
