@@ -15,7 +15,10 @@ import { PatientViewPage } from './pages/PatientViewPage';
 import { PatientEditorPage } from './pages/PatientEditorPage';
 import { DispensaryViewPage } from './pages/DispensaryViewPage';
 import { PrintableDocumentPage } from './pages/PrintableDocumentPage';
-import { DocumentTemplatesPage } from './pages/DocumentTemplatesPage';
+import { DocumentsPage } from './pages/DocumentsPage';
+import { DocumentViewPage } from './pages/DocumentViewPage';
+import { DocumentEditorPage } from './pages/DocumentEditorPage';
+import { RedirectTo, withSearch } from './pages/RedirectTo';
 import { DocumentTemplateEditorPage } from './pages/DocumentTemplateEditorPage';
 import { ScanTemplatePage } from './pages/ScanTemplatePage';
 import { DispensaryEditorPage } from './pages/DispensaryEditorPage';
@@ -90,12 +93,34 @@ export function AppRouter() {
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/library/:id" element={<BookViewPage />} />
         <Route path="/library/:id/read" element={<BookReaderPage />} />
+        <Route path="/documents" element={<DocumentsPage />} />
+        <Route path="/documents/new" element={<DocumentEditorPage />} />
+        <Route path="/documents/templates/new" element={<DocumentTemplateEditorPage />} />
+        <Route path="/documents/templates/scan" element={<ScanTemplatePage />} />
+        <Route path="/documents/templates/:id/edit" element={<DocumentTemplateEditorPage />} />
+        <Route path="/documents/:id" element={<DocumentViewPage />} />
+        <Route path="/documents/:id/edit" element={<DocumentEditorPage />} />
         <Route path="/patients" element={<PatientsPage />} />
         <Route path="/patients/new" element={<PatientEditorPage />} />
-        <Route path="/patients/documents" element={<DocumentTemplatesPage />} />
-        <Route path="/patients/documents/new" element={<DocumentTemplateEditorPage />} />
-        <Route path="/patients/documents/scan" element={<ScanTemplatePage />} />
-        <Route path="/patients/documents/:id/edit" element={<DocumentTemplateEditorPage />} />
+        {/* Раздел переехал из-под /patients: документ врача может не относиться ни к кому.
+            Старые адреса ведут туда же — закладки и ссылка с дашборда обязаны работать. */}
+        <Route
+          path="/patients/documents"
+          element={
+            <RedirectTo
+              build={(_params, search) => {
+                search.set('tab', 'templates');
+                return withSearch('/documents', search);
+              }}
+            />
+          }
+        />
+        <Route path="/patients/documents/new" element={<RedirectTo build={(_p, q) => withSearch('/documents/templates/new', q)} />} />
+        <Route path="/patients/documents/scan" element={<RedirectTo build={(_p, q) => withSearch('/documents/templates/scan', q)} />} />
+        <Route
+          path="/patients/documents/:id/edit"
+          element={<RedirectTo build={(params, q) => withSearch(`/documents/templates/${params.id}/edit`, q)} />}
+        />
         <Route path="/patients/dispensary/stats" element={<DispensaryStatsPage />} />
         <Route path="/patients/dispensary/new" element={<DispensaryEditorPage />} />
         <Route path="/patients/dispensary/:id" element={<DispensaryViewPage />} />

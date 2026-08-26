@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActionIcon, Alert, Button, Card, Container, Group, Modal, Select, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, Button, Card, Group, Modal, Select, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
 import { IconFileText, IconFileOff, IconInfoCircle, IconPhotoScan, IconPlus, IconPrinter, IconSearch } from '@tabler/icons-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -32,7 +32,15 @@ export function DocumentTemplatesPage() {
     if (!useTemplateId || templates.length === 0) return;
     const requested = templates.find((template) => template.id === useTemplateId);
     if (requested) setPrintTemplate(requested);
-    setSearchParams({}, { replace: true });
+    // Снимается только `use`: вкладка тоже живёт в адресе, и `setSearchParams({})` унесло бы её.
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        next.delete('use');
+        return next;
+      },
+      { replace: true },
+    );
   }, [useTemplateId, templates, setSearchParams]);
 
   const selectedPatient = patients.find((p) => p.id === patientId) ?? null;
@@ -57,33 +65,28 @@ export function DocumentTemplatesPage() {
   }, [templates, search]);
 
   return (
-    <Container size="xl" px={0}>
-      <Group justify="space-between" mb="lg" wrap="wrap" gap="md">
-        <Text c="dimmed" size="sm">
-          {templates.length} документов доступно
-        </Text>
+    <Stack gap="lg">
+      <Group justify="space-between" wrap="wrap" gap="md">
+        <TextInput
+          placeholder="Поиск бланка…"
+          leftSection={<IconSearch size={16} />}
+          value={search}
+          onChange={(e) => setSearch(e.currentTarget.value)}
+          w={260}
+        />
         <Group gap="sm">
           <Button
             variant="default"
             leftSection={<IconPhotoScan size={18} />}
-            onClick={() => navigate('/patients/documents/scan')}
+            onClick={() => navigate('/documents/templates/scan')}
           >
             Бланк из снимка
           </Button>
-          <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/patients/documents/new')}>
-            Создать документ
+          <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/documents/templates/new')}>
+            Создать бланк
           </Button>
         </Group>
       </Group>
-
-      <TextInput
-        placeholder="Поиск документа…"
-        leftSection={<IconSearch size={16} />}
-        value={search}
-        onChange={(e) => setSearch(e.currentTarget.value)}
-        mb="lg"
-        w={300}
-      />
 
       {!isLoading && filtered.length === 0 && (
         <Card withBorder padding="xl">
@@ -91,9 +94,11 @@ export function DocumentTemplatesPage() {
             <ThemeIcon size={48} radius="xl" variant="light" color="gray">
               <IconFileOff size={24} />
             </ThemeIcon>
-            <Text fw={600}>Ничего не найдено</Text>
-            <Text size="sm" c="dimmed">
-              Попробуйте изменить запрос или создайте новый документ.
+            <Text fw={600}>{templates.length === 0 ? 'Пока нет бланков' : 'Ничего не найдено'}</Text>
+            <Text size="sm" c="dimmed" ta="center" maw={420}>
+              {templates.length === 0
+                ? 'Бланк — заготовка с подстановками: напишите её один раз, и она будет печататься с данными выбранного пациента.'
+                : 'Попробуйте изменить запрос или создайте новый бланк.'}
             </Text>
           </Stack>
         </Card>
@@ -107,7 +112,7 @@ export function DocumentTemplatesPage() {
               withBorder
               padding="lg"
               style={{ cursor: 'pointer', height: '100%' }}
-              onClick={() => navigate(`/patients/documents/${template.id}/edit`)}
+              onClick={() => navigate(`/documents/templates/${template.id}/edit`)}
             >
               <Group justify="space-between" align="flex-start" mb="sm">
                 <ThemeIcon size={44} radius="md" variant="light" color="brand">
@@ -140,10 +145,10 @@ export function DocumentTemplatesPage() {
         </SimpleGrid>
       )}
 
-      <Modal opened={printTemplate !== null} onClose={closePrintModal} title="Печать документа" radius="lg" centered>
+      <Modal opened={printTemplate !== null} onClose={closePrintModal} title="Печать бланка" radius="lg" centered>
         <Stack gap="md">
           <Text size="sm" c="dimmed">
-            Документ «{printTemplate?.title}» будет заполнен данными пациента и последнего визита.
+            Бланк «{printTemplate?.title}» будет заполнен данными пациента и последнего визита.
           </Text>
           <Select
             label="Пациент"
@@ -173,6 +178,6 @@ export function DocumentTemplatesPage() {
           </Group>
         </Stack>
       </Modal>
-    </Container>
+    </Stack>
   );
 }

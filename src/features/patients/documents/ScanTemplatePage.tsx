@@ -96,7 +96,7 @@ export function ScanTemplatePage() {
     try {
       await addTemplate({ title: title.trim(), kind: 'layout', bodyHtml: '', layout });
       notifications.show({ message: 'Бланк сохранён как документ', color: 'teal' });
-      navigate('/patients/documents');
+      navigate('/documents?tab=templates');
     } finally {
       setIsSaving(false);
     }
@@ -111,7 +111,7 @@ export function ScanTemplatePage() {
           leftSection={<IconArrowLeft size={16} />}
           pl={8}
           style={{ alignSelf: 'flex-start' }}
-          onClick={() => navigate('/patients/documents')}
+          onClick={() => navigate('/documents?tab=templates')}
         >
           К шаблонам документов
         </Button>
@@ -188,7 +188,7 @@ export function ScanTemplatePage() {
             <LayoutEditor layout={layout} onChange={setLayout} />
 
             <Group justify="flex-end">
-              <Button variant="default" onClick={() => navigate('/patients/documents')}>
+              <Button variant="default" onClick={() => navigate('/documents?tab=templates')}>
                 Отмена
               </Button>
               <Button onClick={handleSave} loading={isSaving} disabled={!title.trim()}>

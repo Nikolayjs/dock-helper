@@ -44,7 +44,7 @@ export function FrequentDocuments({ ranked, templatesById }: FrequentDocumentsPr
         return (
           <Link
             key={entry.id}
-            to={`/patients/documents?use=${entry.id}`}
+            to={`/documents?tab=templates&use=${entry.id}`}
             style={{ textDecoration: 'none', color: 'inherit' }}
           >
             <Group gap={8} wrap="nowrap" align="flex-start">

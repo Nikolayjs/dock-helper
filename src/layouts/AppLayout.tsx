@@ -95,12 +95,17 @@ const PAGE_META: PageMetaEntry[] = [
   { match: (p) => p === '/patients', title: 'Пациенты', subtitle: 'Личные заметки — не медицинская карта' },
   { match: (p) => p === '/patients/new', title: 'Новый пациент' },
   {
-    match: (p) => p === '/patients/documents',
+    match: (p) => p === '/documents',
     title: 'Документы',
-    subtitle: 'Шаблоны справок, направлений и других печатных документов',
+    subtitle: 'Ваши направления и реестры, а рядом — бланки для печати',
   },
-  { match: (p) => p === '/patients/documents/new', title: 'Новый документ' },
-  { match: (p) => p.startsWith('/patients/documents/') && p.endsWith('/edit'), title: 'Редактирование документа' },
+  { match: (p) => p === '/documents/new', title: 'Новый документ' },
+  { match: (p) => p === '/documents/templates/new', title: 'Новый бланк' },
+  { match: (p) => p === '/documents/templates/scan', title: 'Бланк из снимка' },
+  { match: (p) => p.startsWith('/documents/templates/') && p.endsWith('/edit'), title: 'Редактирование бланка' },
+  { match: (p) => p.startsWith('/documents/') && p.endsWith('/edit'), title: 'Редактирование документа' },
+  { match: (p) => p.startsWith('/documents/'), title: 'Документ' },
+  // Печать бланка живёт под пациентом: /patients/:id/documents/:visitId.
   { match: (p) => p.includes('/documents/'), title: 'Документ' },
   // Ahead of the catch-all below, which otherwise titles every dispensary page "Пациент".
   {

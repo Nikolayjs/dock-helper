@@ -36,7 +36,7 @@ export function DocumentTemplateEditorPage() {
       <Container size="md" px={0}>
         <Stack align="center" gap="sm" py={100}>
           <Text fw={600}>Документ не найден</Text>
-          <Button component={Link} to="/patients/documents" mt="md">
+          <Button component={Link} to="/documents?tab=templates" mt="md">
             К шаблонам документов
           </Button>
         </Stack>
@@ -52,7 +52,7 @@ export function DocumentTemplateEditorPage() {
       await addTemplate(input);
       notifications.show({ message: 'Документ создан', color: 'teal' });
     }
-    navigate('/patients/documents');
+    navigate('/documents?tab=templates');
   };
 
   const handleDelete = () => {
@@ -64,7 +64,7 @@ export function DocumentTemplateEditorPage() {
       queryKey: TEMPLATES_KEY,
       id: editingTemplate.id,
       perform: () => deleteTemplate(editingTemplate.id),
-      onConfirmed: () => navigate('/patients/documents'),
+      onConfirmed: () => navigate('/documents?tab=templates'),
     });
   };
 
@@ -77,7 +77,7 @@ export function DocumentTemplateEditorPage() {
           leftSection={<IconArrowLeft size={16} />}
           pl={8}
           style={{ alignSelf: 'flex-start' }}
-          onClick={() => navigate('/patients/documents')}
+          onClick={() => navigate('/documents?tab=templates')}
         >
           К шаблонам документов
         </Button>
@@ -91,14 +91,14 @@ export function DocumentTemplateEditorPage() {
           <LayoutTemplateForm
             template={editingTemplate}
             onSubmit={handleSubmit}
-            onCancel={() => navigate('/patients/documents')}
+            onCancel={() => navigate('/documents?tab=templates')}
             onDelete={() => setDeleteModalOpen(true)}
           />
         ) : (
           <DocumentTemplateForm
             initialTemplate={editingTemplate}
             onSubmit={handleSubmit}
-            onCancel={() => navigate('/patients/documents')}
+            onCancel={() => navigate('/documents?tab=templates')}
             onDelete={editingTemplate ? () => setDeleteModalOpen(true) : undefined}
           />
         )}

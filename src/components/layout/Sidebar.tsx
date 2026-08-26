@@ -62,7 +62,7 @@ const mainNav: NavItemData[] = [
   { label: "Заметки", path: "/notes", icon: IconNotes },
   { label: "Календарь", path: "/calendar", icon: IconCalendarStats },
   { label: "Пациенты", path: "/patients", icon: IconUsers },
-  { label: "Документы", path: "/patients/documents", icon: IconFileText },
+  { label: "Документы", path: "/documents", icon: IconFileText },
 ];
 
 const knowledgeNav: NavItemData[] = [
@@ -90,15 +90,14 @@ const soonNav: NavItemData[] = [
 ];
 
 /** Nav items whose section stays highlighted on any sub-route (viewing/editing an item, "/new"...),
- * not just their own exact path. "/patients" is handled separately below since it also has to
- * exclude "/patients/documents", which is its own sidebar entry. */
+ * not just their own exact path. */
 const STARTS_WITH_NAV_PATHS = new Set([
   "/calculators",
   "/drugs",
   "/notes",
   "/diagnostics",
   "/library",
-  "/patients/documents",
+  "/documents",
   "/guidelines",
   "/articles",
   "/news",
@@ -106,12 +105,9 @@ const STARTS_WITH_NAV_PATHS = new Set([
 
 function NavItem({ item, onNavigate, iconOnly }: { item: NavItemData; onNavigate?: () => void; iconOnly?: boolean }) {
   const location = useLocation();
-  const active =
-    item.path === "/patients"
-      ? location.pathname.startsWith(item.path) && !location.pathname.startsWith("/patients/documents")
-      : STARTS_WITH_NAV_PATHS.has(item.path)
-        ? location.pathname.startsWith(item.path)
-        : location.pathname === item.path;
+  const active = STARTS_WITH_NAV_PATHS.has(item.path)
+    ? location.pathname.startsWith(item.path)
+    : location.pathname === item.path;
 
   const icon = (
     <ThemeIcon variant={active ? "filled" : "light"} color={active ? "brand" : "gray"} size={32} radius="md">

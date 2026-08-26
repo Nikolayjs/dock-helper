@@ -59,7 +59,7 @@ export function PrintableDocumentPage() {
         <Alert color="orange" icon={<IconInfoCircle size={18} />} title="Нет доступных документов">
           Все шаблоны документов удалены — создайте новый в разделе «Документы».
         </Alert>
-        <Button mt="md" leftSection={<IconArrowLeft size={16} />} variant="light" component={Link} to="/patients/documents">
+        <Button mt="md" leftSection={<IconArrowLeft size={16} />} variant="light" component={Link} to="/documents?tab=templates">
           К шаблонам документов
         </Button>
       </Container>
@@ -113,7 +113,7 @@ export function PrintableDocumentPage() {
                 w={140}
               />
             )}
-            <Button variant="light" leftSection={<IconSettings size={16} />} component={Link} to="/patients/documents">
+            <Button variant="light" leftSection={<IconSettings size={16} />} component={Link} to="/documents?tab=templates">
               Шаблоны
             </Button>
             <Button leftSection={<IconPrinter size={16} />} onClick={() => window.print()}>

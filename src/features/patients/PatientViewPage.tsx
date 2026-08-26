@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { DispensaryCard } from './DispensaryCard';
+import { PatientDocuments } from '../documents/PatientDocuments';
 import { useDocumentTemplates } from './documents/useDocumentTemplates';
 import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from './referralUtils';
 import type { PatientVisit } from './types';
@@ -191,6 +192,8 @@ export function PatientViewPage() {
           </Stack>
         )}
 
+        <PatientDocuments patientId={patient.id} />
+
         <Group justify="space-between">
           <Title order={4}>История визитов</Title>
           {visitEditor === null && (
@@ -268,7 +271,7 @@ export function PatientViewPage() {
                             ))
                           )}
                           <Menu.Divider />
-                          <Menu.Item leftSection={<IconSettings size={14} />} component={Link} to="/patients/documents">
+                          <Menu.Item leftSection={<IconSettings size={14} />} component={Link} to="/documents?tab=templates">
                             Управление шаблонами
                           </Menu.Item>
                         </Menu.Dropdown>

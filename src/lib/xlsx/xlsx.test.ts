@@ -1,0 +1,220 @@
+import { describe, expect, it } from 'vitest';
+import { unzipSync, strFromU8 } from 'fflate';
+import readXlsxFile from 'read-excel-file/node';
+
+import { cellsToStrings } from './readSheet';
+import { columnLetter, numericValue, sheetNameFrom, sheetToXlsxBytes, xlsxFileName } from './writeXlsx';
+
+/**
+ * Читает только что записанный файл тем же разборщиком, которым приложение читает чужие таблицы.
+ *
+ * Это и есть главная защита конвертера. Битую часть пакета Excel молча чинит при открытии — и
+ * повреждение всплыло бы у врача, а не здесь; наш импортёр не чинит ничего.
+ */
+async function roundTrip(input: Parameters<typeof sheetToXlsxBytes>[0]) {
+  const bytes = sheetToXlsxBytes(input);
+  // Без указания листа версия 9 отдаёт `{ sheet, data }` по каждому листу — та же форма, которую
+  // разбирает `readTable.ts`. Разворачиваем её здесь, чтобы проверки говорили о строках.
+  // Blob, а не Buffer: типов Node в этом проекте нет, а разборщик принимает и то и другое.
+  const blob = new Blob([bytes as unknown as BlobPart]);
+  const [first] = (await readXlsxFile(blob as never)) as unknown as { sheet: string; data: unknown[][] }[];
+  return first.data;
+}
+
+function partOf(bytes: Uint8Array, path: string): string {
+  return strFromU8(unzipSync(bytes)[path]);
+}
+
+describe('columnLetter', () => {
+  it('нумерует столбцы так же, как Excel', () => {
+    expect(columnLetter(0)).toBe('A');
+    expect(columnLetter(25)).toBe('Z');
+    expect(columnLetter(26)).toBe('AA');
+    expect(columnLetter(51)).toBe('AZ');
+    expect(columnLetter(52)).toBe('BA');
+    expect(columnLetter(701)).toBe('ZZ');
+    expect(columnLetter(702)).toBe('AAA');
+  });
+});
+
+describe('numericValue', () => {
+  it('признаёт простые числа', () => {
+    expect(numericValue('5')).toBe(5);
+    expect(numericValue('0')).toBe(0);
+    expect(numericValue('-3')).toBe(-3);
+    expect(numericValue('5.25')).toBe(5.25);
+    expect(numericValue(' 42 ')).toBe(42);
+  });
+
+  it('оставляет текстом то, что числом быть не должно', () => {
+    // Телефон: числом он превратился бы в 8,91235E+10.
+    expect(numericValue('89123456789')).toBeNull();
+    // Номер с ведущим нулём: в числе ноль пропадёт.
+    expect(numericValue('007')).toBeNull();
+    expect(numericValue('12.09.2026')).toBeNull();
+    expect(numericValue('1 000')).toBeNull();
+    expect(numericValue('3,5')).toBeNull();
+    expect(numericValue('')).toBeNull();
+    expect(numericValue('до 3 дней')).toBeNull();
+  });
+});
+
+describe('sheetNameFrom', () => {
+  it('убирает запрещённые Excel символы', () => {
+    expect(sheetNameFrom('Реестр: 2026/09')).toBe('Реестр 2026 09');
+    expect(sheetNameFrom('А[1]*?')).toBe('А 1');
+  });
+
+  it('обрезает до 31 символа и не отдаёт пустое имя', () => {
+    expect(sheetNameFrom('я'.repeat(60))).toHaveLength(31);
+    expect(sheetNameFrom('   ')).toBe('Лист1');
+    expect(sheetNameFrom('///')).toBe('Лист1');
+  });
+});
+
+describe('xlsxFileName', () => {
+  it('делает имя файла из названия документа', () => {
+    expect(xlsxFileName('Реестр направлений')).toBe('Реестр направлений.xlsx');
+    expect(xlsxFileName('  Отчёт: сентябрь ')).toBe('Отчёт сентябрь.xlsx');
+    expect(xlsxFileName('')).toBe('Таблица.xlsx');
+  });
+});
+
+describe('пакет .xlsx', () => {
+  const bytes = sheetToXlsxBytes({ sheetName: 'Реестр', columns: ['Пациент'], rows: [['Иванов']] });
+
+  it('содержит все части, которых Excel ждёт', () => {
+    const files = Object.keys(unzipSync(bytes)).sort();
+    expect(files).toEqual([
+      '[Content_Types].xml',
+      '_rels/.rels',
+      'docProps/core.xml',
+      'xl/_rels/workbook.xml.rels',
+      'xl/styles.xml',
+      'xl/workbook.xml',
+      'xl/worksheets/sheet1.xml',
+    ]);
+  });
+
+  it('закрепляет строку заголовков и помечает её полужирным стилем', () => {
+    const sheet = partOf(bytes, 'xl/worksheets/sheet1.xml');
+    expect(sheet).toContain('<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>');
+    expect(sheet).toContain('<c r="A1" s="1" t="inlineStr">');
+    // Строки данных обычным начертанием — иначе весь лист выйдет жирным.
+    expect(sheet).toContain('<c r="A2" t="inlineStr">');
+  });
+
+  it('несёт две заливки, без которых Excel открывает файл через восстановление', () => {
+    const styles = partOf(bytes, 'xl/styles.xml');
+    expect(styles).toContain('<fills count="2">');
+    expect(styles).toContain('patternType="gray125"');
+  });
+
+  it('задаёт ширину каждому столбцу', () => {
+    const wide = sheetToXlsxBytes({
+      sheetName: 'Л',
+      columns: ['Кратко', 'Очень длинное название столбца'],
+      rows: [['—', '—']],
+    });
+    const sheet = partOf(wide, 'xl/worksheets/sheet1.xml');
+    expect(sheet).toContain('<col min="1" max="1" width="8"');
+    expect(sheet).toContain('<col min="2" max="2" width="32"');
+  });
+});
+
+describe('круговой тест: запись и чтение обратно', () => {
+  it('возвращает те же заголовки и значения', async () => {
+    const rows = await roundTrip({
+      sheetName: 'Реестр направлений',
+      columns: ['Пациент', 'Экспертиза', 'Дата'],
+      rows: [
+        ['Иванов И. И.', 'МСЭ', '12.09.2026'],
+        ['Петрова А. С.', 'ВК', '14.09.2026'],
+      ],
+    });
+
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toEqual(['Пациент', 'Экспертиза', 'Дата']);
+    expect(rows[1]).toEqual(['Иванов И. И.', 'МСЭ', '12.09.2026']);
+    expect(rows[2]).toEqual(['Петрова А. С.', 'ВК', '14.09.2026']);
+  });
+
+  it('переживает символы, которые ломают XML', async () => {
+    const rows = await roundTrip({
+      sheetName: 'Л',
+      columns: ['Примечание'],
+      rows: [['Кровь & моча < 5 «норма» —  тире']],
+    });
+    expect(rows[1][0]).toBe('Кровь & моча < 5 «норма» —  тире');
+  });
+
+  it('выбрасывает управляющие символы, а не отдаёт нечитаемый файл', async () => {
+    const rows = await roundTrip({
+      sheetName: 'Л',
+      columns: ['Текст'],
+      rows: [['из буфера\u0007']],
+    });
+    expect(rows[1][0]).toBe('из буфера');
+  });
+
+  it('числа приходят числами, а телефон остаётся строкой', async () => {
+    const rows = await roundTrip({
+      sheetName: 'Л',
+      columns: ['Доз', 'Телефон'],
+      rows: [['12', '89123456789']],
+    });
+    expect(rows[1][0]).toBe(12);
+    expect(rows[1][1]).toBe('89123456789');
+  });
+
+  it('пустая ячейка остаётся пустой, а не съезжает влево', async () => {
+    const rows = await roundTrip({
+      sheetName: 'Л',
+      columns: ['А', 'Б', 'В'],
+      rows: [['левая', '', 'правая']],
+    });
+    expect(rows[1]).toHaveLength(3);
+    expect(rows[1][0]).toBe('левая');
+    expect(rows[1][2]).toBe('правая');
+  });
+
+  it('таблица без строк — всё ещё файл с заголовками', async () => {
+    const rows = await roundTrip({ sheetName: 'Пусто', columns: ['А', 'Б'], rows: [] });
+    expect(rows).toEqual([['А', 'Б']]);
+  });
+});
+
+describe('cellsToStrings', () => {
+  it('приводит прочитанную таблицу к сетке редактора', () => {
+    expect(
+      cellsToStrings([
+        ['Пациент', 'Дата', null],
+        ['Иванов', new Date(Date.UTC(2026, 8, 12)), 3],
+      ]),
+    ).toEqual({
+      columns: ['Пациент', 'Дата', 'Столбец 3'],
+      rows: [['Иванов', '12.09.2026', '3']],
+    });
+  });
+
+  it('выравнивает строки по числу заголовков', () => {
+    expect(cellsToStrings([['А', 'Б'], ['только одна'], ['раз', 'два', 'лишняя']])).toEqual({
+      columns: ['А', 'Б'],
+      rows: [
+        ['только одна', ''],
+        ['раз', 'два'],
+      ],
+    });
+  });
+
+  it('пропускает пустые строки в начале файла', () => {
+    expect(cellsToStrings([[], [null, null], ['Пациент'], ['Иванов']])).toEqual({
+      columns: ['Пациент'],
+      rows: [['Иванов']],
+    });
+  });
+
+  it('на пустом файле отдаёт пустую таблицу, а не падает', () => {
+    expect(cellsToStrings([])).toEqual({ columns: [], rows: [] });
+  });
+});

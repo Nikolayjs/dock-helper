@@ -416,7 +416,7 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
         <CardHeading
           title="Частые документы"
           action={
-            <Button component={Link} to="/patients/documents" variant="subtle" size="xs">
+            <Button component={Link} to="/documents?tab=templates" variant="subtle" size="xs">
               Все бланки
             </Button>
           }
