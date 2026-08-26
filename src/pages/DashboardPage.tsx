@@ -10,7 +10,7 @@ import {
   Title,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconEye, IconInfoCircle, IconLayoutGrid, IconRotate } from '@tabler/icons-react';
+import { IconEye, IconInfoCircle, IconLayoutDistributeHorizontal, IconLayoutGrid, IconRotate } from '@tabler/icons-react';
 import {
   closestCenter,
   DndContext,
@@ -193,11 +193,22 @@ export function DashboardPage() {
             {editing && (
               <Text size="sm" c="dimmed">
                 Перетаскивайте карточки за <IconLayoutGrid size={12} style={{ verticalAlign: 'middle' }} />, тяните
-                за правый край, чтобы менять ширину, и скрывайте ненужные — раскладка сохранится в этом браузере.
+                за правый край, чтобы менять ширину, и скрывайте ненужные. «Уплотнить» переставит карточки так, чтобы
+                ряды заполнялись целиком, не меняя ширин. Раскладка сохранится в этом браузере.
               </Text>
             )}
           </div>
           <Group gap="xs">
+            {editing && (
+              <Button
+                variant="subtle"
+                size="xs"
+                leftSection={<IconLayoutDistributeHorizontal size={14} />}
+                onClick={layout.compact}
+              >
+                Уплотнить
+              </Button>
+            )}
             {editing && layout.isCustomised && (
               <Button variant="subtle" size="xs" leftSection={<IconRotate size={14} />} onClick={layout.reset}>
                 Вернуть по умолчанию

@@ -100,7 +100,11 @@ export function SortableWidget({ widget, ctx, editing, span, wide, onHide, onRes
       ref={setNodeRef}
       className={classes.item}
       style={{
-        transform: CSS.Transform.toString(transform),
+        // Именно Translate, а не Transform: dnd-kit кладёт в трансформацию ещё и scaleX/scaleY,
+        // когда перетаскиваемый элемент и цель разного размера. Для одинаковых плиток это
+        // незаметно, а здесь карточки разной ширины и высоты — и карточка при перетаскивании
+        // раздувалась до размеров соседа.
+        transform: CSS.Translate.toString(transform),
         transition: previewSpan === null ? transition : 'none',
         opacity: isDragging ? 0.4 : 1,
         zIndex: isDragging || previewSpan !== null ? 1 : undefined,

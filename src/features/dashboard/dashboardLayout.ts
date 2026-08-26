@@ -111,3 +111,53 @@ export function moveWidget(order: string[], activeId: string, overId: string): s
   next.splice(to, 0, activeId);
   return next;
 }
+
+export interface CompactedLayout {
+  order: string[];
+  spans: Record<string, number>;
+}
+
+/**
+ * Раскладывает карточки так, чтобы ряды двенадцатиколоночной сетки заполнялись целиком.
+ *
+ * Делает две вещи, и обе нужны. Переставляет: из ещё не поставленных берётся первая, которая влезает
+ * в остаток текущего ряда, поэтому исходная последовательность нарушается ровно настолько, насколько
+ * требует арифметика. И растягивает: остаток ряда раздаётся его карточкам по кругу, пока ряд не
+ * станет ровно двенадцатью.
+ *
+ * Растягивать пришлось потому, что одной перестановкой ничего не добьёшься — вертикальные просветы и
+ * так закрывает `dense` в стилях сетки, и **измеренная разница от перестановки оказалась нулевой**.
+ * Остаётся ровно то, чего `dense` не может: ряд из двух восьмёрок не сходится ни при каком порядке.
+ * Поэтому кнопка меняет и ширину — она на то и кнопка, а не поведение по умолчанию.
+ */
+export function compactLayout(items: { id: string; span: number }[]): CompactedLayout {
+  const remaining = items.map((item) => ({ ...item, span: clampSpan(item.span) }));
+  const order: string[] = [];
+  const spans: Record<string, number> = {};
+
+  while (remaining.length > 0) {
+    const row: { id: string; span: number }[] = [];
+    let left = MAX_SPAN;
+
+    while (left > 0) {
+      const index = remaining.findIndex((item) => item.span <= left);
+      if (index === -1) break;
+      const [item] = remaining.splice(index, 1);
+      row.push(item);
+      left -= item.span;
+    }
+
+    // Ширины ограничены двенадцатью, так что в пустой ряд влезает любая; страховка от вечного цикла.
+    if (row.length === 0) row.push(remaining.shift()!);
+
+    // Остаток раздаётся по кругу: ряд из трёх троек становится тремя четвёрками, а не одной шестёркой.
+    for (let i = 0; left > 0; i += 1, left -= 1) row[i % row.length].span += 1;
+
+    for (const item of row) {
+      order.push(item.id);
+      spans[item.id] = item.span;
+    }
+  }
+
+  return { order, spans };
+}

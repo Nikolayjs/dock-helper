@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { DASHBOARD_WIDGETS, type DashboardWidget } from './widgets';
 import {
   clampSpan,
+  compactLayout,
   EMPTY_LAYOUT,
   moveWidget,
   orderWidgets,
@@ -56,6 +57,17 @@ export function useDashboardLayout() {
     [layout, save],
   );
 
+  /**
+   * Переставляет видимые карточки так, чтобы ряды заполнялись целиком. Скрытые сохраняют своё место
+   * в порядке: они не занимают ширину, и вернуть их потом надо туда, где они были.
+   */
+  const compact = useCallback(() => {
+    const spanOf = (widget: DashboardWidget) => layout.spans[widget.id] ?? widget.span;
+    const packed = compactLayout(visible.map((widget) => ({ id: widget.id, span: spanOf(widget) })));
+    const rest = ordered.filter((widget) => hidden.has(widget.id)).map((widget) => widget.id);
+    save({ ...layout, order: [...packed.order, ...rest], spans: { ...layout.spans, ...packed.spans } });
+  }, [visible, ordered, hidden, layout, save]);
+
   const reset = useCallback(() => save(EMPTY_LAYOUT), [save]);
 
   const isCustomised =
@@ -73,6 +85,7 @@ export function useDashboardLayout() {
     /** The doctor's width if they set one, otherwise the widget's own. */
     spanOf: (widget: DashboardWidget) => layout.spans[widget.id] ?? widget.span,
     setSpan,
+    compact,
     /** The card's own choice of what to show, if the doctor made one. */
     settingOf: (id: string) => layout.settings[id],
     setSetting,

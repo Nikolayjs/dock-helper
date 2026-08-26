@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   clampSpan,
+  compactLayout,
   EMPTY_LAYOUT,
   MAX_SPAN,
   MIN_SPAN,
@@ -115,5 +116,69 @@ describe('widget catalogue', () => {
       expect(widget.title.length).toBeGreaterThan(0);
       expect(widget.description.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('compactLayout', () => {
+  const items = (...pairs: [string, number][]) => pairs.map(([id, span]) => ({ id, span }));
+
+  it('fills every row to exactly twelve', () => {
+    const { order, spans } = compactLayout(items(['a', 8], ['b', 8], ['c', 4], ['d', 4]));
+    // 8 + 4 закрывает ряд; вторая восьмёрка уходит во второй ряд и добирает оставшуюся четвёрку.
+    expect(order).toEqual(['a', 'c', 'b', 'd']);
+    expect(spans).toEqual({ a: 8, c: 4, b: 8, d: 4 });
+  });
+
+  it('stretches a row that has nothing left to pull in', () => {
+    const { order, spans } = compactLayout(items(['a', 8]));
+    expect(order).toEqual(['a']);
+    expect(spans).toEqual({ a: 12 });
+  });
+
+  it('spreads the remainder around the row rather than onto one card', () => {
+    // Три тройки становятся тремя четвёрками, а не тройкой, тройкой и шестёркой.
+    expect(compactLayout(items(['a', 3], ['b', 3], ['c', 3])).spans).toEqual({ a: 4, b: 4, c: 4 });
+  });
+
+  it('leaves a layout that already tiles alone', () => {
+    const source = items(['a', 6], ['b', 6], ['c', 4], ['d', 4], ['e', 4]);
+    const { order, spans } = compactLayout(source);
+    expect(order).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(spans).toEqual({ a: 6, b: 6, c: 4, d: 4, e: 4 });
+  });
+
+  it('keeps full-width cards full width', () => {
+    expect(compactLayout(items(['a', 12], ['b', 12])).spans).toEqual({ a: 12, b: 12 });
+  });
+
+  it('takes the earliest card that fits, so the order moves as little as possible', () => {
+    expect(compactLayout(items(['a', 8], ['b', 8], ['c', 4], ['d', 8], ['e', 4])).order).toEqual([
+      'a',
+      'c',
+      'b',
+      'e',
+      'd',
+    ]);
+  });
+
+  it('never loses or duplicates a card, and never leaves a row short', () => {
+    const source = items(['a', 3], ['b', 7], ['c', 5], ['d', 12], ['e', 4], ['f', 6], ['g', 3]);
+    const { order, spans } = compactLayout(source);
+
+    expect(order).toHaveLength(source.length);
+    expect(new Set(order)).toEqual(new Set(source.map((item) => item.id)));
+
+    // Пройдёмся рядами по итогу: каждый ряд обязан быть ровно двенадцатью.
+    let row = 0;
+    for (const id of order) {
+      row += spans[id];
+      expect(row).toBeLessThanOrEqual(12);
+      if (row === 12) row = 0;
+    }
+    expect(row).toBe(0);
+  });
+
+  it('handles an empty dashboard', () => {
+    expect(compactLayout([])).toEqual({ order: [], spans: {} });
   });
 });
