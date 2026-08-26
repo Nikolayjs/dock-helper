@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Alert, Badge, Button, Card, Container, Divider, Group, Loader, Stack, Text, Title } from '@mantine/core';
-import { IconAlertTriangle, IconArrowLeft, IconEdit, IconPill, IconTestPipe, IconTrash } from '@tabler/icons-react';
+import { Alert, Badge, Button, Card, Container, Divider, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
+import { IconAlertTriangle, IconArrowLeft, IconEdit, IconPill, IconPlus, IconTestPipe, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ import { buildDrugIndex, normalizeDrugName } from '../features/drugs/drugIndex';
 import { DRUG_TEXT_FIELDS } from '../features/drugs/types';
 import type { Drug } from '../features/drugs/types';
 import { QUERY_KEY as DRUGS_KEY, useDrugs } from '../features/drugs/useDrugs';
+import { InteractionForm } from '../features/interactions/InteractionForm';
 import { interactionsForDrug, otherDrugIn } from '../features/interactions/interactionEngine';
 import { SEVERITY_COLOR, SEVERITY_LABELS } from '../features/interactions/types';
 import { useDrugInteractions } from '../features/interactions/useDrugInteractions';
@@ -135,7 +136,7 @@ export function DrugViewPage() {
 
         <Divider mt="xs" />
 
-        <InteractionsSection drug={drug} related={related} index={index} />
+        <InteractionsSection drug={drug} drugs={drugs} related={related} index={index} />
       </Stack>
     </Container>
   );
@@ -154,14 +155,24 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function InteractionsSection({
   drug,
+  drugs,
   related,
   index,
 }: {
   drug: Drug;
+  drugs: Drug[];
   related: ReturnType<typeof interactionsForDrug>;
   index: ReturnType<typeof buildDrugIndex>;
 }) {
   const navigate = useNavigate();
+  const { addInteraction } = useDrugInteractions();
+  const [addOpen, setAddOpen] = useState(false);
+
+  // Rules are written in МНН, so that is what the form completes against.
+  const innOptions = useMemo(
+    () => drugs.map((item) => item.inn).sort((a, b) => a.localeCompare(b, 'ru')),
+    [drugs],
+  );
 
   return (
     <div>
@@ -170,14 +181,21 @@ function InteractionsSection({
           <IconAlertTriangle size={18} />
           <Title order={4}>Взаимодействия ({related.length})</Title>
         </Group>
-        <Button
-          size="xs"
-          variant="light"
-          leftSection={<IconTestPipe size={14} />}
-          onClick={() => navigate(`/interactions?drugs=${encodeURIComponent(drug.inn)}`)}
-        >
-          Проверить с другими препаратами
-        </Button>
+        <Group gap="xs" wrap="wrap">
+          {/* Noticing an interaction happens while reading about one of the drugs, so the rule can
+              be written here, with this drug already filled in. */}
+          <Button size="xs" leftSection={<IconPlus size={14} />} onClick={() => setAddOpen(true)}>
+            Добавить взаимодействие
+          </Button>
+          <Button
+            size="xs"
+            variant="light"
+            leftSection={<IconTestPipe size={14} />}
+            onClick={() => navigate(`/interactions?drugs=${encodeURIComponent(drug.inn)}`)}
+          >
+            Проверить с другими препаратами
+          </Button>
+        </Group>
       </Group>
 
       {related.length === 0 ? (
@@ -221,6 +239,22 @@ function InteractionsSection({
           })}
         </Stack>
       )}
+
+      <Modal
+        opened={addOpen}
+        onClose={() => setAddOpen(false)}
+        title={`Взаимодействие с «${drug.inn}»`}
+        radius="lg"
+        size="lg"
+        centered
+      >
+        <InteractionForm
+          innOptions={innOptions}
+          initial={{ drugA: drug.inn }}
+          onSubmit={addInteraction}
+          onSaved={() => setAddOpen(false)}
+        />
+      </Modal>
     </div>
   );
 }

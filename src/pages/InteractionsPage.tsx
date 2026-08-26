@@ -3,35 +3,29 @@ import {
   ActionIcon,
   Alert,
   Anchor,
-  Autocomplete,
   Badge,
   Button,
   Card,
   Container,
   Group,
   Modal,
-  Select,
   Skeleton,
   Stack,
   Text,
-  Textarea,
   TagsInput,
   ThemeIcon,
   Title,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconArrowRight, IconInfoCircle, IconPill, IconPills, IconPlus, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowRight, IconInfoCircle, IconPill, IconPills, IconSettings, IconTrash } from '@tabler/icons-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useDrugs } from '../features/drugs/useDrugs';
 import { buildDrugIndex, checkInteractions, getKnownDrugNames, resolveEnteredDrugs } from '../features/interactions/interactionEngine';
 import type { ResolvedDrug } from '../features/interactions/interactionEngine';
-import { SEVERITY_COLOR, SEVERITY_LABELS, SEVERITY_OPTIONS } from '../features/interactions/types';
-import type { InteractionSeverity } from '../features/interactions/types';
-import { QUERY_KEY as INTERACTIONS_KEY, useDrugInteractions, type DrugInteractionInput } from '../features/interactions/useDrugInteractions';
+import { SEVERITY_COLOR, SEVERITY_LABELS } from '../features/interactions/types';
+import { InteractionForm } from '../features/interactions/InteractionForm';
+import { QUERY_KEY as INTERACTIONS_KEY, useDrugInteractions } from '../features/interactions/useDrugInteractions';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
-
-const EMPTY_FORM: DrugInteractionInput = { drugA: '', drugB: '', severity: 'moderate', mechanism: '', recommendation: '' };
 
 export function InteractionsPage() {
   const navigate = useNavigate();
@@ -41,8 +35,6 @@ export function InteractionsPage() {
   const { drugs, isLoading: drugsLoading } = useDrugs();
   const [entered, setEntered] = useState<string[]>([]);
   const [manageOpen, setManageOpen] = useState(false);
-  const [form, setForm] = useState<DrugInteractionInput>(EMPTY_FORM);
-  const [isSaving, setIsSaving] = useState(false);
 
   // A drug card links here with its МНН prefilled, so the doctor lands on the check already holding
   // the drug they were reading about and only has to add what else the patient takes.
@@ -59,26 +51,6 @@ export function InteractionsPage() {
   const matches = useMemo(() => checkInteractions(entered, interactions, index), [entered, interactions, index]);
 
   const innOptions = useMemo(() => drugs.map((drug) => drug.inn).sort((a, b) => a.localeCompare(b, 'ru')), [drugs]);
-
-  const handleAddInteraction = async () => {
-    if (!form.drugA.trim() || !form.drugB.trim() || !form.mechanism.trim() || !form.recommendation.trim()) return;
-    setIsSaving(true);
-    try {
-      await addInteraction({
-        drugA: form.drugA.trim(),
-        drugB: form.drugB.trim(),
-        severity: form.severity,
-        mechanism: form.mechanism.trim(),
-        recommendation: form.recommendation.trim(),
-      });
-      setForm(EMPTY_FORM);
-      notifications.show({ message: 'Взаимодействие добавлено', color: 'teal' });
-    } catch (error) {
-      notifications.show({ message: error instanceof Error ? error.message : 'Не удалось сохранить', color: 'red' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleDelete = (id: string) => {
     const interaction = interactions.find((item) => item.id === id);
@@ -241,69 +213,7 @@ export function InteractionsPage() {
             <Text size="sm" fw={500}>
               Добавить взаимодействие
             </Text>
-            <Text size="xs" c="dimmed">
-              Указывайте МНН, а не торговое название: тогда правило сработает на любую упаковку из справочника.
-            </Text>
-            <Group grow>
-              <Autocomplete
-                label="Препарат А"
-                placeholder="Например: Варфарин"
-                data={innOptions}
-                value={form.drugA}
-                onChange={(value) => setForm((prev) => ({ ...prev, drugA: value }))}
-                disabled={isSaving}
-              />
-              <Autocomplete
-                label="Препарат Б"
-                placeholder="Например: Ибупрофен"
-                data={innOptions}
-                value={form.drugB}
-                onChange={(value) => setForm((prev) => ({ ...prev, drugB: value }))}
-                disabled={isSaving}
-              />
-            </Group>
-            <Select
-              label="Серьёзность"
-              data={SEVERITY_OPTIONS}
-              value={form.severity}
-              onChange={(v) => setForm((prev) => ({ ...prev, severity: (v as InteractionSeverity) ?? prev.severity }))}
-              allowDeselect={false}
-              disabled={isSaving}
-            />
-            <Textarea
-              label="Механизм"
-              placeholder="Почему это опасно"
-              value={form.mechanism}
-              onChange={(e) => {
-                const value = e.currentTarget.value;
-                setForm((prev) => ({ ...prev, mechanism: value }));
-              }}
-              autosize
-              minRows={2}
-              disabled={isSaving}
-            />
-            <Textarea
-              label="Рекомендация"
-              placeholder="Что делать врачу"
-              value={form.recommendation}
-              onChange={(e) => {
-                const value = e.currentTarget.value;
-                setForm((prev) => ({ ...prev, recommendation: value }));
-              }}
-              autosize
-              minRows={2}
-              disabled={isSaving}
-            />
-            <Group justify="flex-end">
-              <Button
-                leftSection={<IconPlus size={16} />}
-                onClick={handleAddInteraction}
-                loading={isSaving}
-                disabled={!form.drugA.trim() || !form.drugB.trim() || !form.mechanism.trim() || !form.recommendation.trim()}
-              >
-                Добавить
-              </Button>
-            </Group>
+            <InteractionForm innOptions={innOptions} onSubmit={addInteraction} />
           </Stack>
         </Stack>
       </Modal>
