@@ -10,6 +10,7 @@ import {
   Text,
   Title,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconEye, IconInfoCircle, IconLayoutGrid, IconRotate } from '@tabler/icons-react';
 import {
   closestCenter,
@@ -72,6 +73,8 @@ export function DashboardPage() {
   const [referralPeriod, setReferralPeriod] = useState<ReferralPeriod>('month');
 
   const layout = useDashboardLayout();
+  // Ниже `md` каждая карточка занимает всю ширину, и менять её нечем — ручка там только мешала бы.
+  const isWide = useMediaQuery('(min-width: 62em)') ?? false;
 
   const sensors = useSensors(
     // The same 4px threshold the sidebar and the planner use, so a click stays a click.
@@ -146,9 +149,11 @@ export function DashboardPage() {
     recentPatients: getRecentPatients(patients, 5),
   };
 
-  // While arranging, an enabled-but-empty card still has to be visible — otherwise there is no way
-  // to put it where you want it. In normal use an empty card is simply not drawn.
-  const shown = editing ? layout.visible : layout.visible.filter((widget) => !widget.isEmpty?.(ctx));
+  // Показывается ровно то, что включено. Раньше пустая карточка молча пропадала, и получалось,
+  // что в настройке она отмечена видимой, а на дашборде её нет. С конструктором решает врач:
+  // карточка рисует своё пустое состояние, а метка «пусто» в режиме настройки подсказывает,
+  // что её можно выключить.
+  const shown = layout.visible;
   const hiddenWidgets = layout.all.filter((widget) => layout.isHidden(widget.id));
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -163,8 +168,8 @@ export function DashboardPage() {
           <div>
             {editing && (
               <Text size="sm" c="dimmed">
-                Перетаскивайте карточки за <IconLayoutGrid size={12} style={{ verticalAlign: 'middle' }} /> и скрывайте
-                ненужные — раскладка сохранится в этом браузере.
+                Перетаскивайте карточки за <IconLayoutGrid size={12} style={{ verticalAlign: 'middle' }} />, тяните
+                за правый край, чтобы менять ширину, и скрывайте ненужные — раскладка сохранится в этом браузере.
               </Text>
             )}
           </div>
@@ -224,14 +229,18 @@ export function DashboardPage() {
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={shown.map((widget) => widget.id)} strategy={rectSortingStrategy}>
-              <Grid gap="lg" align="stretch">
+              {/* Помечена, чтобы ручка изменения ширины могла измерить колонку сетки. */}
+              <Grid gap="lg" align="stretch" data-dashboard-grid>
                 {shown.map((widget) => (
                   <SortableWidget
                     key={widget.id}
                     widget={widget}
                     ctx={ctx}
                     editing={editing}
+                    span={layout.spanOf(widget)}
+                    resizable={isWide}
                     onHide={() => layout.toggle(widget.id)}
+                    onResize={(span) => layout.setSpan(widget.id, span)}
                   />
                 ))}
               </Grid>

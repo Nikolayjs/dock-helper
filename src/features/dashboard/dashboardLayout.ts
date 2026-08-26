@@ -11,14 +11,34 @@ export interface DashboardLayout {
   order: string[];
   /** Widget ids the doctor switched off. */
   hidden: string[];
+  /** Widths the doctor set, out of twelve columns. Absent means the widget's own default. */
+  spans: Record<string, number>;
 }
 
 export const STORAGE_KEY = 'medassist:dashboard-layout';
 
-export const EMPTY_LAYOUT: DashboardLayout = { order: [], hidden: [] };
+export const EMPTY_LAYOUT: DashboardLayout = { order: [], hidden: [], spans: {} };
+
+/** Narrower than a quarter of the grid nothing here stays readable; wider than the grid is nothing. */
+export const MIN_SPAN = 3;
+export const MAX_SPAN = 12;
+
+export function clampSpan(span: number): number {
+  if (!Number.isFinite(span)) return MIN_SPAN;
+  return Math.min(MAX_SPAN, Math.max(MIN_SPAN, Math.round(span)));
+}
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function readSpans(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const spans: Record<string, number> = {};
+  for (const [id, span] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof span === 'number' && Number.isFinite(span)) spans[id] = clampSpan(span);
+  }
+  return spans;
 }
 
 export function readLayout(): DashboardLayout {
@@ -29,6 +49,8 @@ export function readLayout(): DashboardLayout {
     return {
       order: isStringArray(parsed.order) ? parsed.order : [],
       hidden: isStringArray(parsed.hidden) ? parsed.hidden : [],
+      // Layouts saved before widths existed simply have none.
+      spans: readSpans(parsed.spans),
     };
   } catch {
     // A corrupted preference must never take the dashboard down with it.

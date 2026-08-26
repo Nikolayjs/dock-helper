@@ -1,7 +1,17 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { EMPTY_LAYOUT, moveWidget, orderWidgets, readLayout, STORAGE_KEY, writeLayout } from './dashboardLayout';
+import {
+  clampSpan,
+  EMPTY_LAYOUT,
+  MAX_SPAN,
+  MIN_SPAN,
+  moveWidget,
+  orderWidgets,
+  readLayout,
+  STORAGE_KEY,
+  writeLayout,
+} from './dashboardLayout';
 import { DASHBOARD_WIDGETS } from './widgets';
 
 const catalogue = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
@@ -48,8 +58,8 @@ describe('moveWidget', () => {
 
 describe('readLayout', () => {
   it('round-trips what was written', () => {
-    writeLayout({ order: ['b', 'a'], hidden: ['c'] });
-    expect(readLayout()).toEqual({ order: ['b', 'a'], hidden: ['c'] });
+    writeLayout({ order: ['b', 'a'], hidden: ['c'], spans: { a: 6 } });
+    expect(readLayout()).toEqual({ order: ['b', 'a'], hidden: ['c'], spans: { a: 6 } });
   });
 
   it('falls back to the default when storage holds nonsense', () => {
@@ -59,6 +69,26 @@ describe('readLayout', () => {
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ order: 'нет', hidden: [1, 2] }));
     expect(readLayout()).toEqual(EMPTY_LAYOUT);
+  });
+
+  it('reads a layout saved before widths existed', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ order: ['b'], hidden: [] }));
+    expect(readLayout()).toEqual({ order: ['b'], hidden: [], spans: {} });
+  });
+
+  it('keeps only widths that are numbers, and pulls them into range', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ spans: { a: 99, b: 0, c: 'широко', d: 6 } }));
+    expect(readLayout().spans).toEqual({ a: 12, b: 3, d: 6 });
+  });
+});
+
+describe('clampSpan', () => {
+  it('keeps a card between a quarter of the grid and the whole of it', () => {
+    expect(clampSpan(1)).toBe(MIN_SPAN);
+    expect(clampSpan(50)).toBe(MAX_SPAN);
+    expect(clampSpan(6)).toBe(6);
+    expect(clampSpan(6.4)).toBe(6);
+    expect(clampSpan(Number.NaN)).toBe(MIN_SPAN);
   });
 });
 

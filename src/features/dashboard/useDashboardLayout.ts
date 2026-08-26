@@ -1,7 +1,15 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { DASHBOARD_WIDGETS, type DashboardWidget } from './widgets';
-import { EMPTY_LAYOUT, moveWidget, orderWidgets, readLayout, writeLayout, type DashboardLayout } from './dashboardLayout';
+import {
+  clampSpan,
+  EMPTY_LAYOUT,
+  moveWidget,
+  orderWidgets,
+  readLayout,
+  writeLayout,
+  type DashboardLayout,
+} from './dashboardLayout';
 
 export function useDashboardLayout() {
   const [layout, setLayout] = useState<DashboardLayout>(() => readLayout());
@@ -34,9 +42,17 @@ export function useDashboardLayout() {
     [ordered, layout, save],
   );
 
+  const setSpan = useCallback(
+    (id: string, span: number) => {
+      save({ ...layout, spans: { ...layout.spans, [id]: clampSpan(span) } });
+    },
+    [layout, save],
+  );
+
   const reset = useCallback(() => save(EMPTY_LAYOUT), [save]);
 
-  const isCustomised = layout.order.length > 0 || layout.hidden.length > 0;
+  const isCustomised =
+    layout.order.length > 0 || layout.hidden.length > 0 || Object.keys(layout.spans).length > 0;
 
   return {
     /** Ordered and switched on — what the page draws. */
@@ -44,6 +60,9 @@ export function useDashboardLayout() {
     /** Ordered, everything — what the settings panel lists. */
     all: ordered as DashboardWidget[],
     isHidden: (id: string) => hidden.has(id),
+    /** The doctor's width if they set one, otherwise the widget's own. */
+    spanOf: (widget: DashboardWidget) => layout.spans[widget.id] ?? widget.span,
+    setSpan,
     isCustomised,
     toggle,
     reorder,
