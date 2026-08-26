@@ -188,7 +188,12 @@ export function DashboardPage() {
   return (
     <Container size="xl" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap" gap="sm">
+        <Group
+          justify="space-between"
+          wrap="wrap"
+          gap="sm"
+          className={editing ? `${gridClasses.toolbar} ${gridClasses.toolbarEditing}` : gridClasses.toolbar}
+        >
           <div>
             {editing && (
               <Text size="sm" c="dimmed">

@@ -5,6 +5,7 @@ import { IconTrash } from '@tabler/icons-react';
 
 import type { Patient, PatientSex } from './types';
 import type { PatientInput } from './usePatients';
+import { FormActions } from '../../components/common/FormActions';
 
 const SEX_OPTIONS: { value: PatientSex; label: string }[] = [
   { value: 'male', label: 'Мужской' },
@@ -65,23 +66,25 @@ export function PatientForm({ initialPatient, onSubmit, onCancel, onDelete }: Pa
         Появится как отметка на карточке пациента — это просто личный напоминатель, без уведомлений.
       </Text>
 
-      <Group justify="space-between" mt="sm">
-        {initialPatient && onDelete ? (
-          <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
-            Удалить
-          </Button>
-        ) : (
-          <div />
-        )}
-        <Group>
-          <Button variant="default" onClick={onCancel}>
-            Отмена
-          </Button>
-          <Button onClick={handleSubmit} disabled={!canSave}>
-            Сохранить
-          </Button>
+      <FormActions>
+        <Group justify="space-between" mt="sm">
+          {initialPatient && onDelete ? (
+            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
+              Удалить
+            </Button>
+          ) : (
+            <div />
+          )}
+          <Group>
+            <Button variant="default" onClick={onCancel}>
+              Отмена
+            </Button>
+            <Button onClick={handleSubmit} disabled={!canSave}>
+              Сохранить
+            </Button>
+          </Group>
         </Group>
-      </Group>
+      </FormActions>
     </Stack>
   );
 }

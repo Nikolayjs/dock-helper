@@ -21,6 +21,7 @@ import { LabTestForm } from '../features/analyzer/LabTestForm';
 import type { Sex } from '../features/analyzer/types';
 import { QUERY_KEY as LAB_TESTS_KEY, useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { FormActions } from '../components/common/FormActions';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -296,11 +297,13 @@ export function AnalyzerBuilderPage() {
               </Alert>
             )}
 
-            <Group justify="flex-end">
-              <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} disabled={errors.length > 0}>
-                {editingTest ? 'Сохранить изменения' : 'Создать анализ'}
-              </Button>
-            </Group>
+            <FormActions>
+              <Group justify="flex-end">
+                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} disabled={errors.length > 0}>
+                  {editingTest ? 'Сохранить изменения' : 'Создать анализ'}
+                </Button>
+              </Group>
+            </FormActions>
           </Stack>
         </Grid.Col>
 

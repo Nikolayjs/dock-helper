@@ -44,6 +44,7 @@ import { CALCULATOR_CATEGORIES, type CalculatorDefinition, type InterpretationRa
 import { QUERY_KEY as CALCULATORS_KEY, useCalculators } from '../features/calculators/useCalculators';
 import { useCustomCategories } from '../features/calculators/useCustomCategories';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { FormActions } from '../components/common/FormActions';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const RESERVED_NAMES = new Set([...FORMULA_FUNCTION_NAMES, ...FORMULA_CONSTANT_NAMES]);
@@ -425,11 +426,13 @@ export function CalculatorBuilderPage() {
               </Alert>
             )}
 
-            <Group justify="flex-end">
-              <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} disabled={errors.length > 0}>
-                {editingCalculator ? 'Сохранить изменения' : 'Создать калькулятор'}
-              </Button>
-            </Group>
+            <FormActions>
+              <Group justify="flex-end">
+                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} disabled={errors.length > 0}>
+                  {editingCalculator ? 'Сохранить изменения' : 'Создать калькулятор'}
+                </Button>
+              </Group>
+            </FormActions>
           </Stack>
         </Grid.Col>
 

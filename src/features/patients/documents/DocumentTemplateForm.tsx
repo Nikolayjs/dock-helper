@@ -12,6 +12,9 @@ import { PLACEHOLDERS, SAMPLE_PATIENT, SAMPLE_VISIT } from './templateTypes';
 import type { DocumentTemplate } from './templateTypes';
 import { TemplateDocument } from './TemplateDocument';
 import type { DocumentTemplateInput } from './useDocumentTemplates';
+import { EditorBubbleMenu } from '../../../components/common/EditorBubbleMenu';
+import { FormActions } from '../../../components/common/FormActions';
+import { HEADER_HEIGHT } from '../../../layouts/shellMetrics';
 
 interface DocumentTemplateFormProps {
   initialTemplate?: DocumentTemplate;
@@ -61,7 +64,8 @@ export function DocumentTemplateForm({ initialTemplate, onSubmit, onCancel, onDe
             Текст документа
           </Text>
           <RichTextEditor editor={editor}>
-            <RichTextEditor.Toolbar sticky stickyOffset={0}>
+          <EditorBubbleMenu editor={editor} />
+            <RichTextEditor.Toolbar sticky stickyOffset={HEADER_HEIGHT}>
               <RichTextEditor.ControlsGroup>
                 <RichTextEditor.Bold />
                 <RichTextEditor.Italic />
@@ -141,23 +145,25 @@ export function DocumentTemplateForm({ initialTemplate, onSubmit, onCancel, onDe
         </div>
       </Card>
 
-      <Group justify="space-between" mt="sm">
-        {initialTemplate && onDelete ? (
-          <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
-            Удалить
-          </Button>
-        ) : (
-          <div />
-        )}
-        <Group>
-          <Button variant="default" onClick={onCancel}>
-            Отмена
-          </Button>
-          <Button onClick={handleSubmit} disabled={!canSave}>
-            Сохранить
-          </Button>
+      <FormActions>
+        <Group justify="space-between" mt="sm">
+          {initialTemplate && onDelete ? (
+            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
+              Удалить
+            </Button>
+          ) : (
+            <div />
+          )}
+          <Group>
+            <Button variant="default" onClick={onCancel}>
+              Отмена
+            </Button>
+            <Button onClick={handleSubmit} disabled={!canSave}>
+              Сохранить
+            </Button>
+          </Group>
         </Group>
-      </Group>
+      </FormActions>
     </Stack>
   );
 }

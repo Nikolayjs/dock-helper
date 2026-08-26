@@ -8,6 +8,7 @@ import { SAMPLE_PATIENT, SAMPLE_VISIT } from './templateTypes';
 import type { DocumentTemplate } from './templateTypes';
 import { TemplateDocument } from './TemplateDocument';
 import type { DocumentTemplateInput } from './useDocumentTemplates';
+import { FormActions } from '../../../components/common/FormActions';
 
 /**
  * Editing a saved layout template. Mirrors DocumentTemplateForm's props so the editor page can pick
@@ -91,26 +92,28 @@ export function LayoutTemplateForm({ template, onSubmit, onCancel, onDelete }: L
         </div>
       </Card>
 
-      <Group justify="space-between" mt="sm">
-        {onDelete ? (
-          <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
-            Удалить
-          </Button>
-        ) : (
-          <div />
-        )}
-        <Group>
-          <Button variant="default" onClick={onCancel}>
-            Отмена
-          </Button>
-          <Button
-            disabled={!canSave}
-            onClick={() => onSubmit({ title: title.trim(), kind: 'layout', bodyHtml: template.bodyHtml, layout })}
-          >
-            Сохранить
-          </Button>
+      <FormActions>
+        <Group justify="space-between" mt="sm">
+          {onDelete ? (
+            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
+              Удалить
+            </Button>
+          ) : (
+            <div />
+          )}
+          <Group>
+            <Button variant="default" onClick={onCancel}>
+              Отмена
+            </Button>
+            <Button
+              disabled={!canSave}
+              onClick={() => onSubmit({ title: title.trim(), kind: 'layout', bodyHtml: template.bodyHtml, layout })}
+            >
+              Сохранить
+            </Button>
+          </Group>
         </Group>
-      </Group>
+      </FormActions>
     </Stack>
   );
 }

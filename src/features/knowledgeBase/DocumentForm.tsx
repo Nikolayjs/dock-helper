@@ -16,6 +16,9 @@ import { readDocxFile } from '../../lib/docx/readDocx';
 import { LEGACY_DOC_MESSAGE } from '../../lib/docx/wordFormat';
 import type { KnowledgeDocument } from './types';
 import type { DocumentInput } from './useDocuments';
+import { EditorBubbleMenu } from '../../components/common/EditorBubbleMenu';
+import { FormActions } from '../../components/common/FormActions';
+import { HEADER_HEIGHT } from '../../layouts/shellMetrics';
 
 export type DocumentFormInput = Omit<DocumentInput, 'kind' | 'author'>;
 
@@ -185,7 +188,8 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
           Совет: <Text span ff="monospace">[[Название заметки]]</Text> создаёт связь — она появится на графе знаний
         </Text>
         <RichTextEditor editor={editor}>
-          <RichTextEditor.Toolbar sticky stickyOffset={0}>
+          <EditorBubbleMenu editor={editor} />
+          <RichTextEditor.Toolbar sticky stickyOffset={HEADER_HEIGHT}>
             <RichTextEditor.ControlsGroup>
               <RichTextEditor.Bold />
               <RichTextEditor.Italic />
@@ -284,23 +288,25 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
         />
       </div>
 
-      <Group justify="space-between" mt="sm">
-        {initialDocument && onDelete ? (
-          <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
-            Удалить
-          </Button>
-        ) : (
-          <div />
-        )}
-        <Group>
-          <Button variant="default" onClick={onCancel}>
-            Отмена
-          </Button>
-          <Button onClick={handleSubmit} disabled={!canSave}>
-            Сохранить
-          </Button>
+      <FormActions>
+        <Group justify="space-between" mt="sm">
+          {initialDocument && onDelete ? (
+            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
+              Удалить
+            </Button>
+          ) : (
+            <div />
+          )}
+          <Group>
+            <Button variant="default" onClick={onCancel}>
+              Отмена
+            </Button>
+            <Button onClick={handleSubmit} disabled={!canSave}>
+              Сохранить
+            </Button>
+          </Group>
         </Group>
-      </Group>
+      </FormActions>
     </Stack>
   );
 }

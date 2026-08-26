@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { DiagnosisPicker } from './DiagnosisPicker';
 import type { DispensaryRecord, Patient } from './types';
 import type { DispensaryRecordInput } from './useDispensary';
+import { FormActions } from '../../components/common/FormActions';
 
 interface DispensaryFormProps {
   patients: Patient[];
@@ -71,14 +72,16 @@ export function DispensaryForm({ patients, initialRecord, defaultPatientId, onSu
         />
       </Group>
 
-      <Group justify="flex-end" mt="sm">
-        <Button variant="default" onClick={onCancel}>
-          Отмена
-        </Button>
-        <Button onClick={handleSubmit} disabled={!canSave}>
-          Сохранить
-        </Button>
-      </Group>
+      <FormActions>
+        <Group justify="flex-end" mt="sm">
+          <Button variant="default" onClick={onCancel}>
+            Отмена
+          </Button>
+          <Button onClick={handleSubmit} disabled={!canSave}>
+            Сохранить
+          </Button>
+        </Group>
+      </FormActions>
     </Stack>
   );
 }

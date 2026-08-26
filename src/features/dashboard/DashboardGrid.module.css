@@ -39,3 +39,19 @@
     row-gap: var(--mantine-spacing-lg);
   }
 }
+
+/*
+ * Панель настройки дашборда. Прилипает под шапку приложения: карточек шестнадцать, и «Готово»,
+ * оставшись наверху страницы, требовало прокрутки обратно после каждой перестановки.
+ */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  padding: var(--mantine-spacing-xs) 0;
+  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8));
+}
+
+.toolbarEditing {
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}

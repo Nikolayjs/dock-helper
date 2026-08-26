@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { AppShell } from '@mantine/core';
+
+import { HEADER_HEIGHT } from './shellMetrics';
 import { useDisclosure } from '@mantine/hooks';
 import { Outlet, useLocation } from 'react-router-dom';
 
@@ -142,7 +144,7 @@ export function AppLayout() {
        * mobile browsers only auto-hide it in response to the *document's own* scroll, and with
        * this root element as the sole scroll container, the document itself never scrolls. */
       mode="static"
-      header={{ height: 68 }}
+      header={{ height: HEADER_HEIGHT }}
       navbar={{ width, breakpoint: 'sm', collapsed: { mobile: !opened } }}
       padding="lg"
       classNames={{ main: classes.main, header: classes.header, navbar: classes.navbar }}

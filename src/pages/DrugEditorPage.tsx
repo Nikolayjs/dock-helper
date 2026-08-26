@@ -9,6 +9,7 @@ import { DRUG_TEXT_FIELDS, EMPTY_DRUG } from '../features/drugs/types';
 import { useDrugCategories } from '../features/drugs/useDrugCategories';
 import type { DrugInput } from '../features/drugs/types';
 import { useDrug, useDrugs } from '../features/drugs/useDrugs';
+import { FormActions } from '../components/common/FormActions';
 
 export function DrugEditorPage() {
   const { id } = useParams();
@@ -91,14 +92,16 @@ export function DrugEditorPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          <Button component={Link} to={id ? `/drugs/${id}` : '/drugs'} variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
-            {id ? 'К карточке' : 'К справочнику'}
-          </Button>
-          <Button leftSection={<IconDeviceFloppy size={16} />} onClick={handleSave} loading={isSaving} disabled={!canSave}>
-            Сохранить
-          </Button>
-        </Group>
+        <Button
+          component={Link}
+          to={id ? `/drugs/${id}` : '/drugs'}
+          variant="subtle"
+          leftSection={<IconArrowLeft size={16} />}
+          pl={8}
+          style={{ alignSelf: 'flex-start' }}
+        >
+          {id ? 'К карточке' : 'К справочнику'}
+        </Button>
 
         <Title order={2}>{id ? 'Редактирование препарата' : 'Новый препарат'}</Title>
 
@@ -203,6 +206,14 @@ export function DrugEditorPage() {
             ))}
           </Stack>
         </Card>
+
+        <FormActions>
+          <Group justify="flex-end">
+            <Button leftSection={<IconDeviceFloppy size={16} />} onClick={handleSave} loading={isSaving} disabled={!canSave}>
+              Сохранить
+            </Button>
+          </Group>
+        </FormActions>
       </Stack>
     </Container>
   );

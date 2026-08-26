@@ -12,6 +12,9 @@ import { RichTextEditor } from '@mantine/tiptap';
 import { NOTE_COLORS } from './types';
 import type { Note, NoteKind, TodoItem } from './types';
 import type { NoteInput } from './useNotes';
+import { EditorBubbleMenu } from '../../components/common/EditorBubbleMenu';
+import { FormActions } from '../../components/common/FormActions';
+import { HEADER_HEIGHT } from '../../layouts/shellMetrics';
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -101,7 +104,8 @@ export function NoteForm({ initialNote, initialDate, onSubmit, onCancel, onDelet
             Текст
           </Text>
           <RichTextEditor editor={editor}>
-            <RichTextEditor.Toolbar sticky stickyOffset={0}>
+          <EditorBubbleMenu editor={editor} />
+            <RichTextEditor.Toolbar sticky stickyOffset={HEADER_HEIGHT}>
               <RichTextEditor.ControlsGroup>
                 <RichTextEditor.Bold />
                 <RichTextEditor.Italic />
@@ -229,23 +233,25 @@ export function NoteForm({ initialNote, initialDate, onSubmit, onCancel, onDelet
         </Group>
       </div>
 
-      <Group justify="space-between" mt="sm">
-        {initialNote && onDelete ? (
-          <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
-            Удалить
-          </Button>
-        ) : (
-          <div />
-        )}
-        <Group>
-          <Button variant="default" onClick={onCancel}>
-            Отмена
-          </Button>
-          <Button onClick={handleSubmit} disabled={!canSave}>
-            Сохранить
-          </Button>
+      <FormActions>
+        <Group justify="space-between" mt="sm">
+          {initialNote && onDelete ? (
+            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
+              Удалить
+            </Button>
+          ) : (
+            <div />
+          )}
+          <Group>
+            <Button variant="default" onClick={onCancel}>
+              Отмена
+            </Button>
+            <Button onClick={handleSubmit} disabled={!canSave}>
+              Сохранить
+            </Button>
+          </Group>
         </Group>
-      </Group>
+      </FormActions>
     </Stack>
   );
 }

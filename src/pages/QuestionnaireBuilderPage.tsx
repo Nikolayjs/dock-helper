@@ -10,6 +10,7 @@ import { SymptomPoolEditor, type DraftSymptom } from '../features/diagnostics/bu
 import type { Questionnaire } from '../features/diagnostics/types';
 import { QUERY_KEY as QUESTIONNAIRES_KEY, slugifyQuestionnaireId, useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { FormActions } from '../components/common/FormActions';
 
 function emptySymptom(): DraftSymptom {
   return { uid: crypto.randomUUID(), id: crypto.randomUUID(), label: '', generalPrevalence: 0.3 };
@@ -209,11 +210,13 @@ export function QuestionnaireBuilderPage() {
               </Alert>
             )}
 
-            <Group justify="flex-end">
-              <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} disabled={errors.length > 0}>
-                {editingQuestionnaire ? 'Сохранить изменения' : 'Создать анкету'}
-              </Button>
-            </Group>
+            <FormActions>
+              <Group justify="flex-end">
+                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} disabled={errors.length > 0}>
+                  {editingQuestionnaire ? 'Сохранить изменения' : 'Создать анкету'}
+                </Button>
+              </Group>
+            </FormActions>
           </Stack>
         </Grid.Col>
 
