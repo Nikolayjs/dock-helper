@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Alert, Button, Card, Container, Group, Select, Skeleton, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { IconInfoCircle, IconPill, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
+import { IconCategory, IconInfoCircle, IconPill, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
+import { DrugCategoriesModal } from '../features/drugs/DrugCategoriesModal';
 import { DRUG_SORT_KEYS, DrugTable, drugSortValue, type DrugSortKey } from '../features/drugs/DrugTable';
 import type { Drug } from '../features/drugs/types';
 import { QUERY_KEY as DRUGS_KEY, useDrugs } from '../features/drugs/useDrugs';
@@ -20,6 +21,7 @@ export function DrugsPage() {
   const { interactions } = useDrugInteractions();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const { sort, toggle } = useTableSort<DrugSortKey>(
     { key: 'inn', direction: 'asc' },
     { storageKey: 'medassist:sort:drugs', keys: DRUG_SORT_KEYS },
@@ -100,6 +102,13 @@ export function DrugsPage() {
               allowDeselect={false}
               w={280}
             />
+            <Button
+              variant="default"
+              leftSection={<IconCategory size={18} />}
+              onClick={() => setCategoriesOpen(true)}
+            >
+              Разделы
+            </Button>
             <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/drugs/new')}>
               Добавить препарат
             </Button>
@@ -141,6 +150,12 @@ export function DrugsPage() {
           </Card>
         )}
       </Stack>
+
+      <DrugCategoriesModal
+        opened={categoriesOpen}
+        onClose={() => setCategoriesOpen(false)}
+        counts={categories}
+      />
     </Container>
   );
 }

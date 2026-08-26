@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Autocomplete, Button, Card, Container, Group, Select, Stack, TagsInput, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconDeviceFloppy } from '@tabler/icons-react';
+import { IconArrowLeft, IconDeviceFloppy, IconPlus } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { drugGroups, normalizeDrugName } from '../features/drugs/drugIndex';
-import { DRUG_CATEGORIES, DRUG_TEXT_FIELDS, EMPTY_DRUG } from '../features/drugs/types';
+import { DRUG_TEXT_FIELDS, EMPTY_DRUG } from '../features/drugs/types';
+import { useDrugCategories } from '../features/drugs/useDrugCategories';
 import type { DrugInput } from '../features/drugs/types';
 import { useDrugs } from '../features/drugs/useDrugs';
 
@@ -16,6 +17,17 @@ export function DrugEditorPage() {
   const [form, setForm] = useState<DrugInput>(EMPTY_DRUG);
   const [isSaving, setIsSaving] = useState(false);
   const [loadedId, setLoadedId] = useState<string | null>(null);
+  const { names: categoryNames, addCategory } = useDrugCategories();
+  const [categorySearch, setCategorySearch] = useState('');
+
+  /** Заводит раздел, которого ещё нет, прямо из выпадающего списка и сразу ставит его карточке. */
+  const handleCreateCategory = async () => {
+    const name = categorySearch.trim();
+    if (!name) return;
+    await addCategory(name);
+    setForm((prev) => ({ ...prev, category: name }));
+    setCategorySearch(name);
+  };
 
   const existing = id ? drugs.find((drug) => drug.id === id) : undefined;
   const groups = useMemo(() => drugGroups(drugs), [drugs]);
@@ -109,12 +121,27 @@ export function DrugEditorPage() {
 
             <Select
               label="Раздел справочника"
-              description="По нему препарат находится в списке — точную группу укажите ниже"
-              data={DRUG_CATEGORIES}
+              description="По нему препарат находится в списке — точную группу укажите ниже. Своего раздела нет? Впишите название и нажмите «+ Создать»"
+              data={categoryNames}
               value={form.category || null}
               onChange={(value) => setForm((prev) => ({ ...prev, category: value ?? '' }))}
               searchable
               clearable
+              // Раздела, которого ещё нет, в списке не будет — поэтому его можно создать прямо
+              // отсюда: иначе завести карточку в новом разделе можно было бы только через
+              // отдельный экран, и это ровно то, чего раньше сделать было нельзя.
+              nothingFoundMessage={
+                <Button
+                  size="compact-xs"
+                  variant="light"
+                  leftSection={<IconPlus size={14} />}
+                  onClick={() => void handleCreateCategory()}
+                >
+                  Создать раздел «{categorySearch.trim()}»
+                </Button>
+              }
+              searchValue={categorySearch}
+              onSearchChange={setCategorySearch}
             />
 
             <Group grow align="flex-start">
