@@ -21,6 +21,7 @@ import { CardHeading } from './CardHeading';
 import { ContinueReading } from './ContinueReading';
 import { DashboardCalendar } from './DashboardCalendar';
 import { DashboardNews } from './DashboardNews';
+import { FavouriteCalculators } from './FavouriteCalculators';
 import { FrequentDocuments } from './FrequentDocuments';
 import { PatientStructure } from './PatientStructure';
 import { isStructureMode, type StructureMode } from './structureMode';
@@ -360,6 +361,25 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
           }
         />
         <ContinueReading reading={reading} />
+      </>
+    ),
+  },
+  {
+    id: 'favourite-calculators',
+    title: 'Избранные калькуляторы',
+    description: 'Отмеченные звёздочкой — открываются в один клик',
+    span: 4,
+    render: () => (
+      <>
+        <CardHeading
+          title="Избранные калькуляторы"
+          action={
+            <Button component={Link} to="/calculators" variant="subtle" size="xs">
+              Все
+            </Button>
+          }
+        />
+        <FavouriteCalculators />
       </>
     ),
   },

@@ -1,5 +1,5 @@
-import { Badge, Card, Group, Text, ThemeIcon } from '@mantine/core';
-import { IconCalculator } from '@tabler/icons-react';
+import { ActionIcon, Badge, Card, Group, Text, ThemeIcon, Tooltip } from '@mantine/core';
+import { IconCalculator, IconStar, IconStarFilled } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import type { CalculatorDefinition } from './types';
@@ -13,7 +13,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   Прочее: 'gray',
 };
 
-export function CalculatorCard({ definition }: { definition: CalculatorDefinition }) {
+interface CalculatorCardProps {
+  definition: CalculatorDefinition;
+  /** Отсутствует там, где отмечать нечем — например, в подборке на дашборде. */
+  onToggleFavourite?: () => void;
+}
+
+export function CalculatorCard({ definition, onToggleFavourite }: CalculatorCardProps) {
   const navigate = useNavigate();
   const color = CATEGORY_COLORS[definition.category] ?? 'brand';
 
@@ -28,9 +34,28 @@ export function CalculatorCard({ definition }: { definition: CalculatorDefinitio
         <ThemeIcon size={44} radius="md" variant="light" color={color}>
           <IconCalculator size={22} />
         </ThemeIcon>
-        <Badge size="xs" variant="light" color={color}>
-          {definition.category}
-        </Badge>
+        <Group gap={6} wrap="nowrap">
+          <Badge size="xs" variant="light" color={color}>
+            {definition.category}
+          </Badge>
+          {onToggleFavourite && (
+            <Tooltip label={definition.favourite ? 'Убрать из избранного' : 'В избранное'} withArrow>
+              <ActionIcon
+                variant="subtle"
+                color={definition.favourite ? 'yellow' : 'gray'}
+                size="sm"
+                aria-label={definition.favourite ? 'Убрать из избранного' : 'В избранное'}
+                onClick={(event) => {
+                  // Карточка целиком — ссылка на калькулятор; звёздочка не должна его открывать.
+                  event.stopPropagation();
+                  onToggleFavourite();
+                }}
+              >
+                {definition.favourite ? <IconStarFilled size={15} /> : <IconStar size={15} />}
+              </ActionIcon>
+            </Tooltip>
+          )}
+        </Group>
       </Group>
       <Text fw={600} size="md" mb={4}>
         {definition.title}

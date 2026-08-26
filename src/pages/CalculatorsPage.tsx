@@ -9,7 +9,7 @@ import { useCalculators } from '../features/calculators/useCalculators';
 
 export function CalculatorsPage() {
   const navigate = useNavigate();
-  const { calculators } = useCalculators();
+  const { calculators, toggleFavourite } = useCalculators();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>('all');
 
@@ -81,7 +81,7 @@ export function CalculatorsPage() {
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
           {filtered.map((calc) => (
-            <CalculatorCard key={calc.id} definition={calc} />
+            <CalculatorCard key={calc.id} definition={calc} onToggleFavourite={() => toggleFavourite(calc)} />
           ))}
         </SimpleGrid>
       )}

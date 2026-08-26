@@ -51,6 +51,8 @@ export interface CalculatorDefinition {
   presets?: CalculatorPreset[];
   /** Label for the presets select, e.g. "Препарат". Defaults to a generic label when presets are present. */
   presetsLabel?: string;
+  /** Отмечен звёздочкой — выводится карточкой на дашборде. */
+  favourite?: boolean;
   createdAt?: string;
 }
 
