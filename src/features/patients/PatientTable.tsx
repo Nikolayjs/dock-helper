@@ -2,6 +2,8 @@ import { ActionIcon, Badge, Group, Table, Text, Tooltip } from '@mantine/core';
 import { IconClockExclamation, IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
+import { SortableTh } from '../../components/common/SortableTh';
+import type { SortState, SortValue } from '../../lib/tableSort';
 import type { Patient } from './types';
 import { calcAge, formatAge, getReminderStatus } from './utils';
 
@@ -16,8 +18,12 @@ import { calcAge, formatAge, getReminderStatus } from './utils';
  * memory («тот с отитом»), and the full history is one click away in the card.
  */
 
+export type PatientSortKey = 'name' | 'sex' | 'age' | 'lastVisit' | 'diagnosis' | 'visits' | 'reminder';
+
 interface PatientTableProps {
   patients: Patient[];
+  sort: SortState<PatientSortKey>;
+  onSort: (key: PatientSortKey) => void;
   onOpen: (patient: Patient) => void;
   onEdit: (patient: Patient) => void;
   onDelete: (patient: Patient) => void;
@@ -44,7 +50,33 @@ function visitsLabel(count: number): string {
   return `${count} визитов`;
 }
 
-export function PatientTable({ patients, onOpen, onEdit, onDelete }: PatientTableProps) {
+/**
+ * What each column sorts by.
+ *
+ * Dates stay as their ISO strings — `2026-05-01` orders correctly as text, and parsing every row on
+ * every comparison would be work for nothing. Age and the visit count are real numbers, so they
+ * order 2 before 10 rather than after it.
+ */
+export function patientSortValue(patient: Patient, key: PatientSortKey): SortValue {
+  switch (key) {
+    case 'name':
+      return patient.fullName;
+    case 'sex':
+      return patient.sex ? SEX_LABEL[patient.sex] : null;
+    case 'age':
+      return calcAge(patient.birthDate);
+    case 'lastVisit':
+      return patient.visits[0]?.date ?? null;
+    case 'diagnosis':
+      return patient.visits[0]?.diagnosis || null;
+    case 'visits':
+      return patient.visits.length || null;
+    case 'reminder':
+      return patient.reminderDate;
+  }
+}
+
+export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete }: PatientTableProps) {
   return (
     // Below this the columns crush rather than wrap, so the table scrolls sideways on a phone.
     <Table.ScrollContainer minWidth={980}>
@@ -53,13 +85,27 @@ export function PatientTable({ patients, onOpen, onEdit, onDelete }: PatientTabl
           <Table.Tr>
             {/* The name is what the list is read for; without a floor it loses width to the
                 fixed columns and truncates to «Харина…». */}
-            <Table.Th miw={220}>ФИО</Table.Th>
-            <Table.Th w={60}>Пол</Table.Th>
-            <Table.Th w={100}>Возраст</Table.Th>
-            <Table.Th w={130}>Последний визит</Table.Th>
-            <Table.Th miw={200}>Диагноз</Table.Th>
-            <Table.Th w={110}>Визитов</Table.Th>
-            <Table.Th w={150}>Напоминание</Table.Th>
+            <SortableTh column="name" sort={sort} onSort={onSort} miw={220}>
+              ФИО
+            </SortableTh>
+            <SortableTh column="sex" sort={sort} onSort={onSort} w={72}>
+              Пол
+            </SortableTh>
+            <SortableTh column="age" sort={sort} onSort={onSort} w={112}>
+              Возраст
+            </SortableTh>
+            <SortableTh column="lastVisit" sort={sort} onSort={onSort} w={148}>
+              Последний визит
+            </SortableTh>
+            <SortableTh column="diagnosis" sort={sort} onSort={onSort} miw={200}>
+              Диагноз
+            </SortableTh>
+            <SortableTh column="visits" sort={sort} onSort={onSort} w={124}>
+              Визитов
+            </SortableTh>
+            <SortableTh column="reminder" sort={sort} onSort={onSort} w={166}>
+              Напоминание
+            </SortableTh>
             <Table.Th w={80} />
           </Table.Tr>
         </Table.Thead>

@@ -2,9 +2,11 @@ import { ActionIcon, Badge, Group, Table, Text, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
+import { SortableTh } from '../../components/common/SortableTh';
+import type { SortState, SortValue } from '../../lib/tableSort';
 import { REMOVAL_REASON_LABELS } from './dispensaryUtils';
 import type { DispensaryRecord, Patient } from './types';
-import { diagnosisCodeOf, diagnosisLabel, useIcd10Names } from './useIcd10Names';
+import { diagnosisCodeOf, diagnosisLabel } from './useIcd10Names';
 import { getReminderStatus } from './utils';
 
 /**
@@ -18,9 +20,22 @@ import { getReminderStatus } from './utils';
  * resolved to a disease name the same way the statistics tables do it.
  */
 
+export type DispensarySortKey =
+  | 'name'
+  | 'diagnosis'
+  | 'code'
+  | 'registered'
+  | 'nextVisit'
+  | 'observations'
+  | 'status';
+
 interface DispensaryTableProps {
   records: DispensaryRecord[];
   patientsById: Map<string, Patient>;
+  sort: SortState<DispensarySortKey>;
+  onSort: (key: DispensarySortKey) => void;
+  /** Resolved on the page, because sorting by diagnosis needs the same names the rows show. */
+  icdNames: Record<string, string>;
   onOpen: (record: DispensaryRecord) => void;
   onEdit: (record: DispensaryRecord) => void;
   onDelete: (record: DispensaryRecord) => void;
@@ -32,11 +47,38 @@ const NEXT_VISIT_COLOR: Record<'overdue' | 'today' | 'upcoming', string> = {
   upcoming: 'teal',
 };
 
-export function DispensaryTable({ records, patientsById, onOpen, onEdit, onDelete }: DispensaryTableProps) {
-  const icdNames = useIcd10Names(
-    records.map((record) => diagnosisCodeOf(record.diagnosis, record.diagnosisCode) ?? ''),
-  );
+/**
+ * What each column sorts by.
+ *
+ * The diagnosis sorts by the name shown, not the stored text: a register imported as bare ICD codes
+ * would otherwise sort by code under a column reading disease names. Removed cards have no next
+ * visit, so they sink to the bottom of that column instead of pretending one is due.
+ */
+export function dispensarySortValue(
+  record: DispensaryRecord,
+  key: DispensarySortKey,
+  patientsById: Map<string, Patient>,
+  icdNames: Record<string, string>,
+): SortValue {
+  switch (key) {
+    case 'name':
+      return patientsById.get(record.patientId)?.fullName ?? null;
+    case 'diagnosis':
+      return diagnosisLabel(record.diagnosis, record.diagnosisCode, icdNames) || null;
+    case 'code':
+      return diagnosisCodeOf(record.diagnosis, record.diagnosisCode) ?? null;
+    case 'registered':
+      return record.registeredDate;
+    case 'nextVisit':
+      return record.status === 'removed' ? null : record.nextVisitDate;
+    case 'observations':
+      return record.observations.length || null;
+    case 'status':
+      return record.status === 'removed' ? 'Снят' : 'На учёте';
+  }
+}
 
+export function DispensaryTable({ records, patientsById, sort, onSort, icdNames, onOpen, onEdit, onDelete }: DispensaryTableProps) {
   return (
     <Table.ScrollContainer minWidth={1060}>
       <Table highlightOnHover verticalSpacing="sm" fz="sm">
@@ -44,13 +86,27 @@ export function DispensaryTable({ records, patientsById, onOpen, onEdit, onDelet
           <Table.Tr>
             {/* The name is what the register is read for; without a floor it loses width to the
                 fixed columns and truncates to «Харина…». */}
-            <Table.Th miw={220}>ФИО</Table.Th>
-            <Table.Th miw={220}>Диагноз</Table.Th>
-            <Table.Th w={100}>Код МКБ</Table.Th>
-            <Table.Th w={120}>На учёте с</Table.Th>
-            <Table.Th w={160}>Следующий осмотр</Table.Th>
-            <Table.Th w={100}>Осмотров</Table.Th>
-            <Table.Th w={170}>Статус</Table.Th>
+            <SortableTh column="name" sort={sort} onSort={onSort} miw={220}>
+              ФИО
+            </SortableTh>
+            <SortableTh column="diagnosis" sort={sort} onSort={onSort} miw={220}>
+              Диагноз
+            </SortableTh>
+            <SortableTh column="code" sort={sort} onSort={onSort} w={112}>
+              Код МКБ
+            </SortableTh>
+            <SortableTh column="registered" sort={sort} onSort={onSort} w={132}>
+              На учёте с
+            </SortableTh>
+            <SortableTh column="nextVisit" sort={sort} onSort={onSort} w={172}>
+              Следующий осмотр
+            </SortableTh>
+            <SortableTh column="observations" sort={sort} onSort={onSort} w={116}>
+              Осмотров
+            </SortableTh>
+            <SortableTh column="status" sort={sort} onSort={onSort} w={170}>
+              Статус
+            </SortableTh>
             <Table.Th w={80} />
           </Table.Tr>
         </Table.Thead>

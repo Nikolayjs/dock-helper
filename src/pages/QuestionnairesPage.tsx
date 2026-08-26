@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Card, Container, Group, SimpleGrid, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Alert, Button, Card, Container, Group, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconInfoCircle, IconPlus, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
-import { QuestionnaireCard } from '../features/diagnostics/QuestionnaireCard';
+import { QuestionnaireTable, questionnaireSortValue, type QuestionnaireSortKey } from '../features/diagnostics/QuestionnaireTable';
+import { sortRows, useTableSort } from '../lib/tableSort';
 import type { Questionnaire } from '../features/diagnostics/types';
 import { QUERY_KEY as QUESTIONNAIRES_KEY, useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
@@ -13,6 +14,7 @@ export function QuestionnairesPage() {
   const { questionnaires, deleteQuestionnaire } = useQuestionnaires();
   const confirmDelete = useDeleteWithConfirm();
   const [search, setSearch] = useState('');
+  const { sort, toggle } = useTableSort<QuestionnaireSortKey>({ key: 'title', direction: 'asc' });
 
   const handleDelete = (q: Questionnaire) =>
     confirmDelete({
@@ -31,6 +33,8 @@ export function QuestionnairesPage() {
       (q) => q.title.toLowerCase().includes(query) || q.description.toLowerCase().includes(query),
     );
   }, [questionnaires, search]);
+
+  const sorted = useMemo(() => sortRows(filtered, sort, questionnaireSortValue), [filtered, sort]);
 
   return (
     <Container size="xl" px={0}>
@@ -74,17 +78,16 @@ export function QuestionnairesPage() {
             </Stack>
           </Card>
         ) : (
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-            {filtered.map((q) => (
-              <QuestionnaireCard
-                key={q.id}
-                questionnaire={q}
-                onOpen={() => navigate(`/diagnostics/${q.id}`)}
-                onEdit={() => navigate(`/diagnostics/${q.id}/edit`)}
-                onDelete={() => handleDelete(q)}
-              />
-            ))}
-          </SimpleGrid>
+          <Card withBorder padding={0}>
+            <QuestionnaireTable
+              questionnaires={sorted}
+              sort={sort}
+              onSort={toggle}
+              onOpen={(q) => navigate(`/diagnostics/${q.id}`)}
+              onEdit={(q) => navigate(`/diagnostics/${q.id}/edit`)}
+              onDelete={handleDelete}
+            />
+          </Card>
         )}
       </Stack>
     </Container>

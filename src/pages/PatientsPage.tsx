@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Card, Container, Group, SegmentedControl, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { IconChartBar, IconClipboardHeart, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
+import { Alert, Badge, Button, Card, Collapse, Container, Group, SegmentedControl, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { IconAdjustmentsHorizontal, IconChartBar, IconClipboardHeart, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
-import { DispensaryTable } from '../features/patients/DispensaryTable';
+import { DispensaryTable, dispensarySortValue, type DispensarySortKey } from '../features/patients/DispensaryTable';
+import { PatientFilters } from '../features/patients/PatientFilters';
+import { EMPTY_PATIENT_FILTERS, countActiveFilters, matchesPatientFilters, type PatientFilterState } from '../features/patients/patientFiltering';
+import { diagnosisCodeOf, useIcd10Names } from '../features/patients/useIcd10Names';
+import { sortRows, useTableSort } from '../lib/tableSort';
 import { PatientImportModal } from '../features/patients/import/PatientImportModal';
-import { PatientTable } from '../features/patients/PatientTable';
+import { PatientTable, patientSortValue, type PatientSortKey } from '../features/patients/PatientTable';
 import type { DispensaryRecord } from '../features/patients/types';
 import type { Patient } from '../features/patients/types';
 import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from '../features/patients/useDispensary';
@@ -26,6 +30,12 @@ export function PatientsPage() {
   const [tab, setTab] = useState<PatientsTab>('all');
   const [search, setSearch] = useState('');
   const [dispensaryFilter, setDispensaryFilter] = useState<DispensaryFilter>('active');
+  const [filters, setFilters] = useState<PatientFilterState>(EMPTY_PATIENT_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Опрошенные по умолчанию: свежие визиты сверху и ближайшие осмотры сверху — то, ради чего
+  // список открывают чаще всего.
+  const patientSort = useTableSort<PatientSortKey>({ key: 'lastVisit', direction: 'desc' });
+  const dispensarySort = useTableSort<DispensarySortKey>({ key: 'nextVisit', direction: 'asc' });
   const [importOpen, setImportOpen] = useState(false);
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(() => localStorage.getItem(DISCLAIMER_KEY) === '1');
 
@@ -35,6 +45,7 @@ export function PatientsPage() {
   };
 
   const patientsById = useMemo(() => new Map(patients.map((p) => [p.id, p])), [patients]);
+  const activeFilters = countActiveFilters(filters);
 
   const handleDelete = (patient: Patient) =>
     confirmDelete({
@@ -60,41 +71,39 @@ export function PatientsPage() {
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return patients;
-    return patients.filter(
-      (patient) =>
+    return patients.filter((patient) => {
+      if (!matchesPatientFilters(patient, filters)) return false;
+      if (!query) return true;
+      return (
         patient.fullName.toLowerCase().includes(query) ||
         patient.phone.toLowerCase().includes(query) ||
-        patient.visits.some((visit) => visit.diagnosis.toLowerCase().includes(query)),
-    );
-  }, [patients, search]);
-
-  const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      const lastA = a.visits[0]?.date;
-      const lastB = b.visits[0]?.date;
-      if (lastA && lastB) return lastB.localeCompare(lastA);
-      if (lastA) return -1;
-      if (lastB) return 1;
-      return b.createdAt.localeCompare(a.createdAt);
+        patient.visits.some((visit) => visit.diagnosis.toLowerCase().includes(query))
+      );
     });
-  }, [filtered]);
+  }, [patients, search, filters]);
+
+  const sorted = useMemo(
+    () => sortRows(filtered, patientSort.sort, patientSortValue),
+    [filtered, patientSort.sort],
+  );
 
   const dispensaryFiltered = useMemo(() => {
     return dispensaryFilter === 'active' ? records.filter((r) => r.status === 'active') : records;
   }, [records, dispensaryFilter]);
 
-  const sortedRecords = useMemo(() => {
-    return [...dispensaryFiltered].sort((a, b) => {
-      if (a.status === 'active' && b.status === 'active') {
-        if (a.nextVisitDate && b.nextVisitDate) return a.nextVisitDate.localeCompare(b.nextVisitDate);
-        if (a.nextVisitDate) return -1;
-        if (b.nextVisitDate) return 1;
-      }
-      if (a.status !== b.status) return a.status === 'active' ? -1 : 1;
-      return b.registeredDate.localeCompare(a.registeredDate);
-    });
-  }, [dispensaryFiltered]);
+  // Resolved here rather than in the table: sorting by diagnosis has to use the same names the rows
+  // show, and a register imported as bare codes shows nomenclature names.
+  const icdNames = useIcd10Names(
+    dispensaryFiltered.map((record) => diagnosisCodeOf(record.diagnosis, record.diagnosisCode) ?? ''),
+  );
+
+  const sortedRecords = useMemo(
+    () =>
+      sortRows(dispensaryFiltered, dispensarySort.sort, (record, key) =>
+        dispensarySortValue(record, key, patientsById, icdNames),
+      ),
+    [dispensaryFiltered, dispensarySort.sort, patientsById, icdNames],
+  );
 
   return (
     <Container size="xl" px={0}>
@@ -129,7 +138,13 @@ export function PatientsPage() {
           <>
             <Group justify="space-between" align="flex-end" wrap="wrap">
               <Text c="dimmed" size="sm">
-                {patients.length === 0 ? 'Пока нет пациентов' : `${patients.length} пациентов в списке`}
+                {/* Shows the narrowed count as well as the total, so an unexpectedly short list is
+                    explained by the toolbar rather than looking like missing data. */}
+                {patients.length === 0
+                  ? 'Пока нет пациентов'
+                  : sorted.length === patients.length
+                    ? `${patients.length} пациентов в списке`
+                    : `Показано ${sorted.length} из ${patients.length}`}
               </Text>
               <Group gap="sm" wrap="wrap">
                 <TextInput
@@ -139,6 +154,21 @@ export function PatientsPage() {
                   onChange={(e) => setSearch(e.currentTarget.value)}
                   w={280}
                 />
+                <Button
+                  variant={activeFilters > 0 ? 'filled' : 'light'}
+                  color={activeFilters > 0 ? 'brand' : undefined}
+                  leftSection={<IconAdjustmentsHorizontal size={18} />}
+                  rightSection={
+                    activeFilters > 0 ? (
+                      <Badge size="sm" circle variant="white" c="brand">
+                        {activeFilters}
+                      </Badge>
+                    ) : undefined
+                  }
+                  onClick={() => setFiltersOpen((open) => !open)}
+                >
+                  Фильтры
+                </Button>
                 <Button
                   variant="light"
                   leftSection={<IconFileUpload size={18} />}
@@ -151,6 +181,12 @@ export function PatientsPage() {
                 </Button>
               </Group>
             </Group>
+
+            <Collapse expanded={filtersOpen}>
+              <Card withBorder padding="md">
+                <PatientFilters value={filters} onChange={setFilters} />
+              </Card>
+            </Collapse>
 
             {sorted.length === 0 ? (
               <Card withBorder padding="xl">
@@ -170,6 +206,8 @@ export function PatientsPage() {
               <Card withBorder padding={0}>
                 <PatientTable
                   patients={sorted}
+                  sort={patientSort.sort}
+                  onSort={patientSort.toggle}
                   onOpen={(patient) => navigate(`/patients/${patient.id}`)}
                   onEdit={(patient) => navigate(`/patients/${patient.id}/edit`)}
                   onDelete={handleDelete}
@@ -215,6 +253,9 @@ export function PatientsPage() {
                 <DispensaryTable
                   records={sortedRecords}
                   patientsById={patientsById}
+                  sort={dispensarySort.sort}
+                  onSort={dispensarySort.toggle}
+                  icdNames={icdNames}
                   onOpen={(record) => navigate(`/patients/dispensary/${record.id}`)}
                   onEdit={(record) => navigate(`/patients/dispensary/${record.id}/edit`)}
                   onDelete={handleDeleteRecord}
