@@ -13,13 +13,15 @@ import {
   Stack,
   Text,
   TagsInput,
+  TextInput,
   ThemeIcon,
   Title,
 } from '@mantine/core';
-import { IconAlertTriangle, IconArrowRight, IconInfoCircle, IconPill, IconPills, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowRight, IconInfoCircle, IconPill, IconPills, IconSearch, IconSettings, IconTrash } from '@tabler/icons-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useDrugs } from '../features/drugs/useDrugs';
+import { useIncrementalList } from '../lib/useIncrementalList';
 import { buildDrugIndex, checkInteractions, getKnownDrugNames, resolveEnteredDrugs } from '../features/interactions/interactionEngine';
 import type { ResolvedDrug } from '../features/interactions/interactionEngine';
 import { SEVERITY_COLOR, SEVERITY_LABELS } from '../features/interactions/types';
@@ -35,6 +37,21 @@ export function InteractionsPage() {
   const { drugs, isLoading: drugsLoading } = useDrugs();
   const [entered, setEntered] = useState<string[]>([]);
   const [manageOpen, setManageOpen] = useState(false);
+  const [ruleSearch, setRuleSearch] = useState('');
+
+  /**
+   * Восемьсот с лишним правил в одном списке нельзя ни пролистать, ни отрисовать целиком: поиск
+   * идёт по обоим препаратам и механизму, а рисуется список порциями по мере прокрутки.
+   */
+  const matchedRules = useMemo(() => {
+    const query = ruleSearch.trim().toLowerCase();
+    if (!query) return interactions;
+    return interactions.filter((rule) =>
+      `${rule.drugA} ${rule.drugB} ${rule.mechanism}`.toLowerCase().includes(query),
+    );
+  }, [interactions, ruleSearch]);
+
+  const rules = useIncrementalList(matchedRules, 40);
 
   // A drug card links here with its МНН prefilled, so the doctor lands on the check already holding
   // the drug they were reading about and only has to add what else the patient takes.
@@ -105,6 +122,7 @@ export function InteractionsPage() {
               <TagsInput
                 placeholder="Название с упаковки или МНН — «Нурофен» тоже подойдёт…"
                 data={knownDrugNames}
+                limit={20}
                 value={entered}
                 onChange={setEntered}
                 clearable
@@ -180,13 +198,25 @@ export function InteractionsPage() {
 
       <Modal opened={manageOpen} onClose={() => setManageOpen(false)} title="Список взаимодействий" radius="lg" size="lg" centered>
         <Stack gap="lg">
+          <TextInput
+            placeholder="Препарат или механизм…"
+            leftSection={<IconSearch size={16} />}
+            value={ruleSearch}
+            onChange={(e) => setRuleSearch(e.currentTarget.value)}
+          />
+          <Text size="xs" c="dimmed">
+            {ruleSearch.trim()
+              ? `Найдено: ${matchedRules.length} из ${interactions.length}`
+              : `Всего правил: ${interactions.length}`}
+          </Text>
+
           <Stack gap="xs" mah={320} style={{ overflowY: 'auto' }}>
-            {interactions.length === 0 ? (
+            {matchedRules.length === 0 ? (
               <Text size="sm" c="dimmed">
-                Список пуст.
+                {interactions.length === 0 ? 'Список пуст.' : 'Ничего не найдено.'}
               </Text>
             ) : (
-              interactions.map((interaction) => (
+              rules.visible.map((interaction) => (
                 <Group key={interaction.id} justify="space-between" wrap="nowrap" align="flex-start">
                   <div style={{ minWidth: 0 }}>
                     <Group gap={6} wrap="wrap">
@@ -206,6 +236,11 @@ export function InteractionsPage() {
                   </ActionIcon>
                 </Group>
               ))
+            )}
+            {rules.hasMore && (
+              <Text ref={rules.setSentinel} size="xs" c="dimmed" ta="center" py="xs">
+                Загружается ещё… осталось {rules.remaining}
+              </Text>
             )}
           </Stack>
 

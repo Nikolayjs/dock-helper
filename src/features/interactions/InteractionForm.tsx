@@ -79,6 +79,7 @@ export function InteractionForm({ innOptions, initial, onSubmit, onSaved }: Inte
           label="Препарат А"
           placeholder="Например: Варфарин"
           data={innOptions}
+          limit={20}
           value={form.drugA}
           onChange={(value) => setForm((prev) => ({ ...prev, drugA: value }))}
           disabled={isSaving}
@@ -87,6 +88,7 @@ export function InteractionForm({ innOptions, initial, onSubmit, onSaved }: Inte
           label="Препарат Б"
           placeholder="Например: Ибупрофен"
           data={innOptions}
+          limit={20}
           value={form.drugB}
           onChange={(value) => setForm((prev) => ({ ...prev, drugB: value }))}
           disabled={isSaving}

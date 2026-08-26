@@ -156,6 +156,7 @@ export function DrugEditorPage() {
                 label="Фармакологическая группа"
                 placeholder="Например: НПВС"
                 data={groups}
+                limit={20}
                 value={form.pharmGroup}
                 onChange={(value) => setForm((prev) => ({ ...prev, pharmGroup: value }))}
               />

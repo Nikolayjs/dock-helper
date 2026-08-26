@@ -2,6 +2,7 @@ import { ActionIcon, Badge, Group, Table, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconEdit, IconTrash } from '@tabler/icons-react';
 
 import { SortableTh } from '../../components/common/SortableTh';
+import { useIncrementalList } from '../../lib/useIncrementalList';
 import type { SortState, SortValue } from '../../lib/tableSort';
 import type { DrugSummary } from './types';
 
@@ -74,6 +75,9 @@ export function DrugTable({
   onEdit,
   onDelete,
 }: DrugTableProps) {
+  // Фильтрация и сортировка идут по всему набору — порционно только рисуется.
+  const { visible, hasMore, remaining, setSentinel } = useIncrementalList(drugs);
+
   return (
     <Table.ScrollContainer minWidth={1100}>
       <Table highlightOnHover verticalSpacing="sm" fz="sm">
@@ -101,7 +105,7 @@ export function DrugTable({
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {drugs.map((drug) => {
+          {visible.map((drug) => {
             const interactionCount = interactionCounts.get(normalizeInn(drug.inn)) ?? 0;
 
             return (
@@ -171,6 +175,13 @@ export function DrugTable({
               </Table.Tr>
             );
           })}
+          {hasMore && (
+            <Table.Tr ref={setSentinel}>
+              <Table.Td colSpan={7} ta="center" c="dimmed" fz="xs" py="md">
+                Загружается ещё… осталось {remaining}
+              </Table.Td>
+            </Table.Tr>
+          )}
         </Table.Tbody>
       </Table>
     </Table.ScrollContainer>

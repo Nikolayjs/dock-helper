@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
+import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import { Alert, Button, Card, Container, Group, Select, Skeleton, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconCategory, IconInfoCircle, IconPill, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { DrugCategoriesModal } from '../features/drugs/DrugCategoriesModal';
+import { DrugList } from '../features/drugs/DrugList';
 import { DRUG_SORT_KEYS, DrugTable, drugSortValue, type DrugSortKey } from '../features/drugs/DrugTable';
 import type { DrugSummary } from '../features/drugs/types';
 import { QUERY_KEY as DRUGS_KEY, useDrugs } from '../features/drugs/useDrugs';
@@ -22,6 +24,18 @@ export function DrugsPage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+
+  /**
+   * На телефоне таблица из семи колонок разворачивается в 1200 пикселей и требует бокового
+   * смахивания ради каждого поля, кроме первого, — там вместо неё компактный список.
+   */
+  const isNarrow = useMediaQuery('(max-width: 62em)');
+
+  // Пояснение занимает весь первый экран телефона, а прочитать его достаточно один раз.
+  const [introHidden, setIntroHidden] = useLocalStorage({
+    key: 'medassist:drugs:intro-hidden',
+    defaultValue: false,
+  });
   const { sort, toggle } = useTableSort<DrugSortKey>(
     { key: 'inn', direction: 'asc' },
     { storageKey: 'medassist:sort:drugs', keys: DRUG_SORT_KEYS },
@@ -71,12 +85,22 @@ export function DrugsPage() {
   return (
     <Container size="xl" px={0}>
       <Stack gap="lg">
-        <Alert variant="light" color="brand" icon={<IconInfoCircle size={18} />} title="Зачем этот раздел">
-          Карточка препарата — это ещё и словарь торговых названий. Пациент говорит «Нурофен», а правила
-          взаимодействий написаны на МНН: пока эти два названия связаны здесь, проверка в разделе
-          «Взаимодействия» срабатывает на то, что назвал пациент. Дозы приведены как памятка и не заменяют
-          инструкцию к препарату.
-        </Alert>
+        {!introHidden && (
+          <Alert
+            variant="light"
+            color="brand"
+            icon={<IconInfoCircle size={18} />}
+            title="Зачем этот раздел"
+            withCloseButton
+            closeButtonLabel="Больше не показывать"
+            onClose={() => setIntroHidden(true)}
+          >
+            Карточка препарата — это ещё и словарь торговых названий. Пациент говорит «Нурофен», а правила
+            взаимодействий написаны на МНН: пока эти два названия связаны здесь, проверка в разделе
+            «Взаимодействия» срабатывает на то, что назвал пациент. Дозы приведены как памятка и не заменяют
+            инструкцию к препарату.
+          </Alert>
+        )}
 
         <Group justify="space-between" align="flex-end" wrap="wrap">
           <Text c="dimmed" size="sm">
@@ -137,16 +161,26 @@ export function DrugsPage() {
           </Card>
         ) : (
           <Card withBorder padding={0}>
-            <DrugTable
-              drugs={sorted}
-              interactionCounts={interactionCounts}
-              normalizeInn={normalizeDrugName}
-              sort={sort}
-              onSort={toggle}
-              onOpen={(drug) => navigate(`/drugs/${drug.id}`)}
-              onEdit={(drug) => navigate(`/drugs/${drug.id}/edit`)}
-              onDelete={handleDelete}
-            />
+            {isNarrow ? (
+              <DrugList
+                drugs={sorted}
+                interactionCounts={interactionCounts}
+                normalizeInn={normalizeDrugName}
+                onOpen={(drug) => navigate(`/drugs/${drug.id}`)}
+                onEdit={(drug) => navigate(`/drugs/${drug.id}/edit`)}
+              />
+            ) : (
+              <DrugTable
+                drugs={sorted}
+                interactionCounts={interactionCounts}
+                normalizeInn={normalizeDrugName}
+                sort={sort}
+                onSort={toggle}
+                onOpen={(drug) => navigate(`/drugs/${drug.id}`)}
+                onEdit={(drug) => navigate(`/drugs/${drug.id}/edit`)}
+                onDelete={handleDelete}
+              />
+            )}
           </Card>
         )}
       </Stack>

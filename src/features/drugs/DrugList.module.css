@@ -1,0 +1,28 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  padding: 10px var(--mantine-spacing-sm);
+  border-bottom: 1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.row:last-of-type {
+  border-bottom: none;
+}
+
+/* Основная зона — вся строка целиком, чтобы попасть по ней пальцем было легко. */
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.chevron {
+  color: var(--mantine-color-dimmed);
+  flex-shrink: 0;
+}
+
+.sentinel {
+  padding: var(--mantine-spacing-md);
+  text-align: center;
+}
