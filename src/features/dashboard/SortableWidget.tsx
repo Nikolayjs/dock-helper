@@ -1,26 +1,38 @@
-import { useRef, useState } from 'react';
-import { ActionIcon, Badge, Card, Grid, Group, Tooltip } from '@mantine/core';
+import { useEffect, useRef, useState } from 'react';
+import { ActionIcon, Badge, Card, Group, Tooltip } from '@mantine/core';
 import { IconEyeOff, IconGripVertical } from '@tabler/icons-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+import classes from './DashboardGrid.module.css';
 import { clampSpan, MAX_SPAN } from './dashboardLayout';
 import type { DashboardContext } from './dashboardContext';
 import type { DashboardWidget } from './widgets';
+
+/** Шаг сетки по вертикали, в пикселях. Должен совпадать с `grid-auto-rows` в стилях. */
+const ROW_UNIT = 4;
+/** Вертикальный промежуток между карточками; закладывается в пролёт, а не в `row-gap`. */
+const ROW_GAP = 24;
 
 interface SortableWidgetProps {
   widget: DashboardWidget;
   ctx: DashboardContext;
   editing: boolean;
-  /** Columns out of twelve, on `md` and wider. */
+  /** Columns out of twelve. */
   span: number;
-  /** True when the grid is wide enough for widths to mean anything at all. */
-  resizable: boolean;
+  /** True when the grid is wide enough for widths and row spans to mean anything. */
+  wide: boolean;
   onHide: () => void;
   onResize: (span: number) => void;
 }
 
-export function SortableWidget({ widget, ctx, editing, span, resizable, onHide, onResize }: SortableWidgetProps) {
+/** How much horizontal room one column takes, gap included — what a drag has to cross to add one. */
+function columnPitch(grid: Element): number {
+  const gap = Number.parseFloat(getComputedStyle(grid).columnGap) || 0;
+  return (grid.getBoundingClientRect().width + gap) / MAX_SPAN;
+}
+
+export function SortableWidget({ widget, ctx, editing, span, wide, onHide, onResize }: SortableWidgetProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.id,
     disabled: !editing,
@@ -29,10 +41,28 @@ export function SortableWidget({ widget, ctx, editing, span, resizable, onHide, 
   // Held locally while dragging the edge so the card follows the pointer without writing
   // localStorage on every frame; the width is committed once, on release.
   const [previewSpan, setPreviewSpan] = useState<number | null>(null);
-  const resizeRef = useRef<{ startX: number; startSpan: number; columnWidth: number } | null>(null);
+  const resizeRef = useRef<{ startX: number; startSpan: number; pitch: number } | null>(null);
+
+  /**
+   * Сколько строк сетки занимает карточка. Меряется по факту, а не считается: высота зависит от
+   * содержимого, ширины и темы, и единственный, кто её знает, — браузер.
+   */
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [rows, setRows] = useState<number | null>(null);
+
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card || typeof ResizeObserver !== 'function') return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      const height = entry.target.getBoundingClientRect().height;
+      setRows(Math.max(1, Math.ceil((height + ROW_GAP) / ROW_UNIT)));
+    });
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, []);
 
   const effectiveSpan = previewSpan ?? span;
-  const isEmptyNow = widget.isEmpty?.(ctx) ?? false;
 
   const beginResize = (event: React.PointerEvent<HTMLDivElement>) => {
     const grid = event.currentTarget.closest('[data-dashboard-grid]');
@@ -41,20 +71,14 @@ export function SortableWidget({ widget, ctx, editing, span, resizable, onHide, 
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
-    resizeRef.current = {
-      startX: event.clientX,
-      startSpan: span,
-      // Gutters make this a little narrow, which snapping absorbs.
-      columnWidth: grid.getBoundingClientRect().width / MAX_SPAN,
-    };
+    resizeRef.current = { startX: event.clientX, startSpan: span, pitch: columnPitch(grid) };
     setPreviewSpan(span);
   };
 
   const moveResize = (event: React.PointerEvent<HTMLDivElement>) => {
     const state = resizeRef.current;
-    if (!state || state.columnWidth <= 0) return;
-    const columns = Math.round((event.clientX - state.startX) / state.columnWidth);
-    setPreviewSpan(clampSpan(state.startSpan + columns));
+    if (!state || state.pitch <= 0) return;
+    setPreviewSpan(clampSpan(state.startSpan + Math.round((event.clientX - state.startX) / state.pitch)));
   };
 
   const endResize = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -67,27 +91,29 @@ export function SortableWidget({ widget, ctx, editing, span, resizable, onHide, 
     setPreviewSpan(null);
   };
 
-  const content = widget.bare ? (
-    widget.render(ctx)
-  ) : (
-    <Card withBorder padding="lg" h="100%">
-      {widget.render(ctx)}
-    </Card>
-  );
+  const isEmptyNow = widget.isEmpty?.(ctx) ?? false;
+
+  const content = widget.bare ? widget.render(ctx) : <Card withBorder padding="lg">{widget.render(ctx)}</Card>;
 
   return (
-    <Grid.Col span={{ base: 12, md: effectiveSpan }}>
-      <div
-        ref={setNodeRef}
-        style={{
-          transform: CSS.Transform.toString(transform),
-          transition: previewSpan === null ? transition : 'none',
-          position: 'relative',
-          height: '100%',
-          opacity: isDragging ? 0.4 : 1,
-          zIndex: isDragging || previewSpan !== null ? 1 : undefined,
-        }}
-      >
+    <div
+      ref={setNodeRef}
+      className={classes.item}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition: previewSpan === null ? transition : 'none',
+        opacity: isDragging ? 0.4 : 1,
+        zIndex: isDragging || previewSpan !== null ? 1 : undefined,
+        // Ниже `md` сетка однополосная: и ширина, и пролёт по строкам там бессмысленны.
+        ...(wide
+          ? { gridColumn: `span ${effectiveSpan}`, gridRow: rows ? `span ${rows}` : undefined }
+          : { gridColumn: '1 / -1' }),
+      }}
+    >
+      {/* Меряется и позиционируется относительно самой карточки, а не ячейки сетки: ячейка выше
+          карточки настолько, насколько высок сосед, и ползунок, привязанный к ней, повисал в
+          пустоте под карточкой. */}
+      <div ref={cardRef} style={{ position: 'relative' }}>
         {editing && (
           <Group gap={4} style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }} wrap="nowrap">
             {isEmptyNow && (
@@ -119,7 +145,7 @@ export function SortableWidget({ widget, ctx, editing, span, resizable, onHide, 
             drag that starts on a patient's name navigates away mid-rearrange. */}
         <div style={editing ? { pointerEvents: 'none', userSelect: 'none' } : undefined}>{content}</div>
 
-        {editing && resizable && (
+        {editing && wide && (
           <div
             role="separator"
             aria-label={`Ширина карточки «${widget.title}»: ${effectiveSpan} из ${MAX_SPAN}`}
@@ -164,6 +190,6 @@ export function SortableWidget({ widget, ctx, editing, span, resizable, onHide, 
           </Badge>
         )}
       </div>
-    </Grid.Col>
+    </div>
   );
 }

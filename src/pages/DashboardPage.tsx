@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Container,
-  Grid,
   Group,
   Stack,
   Text,
@@ -25,6 +24,7 @@ import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates } fro
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
+import gridClasses from '../features/dashboard/DashboardGrid.module.css';
 import { SortableWidget } from '../features/dashboard/SortableWidget';
 import { useDashboardLayout } from '../features/dashboard/useDashboardLayout';
 import type { DashboardContext } from '../features/dashboard/dashboardContext';
@@ -254,7 +254,7 @@ export function DashboardPage() {
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={shown.map((widget) => widget.id)} strategy={rectSortingStrategy}>
               {/* Помечена, чтобы ручка изменения ширины могла измерить колонку сетки. */}
-              <Grid gap="lg" align="stretch" data-dashboard-grid>
+              <div className={gridClasses.grid} data-dashboard-grid>
                 {shown.map((widget) => (
                   <SortableWidget
                     key={widget.id}
@@ -262,12 +262,12 @@ export function DashboardPage() {
                     ctx={ctx}
                     editing={editing}
                     span={layout.spanOf(widget)}
-                    resizable={isWide}
+                    wide={isWide}
                     onHide={() => layout.toggle(widget.id)}
                     onResize={(span) => layout.setSpan(widget.id, span)}
                   />
                 ))}
-              </Grid>
+              </div>
             </SortableContext>
           </DndContext>
         )}
