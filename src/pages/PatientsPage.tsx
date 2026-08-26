@@ -3,13 +3,13 @@ import { Alert, Badge, Button, Card, Collapse, Container, Group, SegmentedContro
 import { IconAdjustmentsHorizontal, IconChartBar, IconClipboardHeart, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
-import { DispensaryTable, dispensarySortValue, type DispensarySortKey } from '../features/patients/DispensaryTable';
+import { DISPENSARY_SORT_KEYS, DispensaryTable, dispensarySortValue, type DispensarySortKey } from '../features/patients/DispensaryTable';
 import { PatientFilters } from '../features/patients/PatientFilters';
 import { EMPTY_PATIENT_FILTERS, countActiveFilters, matchesPatientFilters, type PatientFilterState } from '../features/patients/patientFiltering';
 import { diagnosisCodeOf, useIcd10Names } from '../features/patients/useIcd10Names';
 import { sortRows, useTableSort } from '../lib/tableSort';
 import { PatientImportModal } from '../features/patients/import/PatientImportModal';
-import { PatientTable, patientSortValue, type PatientSortKey } from '../features/patients/PatientTable';
+import { PATIENT_SORT_KEYS, PatientTable, patientSortValue, type PatientSortKey } from '../features/patients/PatientTable';
 import type { DispensaryRecord } from '../features/patients/types';
 import type { Patient } from '../features/patients/types';
 import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from '../features/patients/useDispensary';
@@ -34,8 +34,14 @@ export function PatientsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   // Опрошенные по умолчанию: свежие визиты сверху и ближайшие осмотры сверху — то, ради чего
   // список открывают чаще всего.
-  const patientSort = useTableSort<PatientSortKey>({ key: 'lastVisit', direction: 'desc' });
-  const dispensarySort = useTableSort<DispensarySortKey>({ key: 'nextVisit', direction: 'asc' });
+  const patientSort = useTableSort<PatientSortKey>(
+    { key: 'lastVisit', direction: 'desc' },
+    { storageKey: 'medassist:sort:patients', keys: PATIENT_SORT_KEYS },
+  );
+  const dispensarySort = useTableSort<DispensarySortKey>(
+    { key: 'nextVisit', direction: 'asc' },
+    { storageKey: 'medassist:sort:dispensary', keys: DISPENSARY_SORT_KEYS },
+  );
   const [importOpen, setImportOpen] = useState(false);
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(() => localStorage.getItem(DISCLAIMER_KEY) === '1');
 

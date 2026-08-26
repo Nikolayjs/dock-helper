@@ -1,21 +1,29 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Card, Container, Group, Select, SimpleGrid, Skeleton, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Alert, Button, Card, Container, Group, Select, Skeleton, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconInfoCircle, IconPill, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
-import { DrugCard } from '../features/drugs/DrugCard';
+import { DRUG_SORT_KEYS, DrugTable, drugSortValue, type DrugSortKey } from '../features/drugs/DrugTable';
+import type { Drug } from '../features/drugs/types';
+import { QUERY_KEY as DRUGS_KEY, useDrugs } from '../features/drugs/useDrugs';
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { sortRows, useTableSort } from '../lib/tableSort';
 import { buildDrugIndex, drugCategoryCounts, drugMatchesQuery, normalizeDrugName, resolveDrug } from '../features/drugs/drugIndex';
-import { useDrugs } from '../features/drugs/useDrugs';
 import { useDrugInteractions } from '../features/interactions/useDrugInteractions';
 
 const ALL_CATEGORIES = '__all__';
 
 export function DrugsPage() {
   const navigate = useNavigate();
-  const { drugs, isLoading } = useDrugs();
+  const { drugs, isLoading, deleteDrug } = useDrugs();
+  const confirmDelete = useDeleteWithConfirm();
   const { interactions } = useDrugInteractions();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
+  const { sort, toggle } = useTableSort<DrugSortKey>(
+    { key: 'inn', direction: 'asc' },
+    { storageKey: 'medassist:sort:drugs', keys: DRUG_SORT_KEYS },
+  );
 
   const index = useMemo(() => buildDrugIndex(drugs), [drugs]);
   const categories = useMemo(() => drugCategoryCounts(drugs), [drugs]);
@@ -41,7 +49,22 @@ export function DrugsPage() {
     [drugs, search, category],
   );
 
+  const sorted = useMemo(
+    () => sortRows(filtered, sort, (drug, key) => drugSortValue(drug, key, interactionCounts, normalizeDrugName)),
+    [filtered, sort, interactionCounts],
+  );
+
   const isFiltering = search.trim() !== '' || category !== ALL_CATEGORIES;
+
+  const handleDelete = (drug: Drug) =>
+    confirmDelete({
+      what: 'препарат',
+      name: drug.inn,
+      notice: 'Препарат удалён из справочника',
+      queryKey: DRUGS_KEY,
+      id: drug.id,
+      perform: () => deleteDrug(drug.id),
+    });
 
   return (
     <Container size="xl" px={0}>
@@ -84,11 +107,11 @@ export function DrugsPage() {
         </Group>
 
         {isLoading ? (
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+          <Stack gap="xs">
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} h={132} radius="md" />
+              <Skeleton key={i} h={44} radius="sm" />
             ))}
-          </SimpleGrid>
+          </Stack>
         ) : filtered.length === 0 ? (
           <Card withBorder padding="xl">
             <Stack align="center" gap="sm" py="xl">
@@ -104,16 +127,18 @@ export function DrugsPage() {
             </Stack>
           </Card>
         ) : (
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-            {filtered.map((drug) => (
-              <DrugCard
-                key={drug.id}
-                drug={drug}
-                interactionCount={interactionCounts.get(normalizeDrugName(drug.inn)) ?? 0}
-                onOpen={() => navigate(`/drugs/${drug.id}`)}
-              />
-            ))}
-          </SimpleGrid>
+          <Card withBorder padding={0}>
+            <DrugTable
+              drugs={sorted}
+              interactionCounts={interactionCounts}
+              normalizeInn={normalizeDrugName}
+              sort={sort}
+              onSort={toggle}
+              onOpen={(drug) => navigate(`/drugs/${drug.id}`)}
+              onEdit={(drug) => navigate(`/drugs/${drug.id}/edit`)}
+              onDelete={handleDelete}
+            />
+          </Card>
         )}
       </Stack>
     </Container>

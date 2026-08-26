@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { sortRows, type SortState, type SortValue } from './tableSort';
+import { parseStoredSort, sortRows, type SortState, type SortValue } from './tableSort';
 
 interface Row {
   name: string;
@@ -79,5 +79,32 @@ describe('sortRows', () => {
     ];
     sortRows(rows, asc, valueOf);
     expect(names(rows)).toEqual(['Б', 'А']);
+  });
+});
+
+describe('parseStoredSort', () => {
+  const KEYS = ['name', 'age'] as const;
+  const parse = (raw: string | null) => parseStoredSort(raw, KEYS);
+
+  it('accepts a value the hook wrote itself', () => {
+    expect(parse(JSON.stringify({ key: 'age', direction: 'desc' }))).toEqual({ key: 'age', direction: 'desc' });
+  });
+
+  // A column renamed in a later release leaves a stored key that names nothing. Sorting by it would
+  // read undefined out of every row — «all blank» — and the table would come up in server order,
+  // looking unsorted for no visible reason.
+  it('rejects a key that no longer names a column', () => {
+    expect(parse(JSON.stringify({ key: 'phone', direction: 'asc' }))).toBeNull();
+  });
+
+  it('rejects a direction that is not one', () => {
+    expect(parse(JSON.stringify({ key: 'name', direction: 'sideways' }))).toBeNull();
+  });
+
+  it('rejects junk and emptiness', () => {
+    expect(parse('не json')).toBeNull();
+    expect(parse(null)).toBeNull();
+    expect(parse('null')).toBeNull();
+    expect(parse('')).toBeNull();
   });
 });

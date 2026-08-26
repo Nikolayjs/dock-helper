@@ -16,6 +16,8 @@ import type { Questionnaire } from './types';
 
 export type QuestionnaireSortKey = 'title' | 'diseases' | 'symptoms' | 'updated';
 
+export const QUESTIONNAIRE_SORT_KEYS: readonly QuestionnaireSortKey[] = ['title', 'diseases', 'symptoms', 'updated'];
+
 interface QuestionnaireTableProps {
   questionnaires: Questionnaire[];
   sort: SortState<QuestionnaireSortKey>;

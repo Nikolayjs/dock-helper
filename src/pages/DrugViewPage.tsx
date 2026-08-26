@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
-import { Alert, Badge, Button, Card, Container, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { Alert, Badge, Button, Card, Container, Divider, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import { IconAlertTriangle, IconArrowLeft, IconEdit, IconPill, IconTestPipe, IconTrash } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { buildDrugIndex, normalizeDrugName } from '../features/drugs/drugIndex';
@@ -90,13 +91,15 @@ export function DrugViewPage() {
             )}
             {drug.atcCode && <Badge variant="default" tt="none">ATC {drug.atcCode}</Badge>}
           </Group>
+          <Text size="xs" c="dimmed" mt={8}>
+            Обновлён {dayjs(drug.updatedAt).format('D MMMM YYYY')}
+          </Text>
         </div>
 
+        {/* The card that used to wrap every field turned a monograph into a stack of boxes. An
+            article reads as one document with headings, and so should this. */}
         {drug.brandNames.length > 0 && (
-          <Card withBorder padding="md" radius="md">
-            <Text size="sm" fw={600} mb={6}>
-              Торговые названия
-            </Text>
+          <Section title="Торговые названия">
             <Group gap={6} wrap="wrap">
               {drug.brandNames.map((brand) => (
                 <Badge key={brand} variant="light" color="gray" size="lg" radius="sm" tt="none">
@@ -107,7 +110,7 @@ export function DrugViewPage() {
             <Text size="xs" c="dimmed" mt={8}>
               Проверка взаимодействий понимает любое из этих названий как «{drug.inn}».
             </Text>
-          </Card>
+          </Section>
         )}
 
         {drug.forms.length > 0 && (
@@ -124,11 +127,13 @@ export function DrugViewPage() {
 
         {DRUG_TEXT_FIELDS.filter(({ key }) => (drug[key] as string).trim()).map(({ key, label }) => (
           <Section key={key} title={label}>
-            <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+            <Text size="sm" style={{ whiteSpace: 'pre-wrap' }} lh={1.6}>
               {drug[key] as string}
             </Text>
           </Section>
         ))}
+
+        <Divider mt="xs" />
 
         <InteractionsSection drug={drug} related={related} index={index} />
       </Stack>
@@ -138,12 +143,12 @@ export function DrugViewPage() {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <Card withBorder padding="md" radius="md">
-      <Text size="sm" fw={600} mb={8}>
+    <div>
+      <Title order={4} mb={8}>
         {title}
-      </Text>
+      </Title>
       {children}
-    </Card>
+    </div>
   );
 }
 
@@ -159,13 +164,11 @@ function InteractionsSection({
   const navigate = useNavigate();
 
   return (
-    <Card withBorder padding="md" radius="md">
+    <div>
       <Group justify="space-between" mb={10} wrap="wrap" gap="xs">
         <Group gap={8}>
           <IconAlertTriangle size={18} />
-          <Text size="sm" fw={600}>
-            Взаимодействия ({related.length})
-          </Text>
+          <Title order={4}>Взаимодействия ({related.length})</Title>
         </Group>
         <Button
           size="xs"
@@ -218,6 +221,6 @@ function InteractionsSection({
           })}
         </Stack>
       )}
-    </Card>
+    </div>
   );
 }

@@ -29,6 +29,16 @@ export type DispensarySortKey =
   | 'observations'
   | 'status';
 
+export const DISPENSARY_SORT_KEYS: readonly DispensarySortKey[] = [
+  'name',
+  'diagnosis',
+  'code',
+  'registered',
+  'nextVisit',
+  'observations',
+  'status',
+];
+
 interface DispensaryTableProps {
   records: DispensaryRecord[];
   patientsById: Map<string, Patient>;

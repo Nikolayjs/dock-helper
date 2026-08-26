@@ -3,7 +3,7 @@ import { Alert, Button, Card, Container, Group, Stack, Text, TextInput, ThemeIco
 import { IconInfoCircle, IconPlus, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
-import { QuestionnaireTable, questionnaireSortValue, type QuestionnaireSortKey } from '../features/diagnostics/QuestionnaireTable';
+import { QUESTIONNAIRE_SORT_KEYS, QuestionnaireTable, questionnaireSortValue, type QuestionnaireSortKey } from '../features/diagnostics/QuestionnaireTable';
 import { sortRows, useTableSort } from '../lib/tableSort';
 import type { Questionnaire } from '../features/diagnostics/types';
 import { QUERY_KEY as QUESTIONNAIRES_KEY, useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
@@ -14,7 +14,10 @@ export function QuestionnairesPage() {
   const { questionnaires, deleteQuestionnaire } = useQuestionnaires();
   const confirmDelete = useDeleteWithConfirm();
   const [search, setSearch] = useState('');
-  const { sort, toggle } = useTableSort<QuestionnaireSortKey>({ key: 'title', direction: 'asc' });
+  const { sort, toggle } = useTableSort<QuestionnaireSortKey>(
+    { key: 'title', direction: 'asc' },
+    { storageKey: 'medassist:sort:diagnostics', keys: QUESTIONNAIRE_SORT_KEYS },
+  );
 
   const handleDelete = (q: Questionnaire) =>
     confirmDelete({

@@ -20,6 +20,16 @@ import { calcAge, formatAge, getReminderStatus } from './utils';
 
 export type PatientSortKey = 'name' | 'sex' | 'age' | 'lastVisit' | 'diagnosis' | 'visits' | 'reminder';
 
+export const PATIENT_SORT_KEYS: readonly PatientSortKey[] = [
+  'name',
+  'sex',
+  'age',
+  'lastVisit',
+  'diagnosis',
+  'visits',
+  'reminder',
+];
+
 interface PatientTableProps {
   patients: Patient[];
   sort: SortState<PatientSortKey>;

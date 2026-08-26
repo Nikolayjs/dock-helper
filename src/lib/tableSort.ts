@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 /**
  * Sorting a table by clicking its headers.
@@ -55,11 +55,61 @@ export function sortRows<T, K extends string>(
 }
 
 /**
+ * Remembering the chosen sort between visits.
+ *
+ * Validated on the way in rather than trusted. A stored key that no longer names a column would
+ * leave `sortRows` reading `undefined` out of every row — which is not an error but «everything is
+ * blank», so the table would come up in whatever order the server sent and look unsorted for no
+ * visible reason.
+ */
+export function parseStoredSort<K extends string>(raw: string | null, keys: readonly K[]): SortState<K> | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<SortState<K>> | null;
+    if (!parsed || !keys.includes(parsed.key as K)) return null;
+    if (parsed.direction !== 'asc' && parsed.direction !== 'desc') return null;
+    return { key: parsed.key as K, direction: parsed.direction };
+  } catch {
+    return null;
+  }
+}
+
+function readStored<K extends string>(storageKey: string, keys: readonly K[]): SortState<K> | null {
+  try {
+    return parseStoredSort(localStorage.getItem(storageKey), keys);
+  } catch {
+    // Private mode denies localStorage outright; the table just opens on its default.
+    return null;
+  }
+}
+
+export interface SortPersistence<K extends string> {
+  storageKey: string;
+  /** Every key the table accepts, so a renamed column falls back instead of sorting by nothing. */
+  keys: readonly K[];
+}
+
+/**
  * Clicking a header sorts by it ascending; clicking the same one again flips the direction — the
  * behaviour a spreadsheet has trained everyone to expect.
+ *
+ * With `persist`, the choice survives a reload: a doctor who works through the register by nearest
+ * appointment should not have to re-sort it every morning.
  */
-export function useTableSort<K extends string>(initial: SortState<K>) {
-  const [sort, setSort] = useState<SortState<K>>(initial);
+export function useTableSort<K extends string>(initial: SortState<K>, persist?: SortPersistence<K>) {
+  const [sort, setSort] = useState<SortState<K>>(
+    () => (persist ? readStored(persist.storageKey, persist.keys) : null) ?? initial,
+  );
+
+  const storageKey = persist?.storageKey;
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(sort));
+    } catch {
+      // Nothing to do about a full or blocked store — the sort still works for this session.
+    }
+  }, [storageKey, sort]);
 
   const toggle = useCallback((key: K) => {
     setSort((current) =>
