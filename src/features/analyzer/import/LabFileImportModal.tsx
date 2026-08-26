@@ -152,7 +152,9 @@ export function LabFileImportModal({
     const values: Record<string, Record<string, number>> = {};
     for (const fill of stage.plan.fills) {
       if (!selectedTestIds.includes(fill.test.id)) continue;
-      values[fill.test.id] = Object.fromEntries(fill.matches.map((m) => [m.param.key, m.analyte.value]));
+      // m.value, not m.analyte.value: a result printed in г/дл has been rescaled to the
+      // parameter's г/л, and the raw number would be off by a factor of ten.
+      values[fill.test.id] = Object.fromEntries(fill.matches.map((m) => [m.param.key, m.value]));
     }
     onApply(values);
     close();
@@ -251,12 +253,19 @@ export function LabFileImportModal({
                                   <Text size="sm">
                                     {match.param.label}{' '}
                                     <Text span size="sm" fw={600}>
-                                      {match.analyte.value}
+                                      {match.value}
                                     </Text>{' '}
                                     <Text span size="xs" c="dimmed">
                                       {match.param.unit ?? match.analyte.unit ?? ''}
                                     </Text>
                                   </Text>
+                                  {/* A rescaled value is not the number printed on the form, so the
+                                      arithmetic is shown rather than left for the doctor to doubt. */}
+                                  {match.conversion && (
+                                    <Text size="xs" c="dimmed">
+                                      пересчитано из {match.analyte.value} {match.conversion.from}
+                                    </Text>
+                                  )}
                                   {/* The source row, so a mispaired value is caught by eye. */}
                                   <Text size="xs" c="dimmed" lineClamp={1}>
                                     {match.analyte.line}
@@ -277,6 +286,19 @@ export function LabFileImportModal({
                 ))}
               </Stack>
             </ScrollArea.Autosize>
+          )}
+
+          {/* Not a failure and not an import: the form computes these from the values just filled in,
+              and saying so is what keeps them from being read as rows that went missing. */}
+          {stage.plan.derived.length > 0 && (
+            <Card withBorder padding="sm" radius="md">
+              <Text size="sm" fw={600} mb={4}>
+                Рассчитываются автоматически: {stage.plan.derived.length}
+              </Text>
+              <Text size="xs" c="dimmed" lineClamp={3}>
+                {stage.plan.derived.map((a) => `${a.name} ${a.value}`).join(' · ')}
+              </Text>
+            </Card>
           )}
 
           {stage.plan.unmatched.length > 0 && (

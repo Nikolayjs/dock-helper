@@ -1,6 +1,7 @@
 import type { LabParameter, LabTestDefinition } from '../types';
 import type { ParsedAnalyte } from './parseLabValues';
 import { expandSynonyms } from './synonyms';
+import { conversionFactor, convertValue } from './units';
 
 /**
  * Pairs analytes read out of a file with the parameters of the analyzers already defined.
@@ -19,6 +20,13 @@ export interface AnalyteMatch {
   param: LabParameter;
   analyte: ParsedAnalyte;
   score: number;
+  /**
+   * What actually goes into the field — the analyte's value expressed in the parameter's unit.
+   * Equal to `analyte.value` unless the file used the other convention.
+   */
+  value: number;
+  /** Set only when the value was rescaled, so the review screen can show the arithmetic. */
+  conversion?: { from: string; to: string };
 }
 
 export interface TestFill {
@@ -30,6 +38,13 @@ export interface MatchPlan {
   fills: TestFill[];
   /** Analytes that matched nothing anywhere — the raw material for a new analyzer. */
   unmatched: ParsedAnalyte[];
+  /**
+   * Analytes whose only home is a computed parameter — `Нейтрофилы, абс.` against a field derived
+   * from лейкоциты and the neutrophil percentage. Writing into one would be overwritten the moment
+   * the form recalculates, so they are not imported; listing them apart from `unmatched` is what
+   * stops five correctly handled rows from reading as five failures.
+   */
+  derived: ParsedAnalyte[];
 }
 
 /** Below this, agreement is coincidence. Tuned so `Гемоглобин`/`Гемоглабин` passes and `Глюкоза`/`Глобулин` does not. */
@@ -142,36 +157,40 @@ function similarity(a: string, b: string): number {
   return 1 - editDistance(a, b) / longer.length;
 }
 
-const SUPERSCRIPT_DIGITS: Record<string, string> = {
-  '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
-  '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
-};
-
-/** `×10¹²/л`, `10^12/л` and `10*12/л` are the same unit written three ways; all reduce to `1012/л`. */
-function normalizeUnit(unit: string): string {
-  return [...unit.toLowerCase().replace(/ё/g, 'е')]
-    .map((char) => SUPERSCRIPT_DIGITS[char] ?? char)
-    .join('')
-    .replace(/[\s×*^]/g, '');
-}
-
 /**
- * Rejects a pairing whose units disagree.
+ * How the analyte's value must be rescaled to read correctly in the parameter's unit, or `null`
+ * when the two units are not comparable at all.
  *
  * This is the guard that keeps an erythrocyte count out of a urine sediment field. `Эритроциты`
  * names a parameter in both ОАК and ОАМ, and by name alone the two are indistinguishable — but
  * `×10¹²/л` and `в п/зр` are not, and 4,85 arriving in a field whose normal is 0–2 reads as a
  * catastrophic result rather than the mis-filing it actually is.
  *
- * Silence on either side proves nothing, so only two stated and differing units block a match.
+ * Silence on either side proves nothing, so an unstated unit scales by 1 rather than blocking.
+ * What the guard must not do is read a different *notation* as disagreement: `тыс/мкл` and `×10⁹/л`
+ * are one unit under two conventions, and vetoing that pairing threw away most of an Инвитро ОАК.
+ * See `units.ts` for what is comparable to what, and for why molar conversions are left out.
  */
-function unitsConflict(analyte: ParsedAnalyte, param: LabParameter): boolean {
-  if (!analyte.unit || !param.unit) return false;
-  return normalizeUnit(analyte.unit) !== normalizeUnit(param.unit);
+function unitScale(analyte: ParsedAnalyte, param: LabParameter): number | null {
+  if (!analyte.unit || !param.unit) return 1;
+  return conversionFactor(analyte.unit, param.unit);
+}
+
+/**
+ * A graded or categorical parameter holds one of its own option values — `Не обнаружено` is 0,
+ * `++` is 3. A measurement out of a blood count is none of them, so the pairing is refused
+ * outright: a haemoglobin of 16.6 was landing in the urinalysis dipstick field `Эритроциты
+ * (реакция на гемоглобин)`, which lists `Гемоглобин` among its aliases and states no unit, leaving
+ * nothing else to stop it.
+ */
+function valueFitsParameter(analyte: ParsedAnalyte, param: LabParameter): boolean {
+  if (param.inputType !== 'select' || !param.options?.length) return true;
+  return param.options.some((option) => option.value === analyte.value);
 }
 
 function bestScore(analyte: ParsedAnalyte, param: LabParameter): number {
-  if (unitsConflict(analyte, param)) return 0;
+  if (unitScale(analyte, param) === null) return 0;
+  if (!valueFitsParameter(analyte, param)) return 0;
 
   // A parameter's own aliases are the doctor's answer for names no shared list could know — a local
   // laboratory's wording, or an analyte they added themselves.
@@ -196,14 +215,32 @@ export function matchAnalytes(analytes: ParsedAnalyte[], tests: LabTestDefinitio
   const usedAnywhere = new Set<ParsedAnalyte>();
   const fills: TestFill[] = [];
 
+  const claimedByDerived = new Set<ParsedAnalyte>();
+
   for (const test of tests) {
     const candidates: AnalyteMatch[] = [];
     for (const param of test.parameters) {
       // Derived parameters are computed from the others; writing into one would be overwritten.
-      if (param.inputType === 'derived') continue;
+      if (param.inputType === 'derived') {
+        for (const analyte of analytes) {
+          if (bestScore(analyte, param) >= MATCH_THRESHOLD) claimedByDerived.add(analyte);
+        }
+        continue;
+      }
       for (const analyte of analytes) {
         const score = bestScore(analyte, param);
-        if (score >= MATCH_THRESHOLD) candidates.push({ param, analyte, score });
+        if (score < MATCH_THRESHOLD) continue;
+        // Non-null: bestScore already refused the pairing otherwise.
+        const factor = unitScale(analyte, param) as number;
+        candidates.push({
+          param,
+          analyte,
+          score,
+          value: convertValue(analyte.value, factor),
+          ...(factor !== 1 && analyte.unit && param.unit
+            ? { conversion: { from: analyte.unit, to: param.unit } }
+            : {}),
+        });
       }
     }
 
@@ -230,5 +267,10 @@ export function matchAnalytes(analytes: ParsedAnalyte[], tests: LabTestDefinitio
   }
 
   fills.sort((a, b) => b.matches.length - a.matches.length);
-  return { fills, unmatched: analytes.filter((analyte) => !usedAnywhere.has(analyte)) };
+  const leftOver = analytes.filter((analyte) => !usedAnywhere.has(analyte));
+  return {
+    fills,
+    unmatched: leftOver.filter((analyte) => !claimedByDerived.has(analyte)),
+    derived: leftOver.filter((analyte) => claimedByDerived.has(analyte)),
+  };
 }
