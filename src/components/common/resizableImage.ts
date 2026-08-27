@@ -1,4 +1,5 @@
 import { Image } from '@tiptap/extension-image';
+import { TextAlign } from '@tiptap/extension-text-align';
 
 /**
  * Картинка, которой можно задать размер и выравнивание.
@@ -116,6 +117,40 @@ export const ResizableImage = Image.extend({
         ignoreMutation: () => true,
         stopEvent: (event) => event.target === handle,
       };
+    };
+  },
+});
+
+/**
+ * Выравнивание с общей панели работает и на картинке.
+ *
+ * `TextAlign` двигает абзацы и заголовки, а картинка — узел со своим свойством, и кнопки «по левому
+ * краю / по центру / по правому» на неё не действовали вовсе. Врач, выделивший картинку и нажавший
+ * «по центру», ждёт, что она встанет по центру, а не что кнопка промолчит: панель одна, и обещание
+ * у кнопки одно. Поэтому команда перехватывается, когда выделена картинка.
+ *
+ * Своя панель у картинки при этом остаётся — в ней ширина, которой на общей панели нет.
+ */
+export const ImageAwareTextAlign = TextAlign.extend({
+  addCommands() {
+    const parent = this.parent?.();
+
+    return {
+      ...parent,
+      setTextAlign:
+        (alignment: string) =>
+        (props) => {
+          if (!props.editor.isActive('image')) return parent?.setTextAlign?.(alignment)(props) ?? false;
+          // «По ширине» у картинки смысла не имеет: растягивать её до полей — не то, чего просят.
+          const align = alignment === 'justify' ? 'left' : alignment;
+          return props.commands.updateAttributes('image', { align });
+        },
+      unsetTextAlign:
+        () =>
+        (props) => {
+          if (!props.editor.isActive('image')) return parent?.unsetTextAlign?.()(props) ?? false;
+          return props.commands.updateAttributes('image', { align: null });
+        },
     };
   },
 });

@@ -6,13 +6,12 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Subscript } from '@tiptap/extension-subscript';
 import { Superscript } from '@tiptap/extension-superscript';
 import { TableKit } from '@tiptap/extension-table';
-import { TextAlign } from '@tiptap/extension-text-align';
 import { Color, FontFamily, FontSize, TextStyle } from '@tiptap/extension-text-style';
 import { Underline } from '@tiptap/extension-underline';
 import { useEditor } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
 
-import { ResizableImage } from './resizableImage';
+import { ImageAwareTextAlign, ResizableImage } from './resizableImage';
 
 export function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -69,7 +68,8 @@ export function useRichTextEditor(initialContent: string) {
       Color,
       FontFamily,
       FontSize,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      // Кнопки выравнивания на панели действуют и на выделенную картинку — см. расширение.
+      ImageAwareTextAlign.configure({ types: ['heading', 'paragraph'] }),
       TaskList,
       TaskItem.configure({ nested: true }),
       PageBreak,
