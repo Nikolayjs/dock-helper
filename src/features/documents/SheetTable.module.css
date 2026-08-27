@@ -74,8 +74,11 @@
   background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
 }
 
+/* Место под стрелку занято всегда — см. `SheetEditor.module.css` о том, почему. */
 .sortMark {
-  padding-left: 6px;
+  display: inline-block;
+  width: 14px;
+  text-align: right;
   color: var(--mantine-color-brand-6);
   font-size: var(--mantine-font-size-xs);
 }

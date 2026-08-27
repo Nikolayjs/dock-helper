@@ -197,8 +197,17 @@ tr:hover .rowActions button,
 }
 
 /* Отметка сортировки рядом с буквой столбца. */
+/*
+ * Место под стрелку занято всегда, даже когда стрелки нет.
+ *
+ * Ширина столбца меряется по его содержимому, и значок, появляющийся из ниоткуда, раздвигал бы
+ * таблицу ровно в тот момент, когда врач смотрит на результат сортировки.
+ */
 .sortMark {
-  padding-right: 2px;
+  display: inline-block;
+  width: 12px;
+  flex-shrink: 0;
+  text-align: center;
   color: var(--mantine-color-brand-6);
   font-size: var(--mantine-font-size-xs);
   font-weight: 700;

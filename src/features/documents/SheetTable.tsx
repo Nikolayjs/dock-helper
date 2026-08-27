@@ -92,7 +92,8 @@ export function SheetTable({ sheet }: { sheet: DocumentSheet | null }) {
                 title="Сортировка: по возрастанию → по убыванию → как в документе"
               >
                 {column.trim() || <span className={classes.letter}>{columnLetter(index)}</span>}
-                {sort?.column === index && <span className={classes.sortMark}>{sort.direction === 'asc' ? '↑' : '↓'}</span>}
+                {/* Место под стрелку занято всегда: иначе первое же нажатие раздвинуло бы столбец. */}
+                <span className={classes.sortMark}>{sort?.column === index ? (sort.direction === 'asc' ? '↑' : '↓') : ''}</span>
               </th>
             ))}
           </tr>

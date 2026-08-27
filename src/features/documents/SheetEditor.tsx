@@ -714,6 +714,7 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
               {value.columns.map((column, columnIndex) => {
                 const selected = selection ? rangeContains(selection, HEADER_ROW, columnIndex) : false;
                 const format = getFormat(value.formats ?? undefined, HEADER_ROW, columnIndex);
+                const sortedHere = canRestoreOrder && sorted.column === columnIndex;
                 return (
                   <th
                     key={columnIndex}
@@ -732,12 +733,17 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
                         {columnLetter(columnIndex)}
                       </span>
                       {/* Стрелка стоит, только пока таблица ровно такая, какой её оставила
-                          сортировка: после правки порядок уже не её, и обещать это нечестно. */}
-                      {canRestoreOrder && sorted.column === columnIndex && (
-                        <span className={classes.sortMark} title={`Отсортировано по ${sorted.direction === 'asc' ? 'возрастанию' : 'убыванию'}`}>
-                          {sorted.direction === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
+                          сортировка: после правки порядок уже не её, и обещать это нечестно.
+
+                          Место под неё занято всегда, даже пустое: столбец меряется по своему
+                          содержимому, и стрелка, появляющаяся из ниоткуда, раздвигала бы таблицу в
+                          момент сортировки — прыгает всё, на что врач в этот момент смотрит. */}
+                      <span
+                        className={classes.sortMark}
+                        title={sortedHere ? `Отсортировано по ${sorted.direction === 'asc' ? 'возрастанию' : 'убыванию'}` : undefined}
+                      >
+                        {sortedHere ? (sorted.direction === 'asc' ? '↑' : '↓') : ''}
+                      </span>
                       <input
                         className={classes.headInput}
                         style={textStyle(format)}
