@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Button, Container, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
+import { Button, Container, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -16,7 +15,6 @@ export function DocumentTemplateEditorPage() {
   const navigate = useNavigate();
   const { templates, isLoading, addTemplate, updateTemplate, deleteTemplate } = useDocumentTemplates();
   const confirmDelete = useDeleteWithConfirm();
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   const editingTemplate = isEditMode ? templates.find((t) => t.id === id) : undefined;
 
@@ -92,31 +90,17 @@ export function DocumentTemplateEditorPage() {
             template={editingTemplate}
             onSubmit={handleSubmit}
             onCancel={() => navigate('/documents?tab=templates')}
-            onDelete={() => setDeleteModalOpen(true)}
+            onDelete={handleDelete}
           />
         ) : (
           <DocumentTemplateForm
             initialTemplate={editingTemplate}
             onSubmit={handleSubmit}
             onCancel={() => navigate('/documents?tab=templates')}
-            onDelete={editingTemplate ? () => setDeleteModalOpen(true) : undefined}
+            onDelete={editingTemplate ? handleDelete : undefined}
           />
         )}
       </Stack>
-
-      <Modal opened={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Удалить документ?" radius="lg" centered>
-        <Text size="sm" mb="lg">
-          Действие необратимо. Шаблон «{editingTemplate?.title}» будет удалён без возможности восстановления.
-        </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => setDeleteModalOpen(false)}>
-            Отмена
-          </Button>
-          <Button color="red" onClick={handleDelete}>
-            Удалить
-          </Button>
-        </Group>
-      </Modal>
     </Container>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Card, Container, Grid, Group, Modal, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Alert, Badge, Button, Card, Container, Grid, Group, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -34,7 +34,6 @@ export function QuestionnaireBuilderPage() {
   const [description, setDescription] = useState('');
   const [symptoms, setSymptoms] = useState<DraftSymptom[]>([emptySymptom()]);
   const [diseases, setDiseases] = useState<DraftDisease[]>([emptyDisease()]);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [hydrated, setHydrated] = useState(!isEditMode);
 
   useEffect(() => {
@@ -134,7 +133,7 @@ export function QuestionnaireBuilderPage() {
           К анкетам
         </Button>
         {editingQuestionnaire && (
-          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => setDeleteModalOpen(true)}>
+          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
             Удалить
           </Button>
         )}
@@ -237,20 +236,6 @@ export function QuestionnaireBuilderPage() {
           </div>
         </Grid.Col>
       </Grid>
-
-      <Modal opened={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Удалить анкету?" radius="lg" centered>
-        <Text size="sm" mb="lg">
-          Действие необратимо. Анкета «{editingQuestionnaire?.title}» будет удалена без возможности восстановления.
-        </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => setDeleteModalOpen(false)}>
-            Отмена
-          </Button>
-          <Button color="red" onClick={handleDelete}>
-            Удалить
-          </Button>
-        </Group>
-      </Modal>
     </Container>
   );
 }

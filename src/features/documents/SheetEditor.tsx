@@ -1,10 +1,18 @@
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type ReactNode } from 'react';
 import { ActionIcon, Button, Group, Menu, Text, TextInput, Tooltip } from '@mantine/core';
-import { IconDotsVertical, IconPlus, IconSearch, IconSortAscending, IconSortDescending, IconTrash } from '@tabler/icons-react';
+import {
+  IconArrowBackUp,
+  IconDotsVertical,
+  IconPlus,
+  IconSearch,
+  IconSortAscending,
+  IconSortDescending,
+  IconTrash,
+} from '@tabler/icons-react';
 
 import { SCROLL_ROOT_ID } from '../../components/layout/scrollRoot';
 import { HEADER_HEIGHT } from '../../layouts/shellMetrics';
-import { columnLetter, FIRST_DATA_ROW, HEADER_ROW } from '../../lib/sheet/cellRef';
+import { columnLetter, FIRST_DATA_ROW, HEADER_ROW, parseRef } from '../../lib/sheet/cellRef';
 import { cellAddress, evaluateGrid, isFormula } from '../../lib/sheet/formula';
 import { completeFunction, formulaHint } from '../../lib/sheet/formulaHint';
 import { FormulaHelp } from './FormulaHelp';
@@ -58,6 +66,39 @@ const MIN_FRAME_HEIGHT = 220;
 function cellClass(raw: string, shown: string): string {
   if (!isFormula(raw)) return classes.input;
   return shown.startsWith('#') ? classes.failed : classes.computed;
+}
+
+/**
+ * Что показать про ссылку в подсказке: значение ячейки, а у диапазона — его размер.
+ *
+ * У диапазона значения не перечисляются нарочно: `B2:B200` — это двести чисел, и подсказка,
+ * закрывающая ими пол-экрана, мешает больше, чем помогает. Размер отвечает на тот вопрос, который у
+ * диапазона и возникает: сколько ячеек он захватил.
+ */
+function describeRef(ref: string, computed: string[][]): string {
+  const [from, to] = ref.split(':');
+  const start = parseRef(from);
+  if (!start) return '#ССЫЛКА!';
+
+  if (to) {
+    const end = parseRef(to);
+    if (!end) return '#ССЫЛКА!';
+    const rows = Math.abs(end.row - start.row) + 1;
+    const columns = Math.abs(end.col - start.col) + 1;
+    return `${rows * columns} ${plural(rows * columns, 'ячейка', 'ячейки', 'ячеек')}`;
+  }
+
+  const value = computed[start.row - 1]?.[start.col];
+  if (value === undefined) return 'за таблицей';
+  return value.trim() === '' ? 'пусто' : value;
+}
+
+function plural(count: number, one: string, few: string, many: string): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
 }
 
 /**
@@ -472,7 +513,37 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
     setHead(null);
   };
 
-  const sort = (columnIndex: number, direction: SortDirection) => commit(sortRows(value, columnIndex, direction));
+  /**
+   * Сортировка, из которой можно вернуться.
+   *
+   * Сортировка здесь переставляет строки насовсем — иначе формулы, которые ездят вместе со строкой,
+   * пришлось бы пересчитывать на каждый показ. Значит, «отменить сортировку» — это не снять
+   * настройку, а вернуть тот порядок, который был. Он и запоминается.
+   *
+   * Возврат предлагается, только пока таблица ровно такая, какой её оставила сортировка
+   * (`after === value`). Стоит поправить хоть одну ячейку — прежний порядок вернуть уже нельзя,
+   * не потеряв правку, и обещать это нельзя тоже. Второй сортировкой подряд исходный порядок не
+   * перезаписывается: отсортировав по второму столбцу, вернуться нужно всё равно к началу.
+   */
+  const [sorted, setSorted] = useState<{
+    column: number;
+    direction: SortDirection;
+    before: DocumentSheet;
+    after: DocumentSheet;
+  } | null>(null);
+  const canRestoreOrder = sorted !== null && sorted.after === value;
+
+  const sort = (columnIndex: number, direction: SortDirection) => {
+    const next = sortRows(value, columnIndex, direction);
+    setSorted({ column: columnIndex, direction, before: canRestoreOrder ? sorted.before : value, after: next });
+    commit(next);
+  };
+
+  const restoreOrder = () => {
+    if (!sorted) return;
+    commit(sorted.before);
+    setSorted(null);
+  };
 
   // ─── Строка формул ─────────────────────────────────────────────────────────
   const rawAt = (address: CellAddress): string => {
@@ -494,11 +565,13 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
   // Зависимости — только простые значения. От объекта `hint`, который пересоздаётся каждый рендер,
   // эффект срабатывал бы после каждой своей же перерисовки: React ловит это как «превышена глубина
   // обновления» и валит страницу.
-  const hintKey = hint
-    ? hint.kind === 'functions'
+  const hintKey = !hint
+    ? ''
+    : hint.kind === 'functions'
       ? `f:${hint.prefix}`
-      : `s:${hint.doc.name}:${hint.argument}`
-    : '';
+      : hint.kind === 'signature'
+        ? `s:${hint.doc.name}:${hint.argument}`
+        : `r:${hint.refs.join(',')}`;
   const editingRow = editing?.row ?? null;
   const editingColumnIndex = editing?.column ?? null;
 
@@ -537,6 +610,18 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
     });
   };
   const activeShown = active ? (shown[active.row - 1]?.[active.column] ?? '') : '';
+
+  /**
+   * Что стоит в ячейках, на которые ссылается набираемая формула, и во что она сейчас считается.
+   *
+   * Берётся из той же сетки, которой нарисована таблица: правка ячейки идёт в таблицу на каждое
+   * нажатие, поэтому `shown` уже содержит и результат недописанной формулы, и её ошибку.
+   */
+  const hintValues =
+    hint?.kind === 'references'
+      ? hint.refs.map((ref) => ({ ref, value: describeRef(ref, shown) }))
+      : undefined;
+  const hintResult = editing && isFormula(editingRaw) ? (shown[editing.row - 1]?.[editing.column] ?? '') : '';
 
   const writeActive = (text: string) => {
     if (!active) return;
@@ -646,6 +731,13 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
                       >
                         {columnLetter(columnIndex)}
                       </span>
+                      {/* Стрелка стоит, только пока таблица ровно такая, какой её оставила
+                          сортировка: после правки порядок уже не её, и обещать это нечестно. */}
+                      {canRestoreOrder && sorted.column === columnIndex && (
+                        <span className={classes.sortMark} title={`Отсортировано по ${sorted.direction === 'asc' ? 'возрастанию' : 'убыванию'}`}>
+                          {sorted.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
                       <input
                         className={classes.headInput}
                         style={textStyle(format)}
@@ -678,6 +770,11 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
                           <Menu.Item leftSection={<IconSortDescending size={14} />} onClick={() => sort(columnIndex, 'desc')}>
                             Сортировать по убыванию
                           </Menu.Item>
+                          {canRestoreOrder && (
+                            <Menu.Item leftSection={<IconArrowBackUp size={14} />} onClick={restoreOrder}>
+                              Вернуть исходный порядок
+                            </Menu.Item>
+                          )}
                           <Menu.Divider />
                           <Menu.Item
                             leftSection={<IconPlus size={14} />}
@@ -801,7 +898,9 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
         </Text>
       </Group>
 
-      {hint && anchor && <FormulaHintBox hint={hint} anchor={anchor} onPick={pickFunction} />}
+      {hint && anchor && (
+        <FormulaHintBox hint={hint} anchor={anchor} onPick={pickFunction} values={hintValues} result={hintResult} />
+      )}
 
       <FormulaHelp opened={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>

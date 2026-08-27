@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { completeFunction, formulaHint, signatureParts } from './formulaHint';
+import { completeFunction, formulaHint, referencesIn, signatureParts } from './formulaHint';
 import { FUNCTION_DOCS } from './formula';
 
 /** Курсор задаётся знаком | в строке — так проверки читаются как то, что видит врач. */
@@ -75,8 +75,38 @@ describe('formulaHint', () => {
     expect(hintAt('=ВПР(|')).toBeNull();
   });
 
-  it('ссылки за подсказкой не идут', () => {
-    expect(hintAt('=B2|')).toBeNull();
+  it('формула без функции подсказывает свои ссылки', () => {
+    // Самое частое, что пишут в реестре, и до сих пор оно не подсказывало ничего.
+    expect(hintAt('=B2*600|')).toEqual({ kind: 'references', refs: ['B2'] });
+    expect(hintAt('=A1+A2|')).toEqual({ kind: 'references', refs: ['A1', 'A2'] });
+  });
+
+  it('незнакомое имя не выдумывает подпись, но ссылки показывает', () => {
+    expect(hintAt('=ВПР(B2|')).toEqual({ kind: 'references', refs: ['B2'] });
+  });
+
+  it('ссылка повторяется в формуле — в подсказке она одна', () => {
+    expect(hintAt('=B2/(B2+C2)|')).toEqual({ kind: 'references', refs: ['B2', 'C2'] });
+  });
+});
+
+describe('referencesIn', () => {
+  it('видит диапазоны и абсолютные адреса', () => {
+    expect(referencesIn('=СУММ(B2:B10)/$C$1')).toEqual(['B2:B10', '$C$1']);
+  });
+
+  it('адрес в кавычках — это текст', () => {
+    expect(referencesIn('="A1 и B2"')).toEqual([]);
+    expect(referencesIn('=ЕСЛИ(B2>0;"нет A1";C2)')).toEqual(['B2', 'C2']);
+  });
+
+  it('имя функции ссылкой не станет', () => {
+    // У адреса обязательно есть цифры, у SUM их нет.
+    expect(referencesIn('=SUM(A1)')).toEqual(['A1']);
+  });
+
+  it('регистр приводится к верхнему — как и в самой формуле', () => {
+    expect(referencesIn('=b2+B2')).toEqual(['B2']);
   });
 });
 

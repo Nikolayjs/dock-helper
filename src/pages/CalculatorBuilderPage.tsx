@@ -9,7 +9,6 @@ import {
   Divider,
   Grid,
   Group,
-  Modal,
   NumberInput,
   Select,
   Stack,
@@ -78,7 +77,6 @@ export function CalculatorBuilderPage() {
   const [ranges, setRanges] = useState<InterpretationRange[]>([]);
   const [presets, setPresets] = useState<DraftPreset[]>([]);
   const [presetsLabel, setPresetsLabel] = useState('');
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [hydrated, setHydrated] = useState(!isEditMode);
 
   useEffect(() => {
@@ -222,7 +220,7 @@ export function CalculatorBuilderPage() {
           К списку калькуляторов
         </Button>
         {editingCalculator && (
-          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => setDeleteModalOpen(true)}>
+          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
             Удалить
           </Button>
         )}
@@ -464,20 +462,6 @@ export function CalculatorBuilderPage() {
           </div>
         </Grid.Col>
       </Grid>
-
-      <Modal opened={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Удалить калькулятор?" radius="lg" centered>
-        <Text size="sm" mb="lg">
-          Действие необратимо. Калькулятор «{editingCalculator?.title}» будет удалён без возможности восстановления.
-        </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => setDeleteModalOpen(false)}>
-            Отмена
-          </Button>
-          <Button color="red" onClick={handleDelete}>
-            Удалить
-          </Button>
-        </Group>
-      </Modal>
     </Container>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Alert, Badge, Button, Card, Container, Grid, Group, Loader, Modal, NumberInput, SegmentedControl, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Alert, Badge, Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -71,7 +71,6 @@ export function AnalyzerBuilderPage() {
     seedAnalytes && seedAnalytes.length > 0 ? parametersFromAnalytes(seedAnalytes) : [emptyParameter()],
   );
   const [rules, setRules] = useState<DraftPatternRule[]>([]);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [hydrated, setHydrated] = useState(!isEditMode);
   const [previewValues, setPreviewValues] = useState<Record<string, number | undefined>>({});
   const [previewSex, setPreviewSex] = useState<Sex>('male');
@@ -224,7 +223,7 @@ export function AnalyzerBuilderPage() {
           К анализатору
         </Button>
         {editingTest && (
-          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => setDeleteModalOpen(true)}>
+          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
             Удалить
           </Button>
         )}
@@ -362,20 +361,6 @@ export function AnalyzerBuilderPage() {
           </div>
         </Grid.Col>
       </Grid>
-
-      <Modal opened={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Удалить анализ?" radius="lg" centered>
-        <Text size="sm" mb="lg">
-          Действие необратимо. Анализ «{editingTest?.title}» будет удалён без возможности восстановления.
-        </Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={() => setDeleteModalOpen(false)}>
-            Отмена
-          </Button>
-          <Button color="red" onClick={handleDelete}>
-            Удалить
-          </Button>
-        </Group>
-      </Modal>
     </Container>
   );
 }

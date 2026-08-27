@@ -195,3 +195,11 @@ tr:hover .rowActions button,
   line-height: 1.35;
   font-family: inherit;
 }
+
+/* Отметка сортировки рядом с буквой столбца. */
+.sortMark {
+  padding-right: 2px;
+  color: var(--mantine-color-brand-6);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 700;
+}

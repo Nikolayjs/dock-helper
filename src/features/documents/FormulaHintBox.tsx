@@ -7,8 +7,12 @@ import classes from './FormulaHintBox.module.css';
  * Подсказка, всплывающая под ячейкой, пока формулу набирают.
  *
  * Показывается ровно то, что нужно в этот момент: пока набирается имя — что вообще бывает; как
- * только скобка открыта — что писать внутри, с отметкой текущего аргумента. Список функций после
- * открытой скобки бесполезен, подпись до неё — не о чем.
+ * только скобка открыта — что писать внутри, с отметкой текущего аргумента; а у формулы без функций
+ * (`=B2*600`) — что стоит в ячейках, на которые она ссылается. Список функций после открытой скобки
+ * бесполезен, подпись до неё — не о чем.
+ *
+ * Итог формулы показывается всегда, когда он известен, — и в подписи функции тоже: набирающий
+ * формулу видит её значение раньше, чем уведёт из ячейки курсор.
  *
  * Нажатие на подсказку **не должно уводить фокус** из ячейки: иначе набор прерывается, а подсказка
  * исчезает раньше, чем нажатие успевает сработать. Отсюда `onMouseDown` с `preventDefault` вместо
@@ -19,13 +23,36 @@ interface FormulaHintBoxProps {
   /** Куда встать: прямоугольник поля, в котором набирают, в координатах окна. */
   anchor: DOMRect;
   onPick: (name: string) => void;
+  /** Что стоит в ячейках, на которые ссылается формула. */
+  values?: { ref: string; value: string }[];
+  /** Во что формула считается прямо сейчас; ошибка — тоже значение. */
+  result?: string;
 }
 
-export function FormulaHintBox({ hint, anchor, onPick }: FormulaHintBoxProps) {
+/** Итог формулы — общий подвал у подписи и у ссылок. Ошибка красная, как и в самой ячейке. */
+function Result({ result }: { result: string }) {
+  return (
+    <Text size="xs" mt={4} c={result.startsWith('#') ? 'red' : undefined}>
+      <Text span c="dimmed">
+        Значение:{' '}
+      </Text>
+      <Text span fw={600} ff="monospace">
+        {result}
+      </Text>
+    </Text>
+  );
+}
+
+export function FormulaHintBox({ hint, anchor, onPick, values, result }: FormulaHintBoxProps) {
   // Снизу, если там есть место, иначе сверху. Запас считается по тому, какая подсказка на самом
   // деле показывается: подпись функции занимает вчетверо меньше списка, и переворачивать её вверх
   // ради несуществующей нехватки места значит закрыть ею строку формул.
-  const needed = hint.kind === 'signature' ? 76 : 40 + Math.min(hint.matches.length, 7) * 40;
+  const needed =
+    hint.kind === 'signature'
+      ? 96
+      : hint.kind === 'references'
+        ? 40 + Math.min(hint.refs.length, 5) * 22
+        : 40 + Math.min(hint.matches.length, 7) * 40;
   const below = anchor.bottom + needed < window.innerHeight;
   const style = {
     left: Math.min(anchor.left, window.innerWidth - 340),
@@ -50,6 +77,26 @@ export function FormulaHintBox({ hint, anchor, onPick }: FormulaHintBoxProps) {
         <Text size="xs" c="dimmed" mt={2}>
           {hint.doc.summary}
         </Text>
+        {result ? <Result result={result} /> : null}
+      </Paper>
+    );
+  }
+
+  if (hint.kind === 'references') {
+    return (
+      <Paper className={classes.box} shadow="md" withBorder p="xs" style={style}>
+        {(values ?? []).slice(0, 5).map((entry) => (
+          <Text key={entry.ref} size="xs" ff="monospace">
+            <Text span fw={600} ff="monospace">
+              {entry.ref}
+            </Text>
+            <Text span c="dimmed">
+              {' = '}
+            </Text>
+            {entry.value}
+          </Text>
+        ))}
+        {result ? <Result result={result} /> : null}
       </Paper>
     );
   }

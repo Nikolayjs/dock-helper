@@ -3,14 +3,21 @@ import { FUNCTION_DOCS, isFormula, type FunctionDoc } from './formula';
 /**
  * Подсказка по формуле, которую врач набирает прямо сейчас.
  *
- * Два состояния, и они разные по смыслу. Пока набирается имя — нужен список того, что вообще
+ * Три состояния, и они разные по смыслу. Пока набирается имя — нужен список того, что вообще
  * бывает: `=СУ` должно предложить `СУММ`. Как только скобка открыта — имя уже выбрано, и вопрос
  * другой: что писать внутри. Показывать в этот момент список функций бесполезно, а показывать
  * подпись до открытия скобки нечего.
+ *
+ * Третье — про формулы без функций вовсе. `=B2*600` и `=A1+A2` — самое частое, что пишут в реестре,
+ * и до сих пор они не подсказывали ничего: список функций к ним не подходит, подписи у них нет.
+ * Здесь нужен не справочник, а то, чего в самой формуле не видно, — **что стоит в ячейках, на
+ * которые она ссылается**. Опечатку в адресе (`B2` вместо `B3`) иначе не поймать: формула считается
+ * без единой жалобы, просто не то.
  */
 export type FormulaHint =
   | { kind: 'functions'; prefix: string; matches: FunctionDoc[] }
-  | { kind: 'signature'; doc: FunctionDoc; argument: number };
+  | { kind: 'signature'; doc: FunctionDoc; argument: number }
+  | { kind: 'references'; refs: string[] };
 
 /** Имя функции считается по-русски и по-английски: вычислитель принимает оба. */
 function matching(prefix: string): FunctionDoc[] {
@@ -78,7 +85,27 @@ export function formulaHint(text: string, caret: number): FormulaHint | null {
   // Пустая формула — повод напомнить, с чего начать.
   if (before.trim() === '=') return { kind: 'functions', prefix: '', matches: FUNCTION_DOCS };
 
+  const refs = referencesIn(text);
+  if (refs.length > 0) return { kind: 'references', refs };
+
   return null;
+}
+
+/**
+ * Все ссылки на ячейки и диапазоны в формуле, в порядке появления и без повторов.
+ *
+ * Содержимое кавычек пропускается: `"A1"` — это текст, а не адрес. Имя функции ссылкой не станет,
+ * даже английское: у адреса обязательно есть цифры, а у `SUM` их нет.
+ */
+export function referencesIn(text: string): string[] {
+  const bare = text.replace(/"[^"]*"?/g, ' ');
+  const found = bare.match(/\$?[A-Za-z]{1,3}\$?\d{1,7}(?::\$?[A-Za-z]{1,3}\$?\d{1,7})?/g) ?? [];
+  const unique: string[] = [];
+  for (const ref of found) {
+    const upper = ref.toUpperCase();
+    if (!unique.includes(upper)) unique.push(upper);
+  }
+  return unique;
 }
 
 /**
