@@ -3,6 +3,7 @@ import { IconCalculator } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 
 import { useCalculators } from '../calculators/useCalculators';
+import linkClasses from './dashboardLinks.module.css';
 
 /**
  * Калькуляторы, отмеченные звёздочкой, — сразу на приёме, без захода в раздел.
@@ -30,7 +31,7 @@ export function FavouriteCalculators() {
           key={calculator.id}
           to={`/calculators/${calculator.id}`}
           state={{ from: '/dashboard' }}
-          style={{ textDecoration: 'none', color: 'inherit' }}
+          className={linkClasses.row}
         >
           <Group gap={8} wrap="nowrap" align="flex-start">
             <ThemeIcon variant="light" color="brand" size={28} radius="md">

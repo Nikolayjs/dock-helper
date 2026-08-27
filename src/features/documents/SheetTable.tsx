@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Text } from '@mantine/core';
 
 import { columnLetter } from '../../lib/sheet/cellRef';
@@ -6,6 +7,7 @@ import { getFormat } from './sheetFormat';
 import classes from './SheetTable.module.css';
 import { buildGrid } from './sheetOps';
 import type { CellFormat, DocumentSheet } from './types';
+import { useFittedHeight } from './useFittedHeight';
 
 /**
  * Таблица документа для чтения.
@@ -27,7 +29,14 @@ function cellStyle(format: CellFormat): React.CSSProperties {
   };
 }
 
+/** Под рамкой в просмотре ничего нет — хватает поля до края страницы. */
+const BOTTOM_RESERVE = 32;
+const MIN_FRAME_HEIGHT = 220;
+
 export function SheetTable({ sheet }: { sheet: DocumentSheet | null }) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const frameHeight = useFittedHeight(frameRef, { reserve: BOTTOM_RESERVE, min: MIN_FRAME_HEIGHT });
+
   if (!sheet || sheet.columns.length === 0) {
     return (
       <Text size="sm" c="dimmed">
@@ -42,7 +51,7 @@ export function SheetTable({ sheet }: { sheet: DocumentSheet | null }) {
   const totals = sheet.totals ? computed[sheet.rows.length + 1] : null;
 
   return (
-    <div className={classes.frame}>
+    <div className={classes.frame} ref={frameRef} style={{ maxHeight: frameHeight ?? undefined }}>
       <table className={classes.table}>
         <thead>
           <tr>

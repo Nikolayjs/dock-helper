@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 
 import { calcAge, formatAge } from '../patients/utils';
 import type { DispensaryDue } from './practice';
+import linkClasses from './dashboardLinks.module.css';
 
 /**
  * The follow-up queue, by name.
@@ -56,7 +57,7 @@ export function AttentionQueue({ overdue, soon, limit = 10 }: AttentionQueueProp
                   <Link
                     to={`/patients/dispensary/${due.record.id}`}
                     state={{ from: '/dashboard' }}
-                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    className={linkClasses.cell}
                   >
                     <Text size="sm" fw={500}>
                       {due.patient?.fullName ?? 'Пациент удалён'}

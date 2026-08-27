@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 
 import type { DocumentTemplate } from '../patients/documents/templateTypes';
 import type { RankedTemplate } from './documentUsage';
+import linkClasses from './dashboardLinks.module.css';
 
 /**
  * The blanks this doctor actually prints, most used first.
@@ -45,7 +46,7 @@ export function FrequentDocuments({ ranked, templatesById }: FrequentDocumentsPr
           <Link
             key={entry.id}
             to={`/documents?tab=templates&use=${entry.id}`}
-            style={{ textDecoration: 'none', color: 'inherit' }}
+            className={linkClasses.row}
           >
             <Group gap={8} wrap="nowrap" align="flex-start">
               <ThemeIcon variant="light" color={isScan ? 'grape' : 'brand'} size={28} radius="md">

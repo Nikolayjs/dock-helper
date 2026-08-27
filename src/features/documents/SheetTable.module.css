@@ -7,6 +7,7 @@
  * держит полосу у нижнего края рамки — она видна всегда, ровно как в редакторе.
  */
 .frame {
+  /* Запасная величина: точную высоту ставит компонент, померив, сколько осталось до низа окна. */
   max-height: 70vh;
   overflow: auto;
   border: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));

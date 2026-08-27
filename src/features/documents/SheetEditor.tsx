@@ -28,6 +28,7 @@ import {
   type SortDirection,
 } from './sheetOps';
 import { SheetToolbar } from './SheetToolbar';
+import { useFittedHeight } from './useFittedHeight';
 import type { CellFormat, DocumentSheet, SheetFormats } from './types';
 
 interface SheetEditorProps {
@@ -39,6 +40,11 @@ interface CellAddress {
   row: number;
   column: number;
 }
+
+/** Полоса прокрутки, кнопки «Строка» и «Столбец» и отступ под ними — то, что должно остаться на виду. */
+const BOTTOM_RESERVE = 88;
+/** Ниже этого таблица перестаёт быть таблицей; лучше прокрутить страницу, чем показать две строки. */
+const MIN_FRAME_HEIGHT = 220;
 
 /** Ошибка вычисления печатается красным — её видно и в потоке чисел, и в потоке текста. */
 function cellClass(raw: string, shown: string): string {
@@ -234,6 +240,24 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
   const dragging = useRef(false);
   const [query, setQuery] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
+  const frameHeight = useFittedHeight(frameRef, { reserve: BOTTOM_RESERVE, min: MIN_FRAME_HEIGHT });
+
+  /**
+   * Если под таблицу не осталось места — она прокручивается в вид один раз, при открытии.
+   *
+   * Над ней название, описание, выбор пациента и теги; на невысоком окне они занимают его целиком,
+   * и таблица открывается за нижним краем вместе со своей полосой прокрутки и кнопками. Считать это
+   * нормальным нельзя: врач нажал «Редактировать» на таблице, а таблицы не видно. Один раз и только
+   * когда действительно не помещается — дальше страница слушается обычной прокрутки.
+   */
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const actions = document.querySelector<HTMLElement>('[data-form-actions]');
+    const covered = actions ? actions.getBoundingClientRect().height : 0;
+    if (frame.getBoundingClientRect().bottom + BOTTOM_RESERVE + covered <= window.innerHeight) return;
+    frame.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  }, []);
 
   const grid = useMemo(() => buildGrid(value), [value]);
   const shown = useMemo(() => evaluateGrid(grid), [grid]);
@@ -571,7 +595,7 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
         />
       </Group>
 
-      <div className={classes.frame} ref={frameRef}>
+      <div className={classes.frame} ref={frameRef} style={{ maxHeight: frameHeight ?? undefined }}>
         <table className={classes.table}>
           <thead>
             <tr>

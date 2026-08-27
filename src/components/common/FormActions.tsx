@@ -9,5 +9,11 @@ import classes from './FormActions.module.css';
  * значило бы переписывать каждую. Панель отвечает только за то, чтобы они не уезжали за экран.
  */
 export function FormActions({ children }: { children: ReactNode }) {
-  return <div className={classes.bar}>{children}</div>;
+  // Метка нужна тем, кто считает, сколько места осталось до низа окна: панель прилипшая и
+  // перекрывает нижнюю полосу экрана — см. `useFittedHeight`.
+  return (
+    <div className={classes.bar} data-form-actions>
+      {children}
+    </div>
+  );
 }

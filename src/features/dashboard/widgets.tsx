@@ -26,6 +26,7 @@ import { FrequentDocuments } from './FrequentDocuments';
 import { PatientStructure } from './PatientStructure';
 import { isStructureMode, type StructureMode } from './structureMode';
 import type { DashboardContext } from './dashboardContext';
+import linkClasses from './dashboardLinks.module.css';
 
 /**
  * Everything the dashboard can show, as one list.
@@ -321,7 +322,7 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
                         <Link
                           to={`/patients/${entry.patientId}`}
                           state={{ from: '/dashboard' }}
-                          style={{ textDecoration: 'none', color: 'inherit' }}
+                          className={linkClasses.cell}
                         >
                           <Text size="sm" fw={500}>
                             {entry.patientName}
@@ -542,10 +543,10 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
                 </ThemeIcon>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <Link
-                  to={`/patients/${patient.id}`}
-                  state={{ from: '/dashboard' }}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
+                    to={`/patients/${patient.id}`}
+                    state={{ from: '/dashboard' }}
+                    className={linkClasses.row}
+                  >
                     <Text size="sm" fw={500} truncate>
                       {patient.fullName}
                     </Text>
@@ -622,7 +623,7 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
                 key={patient.id}
                 to={`/patients/${patient.id}`}
                 state={{ from: '/dashboard' }}
-                style={{ textDecoration: 'none', color: 'inherit' }}
+                className={linkClasses.row}
               >
                 <Group justify="space-between" wrap="nowrap">
                   <Group gap={8} wrap="nowrap">

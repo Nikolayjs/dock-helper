@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { MarkedCalendar } from '../../components/common/MarkedCalendar';
 import type { Note } from '../notes/types';
 import type { Reminder } from '../reminders/types';
+import linkClasses from './dashboardLinks.module.css';
 
 /**
  * The month, and what is on the day you pick.
@@ -93,7 +94,7 @@ export function DashboardCalendar({ notes, reminders }: DashboardCalendarProps) 
                   key={entry.id}
                   to={`/notes/${entry.id}`}
                   state={{ from: '/dashboard' }}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
+                  className={linkClasses.row}
                 >
                   <Group gap={8} wrap="nowrap" align="flex-start">
                     <ThemeIcon variant="light" color="brand" size={24} radius="md">

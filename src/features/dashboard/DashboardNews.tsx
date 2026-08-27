@@ -1,10 +1,11 @@
-import { Anchor, Group, Loader, Stack, Text } from '@mantine/core';
+import { Group, Loader, Stack, Text, UnstyledButton } from '@mantine/core';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
 import type { NewsFeedItem } from '../newsFeed/types';
 import { useNewsFeedItems } from '../newsFeed/useNewsFeedItems';
 import { useNewsFeedSources } from '../newsFeed/useNewsFeedSources';
+import linkClasses from './dashboardLinks.module.css';
 
 /**
  * Свежие новости, одним списком поверх всех подключённых лент.
@@ -65,24 +66,17 @@ export function DashboardNews({ limit = 12 }: DashboardNewsProps) {
       {allItems.slice(0, limit).map((item) => {
         const when = whenLabel(item);
         return (
-          <div key={item.id}>
-            <Anchor
-              component="button"
-              type="button"
-              onClick={() => open(item)}
-              underline="never"
-              ta="left"
-              style={{ color: 'inherit', display: 'block' }}
-            >
-              <Text size="sm" fw={500} lineClamp={2}>
-                {item.title}
-              </Text>
-            </Anchor>
+          // Подсветка на всей строке, а не на одном заголовке: подпись с источником и временем —
+          // часть той же ссылки, и нажатие по ней должно открывать новость.
+          <UnstyledButton key={item.id} className={linkClasses.row} onClick={() => open(item)} ta="left">
+            <Text size="sm" fw={500} lineClamp={2}>
+              {item.title}
+            </Text>
             <Text size="xs" c="dimmed">
               {item.sourceTitle}
               {when ? ` · ${when}` : ''}
             </Text>
-          </div>
+          </UnstyledButton>
         );
       })}
     </Stack>

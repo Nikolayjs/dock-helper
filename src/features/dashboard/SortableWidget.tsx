@@ -99,6 +99,7 @@ export function SortableWidget({ widget, ctx, editing, span, wide, onHide, onRes
     <div
       ref={setNodeRef}
       className={classes.item}
+      data-widget={widget.id}
       style={{
         // Именно Translate, а не Transform: dnd-kit кладёт в трансформацию ещё и scaleX/scaleY,
         // когда перетаскиваемый элемент и цель разного размера. Для одинаковых плиток это
@@ -128,18 +129,25 @@ export function SortableWidget({ widget, ctx, editing, span, wide, onHide, onRes
             <Tooltip label="Перетащить" withArrow>
               <ActionIcon
                 variant="default"
-                size="sm"
+                size="md"
                 {...attributes}
                 {...listeners}
-                style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+                style={{
+                  cursor: isDragging ? 'grabbing' : 'grab',
+                  // Без этого на телефоне карточку не сдвинуть вовсе: браузер считает касание
+                  // началом прокрутки страницы и отменяет указатель раньше, чем dnd-kit успевает
+                  // признать его перетаскиванием. `touch-action: none` говорит браузеру, что с
+                  // этого элемента прокручивать нечего.
+                  touchAction: 'none',
+                }}
                 aria-label={`Переместить карточку «${widget.title}»`}
               >
-                <IconGripVertical size={14} />
+                <IconGripVertical size={16} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label="Скрыть" withArrow>
-              <ActionIcon variant="default" size="sm" onClick={onHide} aria-label={`Скрыть карточку «${widget.title}»`}>
-                <IconEyeOff size={14} />
+              <ActionIcon variant="default" size="md" onClick={onHide} aria-label={`Скрыть карточку «${widget.title}»`}>
+                <IconEyeOff size={16} />
               </ActionIcon>
             </Tooltip>
           </Group>
