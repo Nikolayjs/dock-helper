@@ -175,7 +175,9 @@ export function HeaderSearch() {
               </ActionIcon>
             ) : null
           }
-          w={{ base: 160, sm: 280 }}
+          // Поле сужается на промежуточной ширине окна: именно оно делает правую сторону шапки
+          // шире левой, а от разницы съезжает заголовок между ними.
+          w={{ base: 160, sm: 200, lg: 280 }}
         />
       </Popover.Target>
       <Popover.Dropdown p="xs" onMouseDown={(event) => event.preventDefault()}>

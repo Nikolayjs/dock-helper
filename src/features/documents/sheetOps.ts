@@ -15,8 +15,14 @@ import type { DocumentSheet } from './types';
 export const MAX_ROWS = MAX_IMPORT_ROWS;
 export const MAX_COLUMNS = MAX_IMPORT_COLUMNS;
 
-function columnName(index: number): string {
-  return `Столбец ${index + 1}`;
+/**
+ * Новый столбец приходит без названия.
+ *
+ * Придуманное за врача «Столбец 4» пришлось бы стирать перед тем, как написать своё, а столбец и
+ * без него назван — буквой в шапке, той же, которой он зовётся в формулах.
+ */
+function columnName(): string {
+  return '';
 }
 
 /**
@@ -126,7 +132,7 @@ export function addColumn(sheet: DocumentSheet, afterIndex?: number): DocumentSh
 
   return {
     ...sheet,
-    columns: insert(sheet.columns, columnName(sheet.columns.length)),
+    columns: insert(sheet.columns, columnName()),
     rows: sheet.rows.map((row) => insert(row, '')),
     totals: sheet.totals ? insert(sheet.totals, '') : sheet.totals,
     widths: sheet.widths ? insert(sheet.widths, null) : sheet.widths,
@@ -326,7 +332,7 @@ export function pasteInto(sheet: DocumentSheet, rowIndex: number, columnIndex: n
   const width = Math.min(MAX_COLUMNS, Math.max(sheet.columns.length, columnIndex + Math.max(...grid.map((r) => r.length))));
   const height = Math.min(MAX_ROWS, Math.max(sheet.rows.length, rowIndex + grid.length));
 
-  const columns = Array.from({ length: width }, (_, index) => sheet.columns[index] ?? columnName(index));
+  const columns = Array.from({ length: width }, (_, index) => sheet.columns[index] ?? columnName());
   const rows = Array.from({ length: height }, (_, index) =>
     Array.from({ length: width }, (_, column) => sheet.rows[index]?.[column] ?? ''),
   );

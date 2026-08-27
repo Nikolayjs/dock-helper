@@ -16,7 +16,10 @@ function preview(doc: DoctorDocument): string {
   if (doc.kind === 'sheet') {
     const sheet = doc.sheet;
     if (!sheet || sheet.columns.length === 0) return 'Пустая таблица';
-    return `${sheet.rows.length} строк · ${sheet.columns.join(', ')}`;
+    // Названия столбцов необязательны; когда их нет, о таблице честнее сказать размером.
+    const named = sheet.columns.filter((column) => column.trim() !== '');
+    if (named.length === 0) return `${sheet.rows.length} строк, ${sheet.columns.length} столбцов`;
+    return `${sheet.rows.length} строк · ${named.join(', ')}`;
   }
   return stripHtml(doc.content) || 'Без текста';
 }

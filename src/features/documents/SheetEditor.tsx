@@ -4,7 +4,9 @@ import { IconDotsVertical, IconPlus, IconSearch, IconSortAscending, IconSortDesc
 
 import { columnLetter, FIRST_DATA_ROW, HEADER_ROW } from '../../lib/sheet/cellRef';
 import { cellAddress, evaluateGrid, isFormula } from '../../lib/sheet/formula';
+import { completeFunction, formulaHint } from '../../lib/sheet/formulaHint';
 import { FormulaHelp } from './FormulaHelp';
+import { FormulaHintBox } from './FormulaHintBox';
 import classes from './SheetEditor.module.css';
 import { applyFormat, clearFormat, getFormat, normalizeRange, rangeContains } from './sheetFormat';
 import {
@@ -89,6 +91,7 @@ const SheetRow = memo(function SheetRow({
   onRemove,
   onEnter,
   onFocusCell,
+  onCaret,
   onBlurCell,
   onSelectStart,
   onSelectExtend,
@@ -108,6 +111,7 @@ const SheetRow = memo(function SheetRow({
   onRemove?: (excelRow: number) => void;
   onEnter: (excelRow: number, columnIndex: number) => void;
   onFocusCell: (address: CellAddress) => void;
+  onCaret: (address: CellAddress, caret: number) => void;
   onBlurCell: () => void;
   onSelectStart: (address: CellAddress, additive: boolean) => void;
   onSelectExtend: (address: CellAddress) => void;
@@ -132,6 +136,13 @@ const SheetRow = memo(function SheetRow({
           'data-cell': `${excelRow}:${columnIndex}`,
           'aria-label': `Строка ${excelRow}, столбец ${columnLetter(columnIndex)}`,
           onFocus: () => onFocusCell({ row: excelRow, column: columnIndex }),
+          // Каретка снимается и по `select`, и по отпусканию клавиши: в Chromium `select` на
+          // простой набор текста не срабатывает — только на изменение выделения, — и подсказка
+          // молчала бы ровно тогда, когда она нужнее всего.
+          onSelect: (event: { currentTarget: { selectionStart: number | null } }) =>
+            onCaret({ row: excelRow, column: columnIndex }, event.currentTarget.selectionStart ?? 0),
+          onKeyUp: (event: { currentTarget: { selectionStart: number | null } }) =>
+            onCaret({ row: excelRow, column: columnIndex }, event.currentTarget.selectionStart ?? 0),
           onBlur: onBlurCell,
           onPaste: (event: ClipboardEvent) => {
             const clipboard = event.clipboardData.getData('text/plain');
@@ -152,7 +163,10 @@ const SheetRow = memo(function SheetRow({
                 {...shared}
                 className={classes.wrapped}
                 rows={2}
-                onChange={(event) => onCell(excelRow, columnIndex, event.currentTarget.value)}
+                onChange={(event) => {
+                  onCell(excelRow, columnIndex, event.currentTarget.value);
+                  onCaret({ row: excelRow, column: columnIndex }, event.currentTarget.selectionStart ?? 0);
+                }}
                 // Enter уводит вниз, как в Excel; перенос внутри ячейки — Shift+Enter.
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey) {
@@ -165,7 +179,10 @@ const SheetRow = memo(function SheetRow({
               <input
                 {...shared}
                 className={editing ? classes.input : cellClass(cell, text)}
-                onChange={(event) => onCell(excelRow, columnIndex, event.currentTarget.value)}
+                onChange={(event) => {
+                  onCell(excelRow, columnIndex, event.currentTarget.value);
+                  onCaret({ row: excelRow, column: columnIndex }, event.currentTarget.selectionStart ?? 0);
+                }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
                     event.preventDefault();
@@ -203,8 +220,16 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   /** Ячейка, с которой работает панель и строка формул; переживает уход фокуса. */
   const [active, setActive] = useState<CellAddress | null>(null);
-  /** Ячейка, поле которой сейчас в фокусе: только она показывает формулу вместо результата. */
-  const [editing, setEditing] = useState<CellAddress | null>(null);
+  /**
+   * Ячейка, поле которой сейчас в фокусе, и положение курсора в ней.
+   *
+   * Курсор нужен подсказке: `=СУММ(` и `=СУ` — разные вопросы, и различает их только то, где стоит
+   * каретка. В строку таблицы уходят отдельные числа, а не этот объект, поэтому его изменение
+   * ничего не перерисовывает, кроме самой подсказки.
+   */
+  const [editing, setEditing] = useState<(CellAddress & { caret: number }) | null>(null);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const formulaBarRef = useRef<HTMLInputElement>(null);
   const [head, setHead] = useState<CellAddress | null>(null);
   const dragging = useRef(false);
   const [query, setQuery] = useState('');
@@ -347,11 +372,22 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
 
   const handleFocusCell = useCallback((address: CellAddress) => {
     setActive(address);
-    setEditing(address);
+    setEditing({ ...address, caret: 0 });
     setHead((current) => current ?? address);
   }, []);
 
-  const handleBlurCell = useCallback(() => setEditing(null), []);
+  const handleCaret = useCallback((address: CellAddress, caret: number) => {
+    setEditing((current) =>
+      current && current.row === address.row && current.column === address.column && current.caret === caret
+        ? current
+        : { ...address, caret },
+    );
+  }, []);
+
+  const handleBlurCell = useCallback(() => {
+    setEditing(null);
+    setAnchor(null);
+  }, []);
 
   const handleSelectStart = useCallback((address: CellAddress, additive: boolean) => {
     if (additive) setHead(address);
@@ -407,6 +443,60 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
   };
 
   const activeRaw = active ? rawAt(active) : '';
+  const editingRaw = editing ? rawAt(editing) : '';
+  const hint = editing ? formulaHint(editingRaw, editing.caret) : null;
+
+  /**
+   * Куда встать подсказке: под тем полем, в котором сейчас набирают.
+   *
+   * Поле ищется по адресу, а если фокус в строке формул — берётся она. Пересчитывается на каждое
+   * движение каретки: прокрутка таблицы между этими движениями не успевает случиться.
+   */
+  // Зависимости — только простые значения. От объекта `hint`, который пересоздаётся каждый рендер,
+  // эффект срабатывал бы после каждой своей же перерисовки: React ловит это как «превышена глубина
+  // обновления» и валит страницу.
+  const hintKey = hint
+    ? hint.kind === 'functions'
+      ? `f:${hint.prefix}`
+      : `s:${hint.doc.name}:${hint.argument}`
+    : '';
+  const editingRow = editing?.row ?? null;
+  const editingColumnIndex = editing?.column ?? null;
+
+  useLayoutEffect(() => {
+    if (editingRow === null || editingColumnIndex === null || !hintKey) {
+      setAnchor(null);
+      return;
+    }
+    const inBar = document.activeElement === formulaBarRef.current;
+    const element = inBar
+      ? formulaBarRef.current
+      : frameRef.current?.querySelector<HTMLElement>(`[data-cell="${editingRow}:${editingColumnIndex}"]`);
+    const rect = element ? element.getBoundingClientRect() : null;
+    setAnchor((previous) =>
+      previous && rect && previous.left === rect.left && previous.top === rect.top && previous.width === rect.width
+        ? previous
+        : rect,
+    );
+  }, [editingRow, editingColumnIndex, hintKey]);
+
+  /** Подставляет выбранную функцию и возвращает каретку за открывающую скобку. */
+  const pickFunction = (name: string) => {
+    if (!editing) return;
+    const completed = completeFunction(editingRaw, editing.caret, name);
+    if (editing.row === HEADER_ROW) commit(setColumnName(value, editing.column, completed.text), `head:${editing.column}`);
+    else writeCell(editing.row, editing.column, completed.text);
+
+    const target = editing;
+    requestAnimationFrame(() => {
+      const inBar = document.activeElement === formulaBarRef.current;
+      const element = inBar
+        ? formulaBarRef.current
+        : frameRef.current?.querySelector<HTMLInputElement>(`[data-cell="${target.row}:${target.column}"]`);
+      element?.setSelectionRange(completed.caret, completed.caret);
+      setEditing({ ...target, caret: completed.caret });
+    });
+  };
   const activeShown = active ? (shown[active.row - 1]?.[active.column] ?? '') : '';
 
   const writeActive = (text: string) => {
@@ -449,13 +539,21 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
           {active ? cellAddress(active.row, active.column) : '—'}
         </Text>
         <TextInput
+          ref={formulaBarRef}
           size="xs"
           style={{ flex: 1 }}
           disabled={!active}
           aria-label="Строка формул"
           placeholder={active ? 'Значение или формула' : 'Выберите ячейку'}
           value={activeRaw}
-          onChange={(event) => writeActive(event.currentTarget.value)}
+          onFocus={() => active && setEditing({ ...active, caret: activeRaw.length })}
+          onSelect={(event) => active && handleCaret(active, event.currentTarget.selectionStart ?? 0)}
+          onKeyUp={(event) => active && handleCaret(active, event.currentTarget.selectionStart ?? 0)}
+          onBlur={handleBlurCell}
+          onChange={(event) => {
+            writeActive(event.currentTarget.value);
+            if (active) handleCaret(active, event.currentTarget.selectionStart ?? 0);
+          }}
         />
         {active && isFormula(activeRaw) && (
           <Text size="xs" c={activeShown.startsWith('#') ? 'red' : 'dimmed'} style={{ flexShrink: 0 }}>
@@ -505,6 +603,7 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
                         data-cell={`${HEADER_ROW}:${columnIndex}`}
                         aria-label={`Название столбца ${columnLetter(columnIndex)}`}
                         onFocus={() => handleFocusCell({ row: HEADER_ROW, column: columnIndex })}
+                        onSelect={(event) => handleCaret({ row: HEADER_ROW, column: columnIndex }, event.currentTarget.selectionStart ?? 0)}
                         onBlur={handleBlurCell}
                         onMouseDown={(event) => handleSelectStart({ row: HEADER_ROW, column: columnIndex }, event.shiftKey)}
                         onChange={(event) => commit(setColumnName(value, columnIndex, event.currentTarget.value), `head:${columnIndex}`)}
@@ -573,6 +672,7 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
                   onRemove={handleRemoveRow}
                   onEnter={handleEnter}
                   onFocusCell={handleFocusCell}
+                  onCaret={handleCaret}
                   onBlurCell={handleBlurCell}
                   onSelectStart={handleSelectStart}
                   onSelectExtend={handleSelectExtend}
@@ -598,6 +698,7 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
                 onPaste={handlePaste}
                 onEnter={handleEnter}
                 onFocusCell={handleFocusCell}
+                onCaret={handleCaret}
                 onBlurCell={handleBlurCell}
                 onSelectStart={handleSelectStart}
                 onSelectExtend={handleSelectExtend}
@@ -649,6 +750,8 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
           </Text>
         </Text>
       </Group>
+
+      {hint && anchor && <FormulaHintBox hint={hint} anchor={anchor} onPick={pickFunction} />}
 
       <FormulaHelp opened={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>

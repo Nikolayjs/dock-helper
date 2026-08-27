@@ -1,0 +1,64 @@
+/**
+ * Рамка просмотра со своей прокруткой — обеими сразу.
+ *
+ * `Table.ScrollContainer` прокручивает только вбок, а по высоте растёт бесконечно: у реестра на
+ * двести строк горизонтальная полоса оказывается под самой нижней строкой, то есть за экраном.
+ * Врач, читающий начало таблицы, о существовании столбцов справа не узнаёт вовсе. Своя высота
+ * держит полосу у нижнего края рамки — она видна всегда, ровно как в редакторе.
+ */
+.frame {
+  max-height: 70vh;
+  overflow: auto;
+  border: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+  border-radius: var(--mantine-radius-md);
+  background-color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
+}
+
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+}
+
+.headCell {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+  border-bottom: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+  border-right: 1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Столбец без названия обозначен буквой — той же, которой он зовётся в формулах. */
+.letter {
+  color: var(--mantine-color-dimmed);
+  font-weight: 600;
+}
+
+.cell {
+  padding: 8px 10px;
+  border-bottom: 1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+  border-right: 1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+  white-space: pre-wrap;
+  vertical-align: top;
+}
+
+.row:nth-of-type(even) .cell {
+  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+}
+
+/* Строка итогов прилипает к низу рамки: в длинном реестре итог нужен на виду, а не в конце списка. */
+.totalsCell {
+  composes: cell;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  font-weight: 600;
+  border-top: 2px solid light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3));
+  background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+}

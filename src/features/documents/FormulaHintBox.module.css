@@ -1,0 +1,21 @@
+/* Поверх всего и вне потока: подсказка встаёт под ячейкой, а рамка таблицы её обрезала бы.
+   Координаты — оконные, поэтому `fixed`, а не `absolute`. */
+.box {
+  position: fixed;
+  z-index: 300;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  pointer-events: auto;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: var(--mantine-radius-sm);
+  text-align: left;
+}
+
+.item:hover {
+  background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+}
