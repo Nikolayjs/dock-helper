@@ -34,7 +34,7 @@ export function ImageBubbleMenu({ editor }: { editor: Editor | null }) {
       const attributes = current?.getAttributes('image') ?? {};
       return {
         width: typeof attributes.width === 'number' ? attributes.width : null,
-        align: (attributes.align as ImageAlign | null) ?? 'left',
+        align: (attributes.textAlign as ImageAlign | null) ?? 'left',
       };
     },
   });
@@ -45,8 +45,8 @@ export function ImageBubbleMenu({ editor }: { editor: Editor | null }) {
   const contentWidth = () => Math.max(120, Math.round(editor.view.dom.clientWidth));
 
   const setWidth = (width: number | null) => editor.chain().focus().updateAttributes('image', { width }).run();
-  const setAlign = (align: ImageAlign) =>
-    editor.chain().focus().updateAttributes('image', { align: state?.align === align ? null : align }).run();
+  // Тем же путём, что и кнопки общей панели: одно действие — одна команда.
+  const setAlign = (align: ImageAlign) => editor.chain().focus().setTextAlign(align).run();
 
   return (
     <BubbleMenu

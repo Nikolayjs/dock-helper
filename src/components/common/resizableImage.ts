@@ -34,10 +34,15 @@ export const ResizableImage = Image.extend({
         },
         renderHTML: (attributes) => (attributes.width ? { width: String(attributes.width) } : {}),
       },
-      align: {
+      /**
+       * Называется как у абзаца (`textAlign`) не для красоты: кнопки выравнивания на общей панели
+       * показывают нажатой ту, что совпадает с `textAlign` текущего узла. Своё имя оставило бы их
+       * ненажатыми на картинке, выровненной по центру, — кнопка работала бы, но врала о состоянии.
+       */
+      textAlign: {
         default: null,
         parseHTML: (element) => element.getAttribute('data-align'),
-        renderHTML: (attributes) => (attributes.align ? { 'data-align': attributes.align } : {}),
+        renderHTML: (attributes) => (attributes.textAlign ? { 'data-align': attributes.textAlign } : {}),
       },
     };
   },
@@ -61,14 +66,14 @@ export const ResizableImage = Image.extend({
       dom.append(image, handle);
 
       const apply = () => {
-        const attrs = current.attrs as { src?: string; alt?: string; title?: string; width?: number; align?: string };
+        const attrs = current.attrs as { src?: string; alt?: string; title?: string; width?: number; textAlign?: string };
         image.src = attrs.src ?? '';
         if (attrs.alt) image.alt = attrs.alt;
         else image.removeAttribute('alt');
         if (attrs.title) image.title = attrs.title;
         else image.removeAttribute('title');
         image.style.width = attrs.width ? `${attrs.width}px` : '';
-        dom.dataset.align = attrs.align ?? 'left';
+        dom.dataset.align = attrs.textAlign ?? 'left';
       };
       apply();
 
@@ -143,13 +148,13 @@ export const ImageAwareTextAlign = TextAlign.extend({
           if (!props.editor.isActive('image')) return parent?.setTextAlign?.(alignment)(props) ?? false;
           // «По ширине» у картинки смысла не имеет: растягивать её до полей — не то, чего просят.
           const align = alignment === 'justify' ? 'left' : alignment;
-          return props.commands.updateAttributes('image', { align });
+          return props.commands.updateAttributes('image', { textAlign: align });
         },
       unsetTextAlign:
         () =>
         (props) => {
           if (!props.editor.isActive('image')) return parent?.unsetTextAlign?.()(props) ?? false;
-          return props.commands.updateAttributes('image', { align: null });
+          return props.commands.updateAttributes('image', { textAlign: null });
         },
     };
   },
