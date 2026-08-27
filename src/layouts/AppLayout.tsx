@@ -152,7 +152,7 @@ export function AppLayout() {
       header={{ height: HEADER_HEIGHT }}
       navbar={{ width, breakpoint: 'sm', collapsed: { mobile: !opened } }}
       padding="lg"
-      classNames={{ main: classes.main, header: classes.header, navbar: classes.navbar }}
+      classNames={{ root: classes.root, main: classes.main, header: classes.header, navbar: classes.navbar }}
     >
       <ReminderWatcher />
       <ScrollToTopButton />
