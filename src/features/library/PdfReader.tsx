@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionIcon, Center, Group, Loader, Stack, Text } from '@mantine/core';
-import { IconChevronLeft, IconChevronRight, IconMinus, IconPlus } from '@tabler/icons-react';
+import { ActionIcon, Center, Group, Loader, Stack, Text, Tooltip } from '@mantine/core';
+import { IconArrowAutofitWidth, IconChevronLeft, IconChevronRight, IconMinus, IconPlus } from '@tabler/icons-react';
 
+import { PageScroller } from './PageScroller';
 import { loadPdfDocument } from './pdfMeta';
 import { getPdfZoom, PDF_ZOOM_MAX, PDF_ZOOM_MIN, setPdfZoom } from './readerPrefs';
+import { useElementWidth, useReaderZoom } from './readerZoom';
 
 interface PdfReaderProps {
   data: ArrayBuffer;
@@ -90,12 +92,13 @@ function PdfPage({ doc, pageNumber, scale, estimatedSize, registerVisibility }: 
 }
 
 export function PdfReader({ data, initialPage = 1, immersive, onPageChange }: PdfReaderProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null);
   const docRef = useRef<PdfDocumentProxy | null>(null);
   const [pageCount, setPageCount] = useState(0);
-  const [scale, setScale] = useState(() => getPdfZoom());
   const [loading, setLoading] = useState(true);
-  const [estimatedSize, setEstimatedSize] = useState<PageSize | null>(null);
+  /** Размер страницы при масштабе 1 — от него считаются и «по ширине», и все прочие масштабы. */
+  const [naturalSize, setNaturalSize] = useState<PageSize | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPage);
 
   const currentPageRef = useRef(initialPage);
@@ -104,6 +107,22 @@ export function PdfReader({ data, initialPage = 1, immersive, onPageChange }: Pd
   const visibilityRef = useRef<Map<number, number>>(new Map());
   const rafRef = useRef(0);
   const pendingScrollTarget = useRef<number | null>(initialPage);
+
+  // Одна и та же рамка нужна и как ссылка (искать страницы), и как узел (мерить ширину).
+  const attachFrame = useCallback((element: HTMLDivElement | null) => {
+    scrollRef.current = element;
+    setFrame(element);
+  }, []);
+
+  const containerWidth = useElementWidth(frame);
+  const { scale, isFit, adjust, fitWidth } = useReaderZoom({
+    stored: getPdfZoom(),
+    save: setPdfZoom,
+    min: PDF_ZOOM_MIN,
+    max: PDF_ZOOM_MAX,
+    naturalWidth: naturalSize?.width ?? null,
+    containerWidth,
+  });
 
   useEffect(() => {
     onPageChangeRef.current = onPageChange;
@@ -116,6 +135,7 @@ export function PdfReader({ data, initialPage = 1, immersive, onPageChange }: Pd
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setNaturalSize(null);
     loadPdfDocument(data).then((doc) => {
       if (cancelled) {
         doc.destroy();
@@ -141,17 +161,21 @@ export function PdfReader({ data, initialPage = 1, immersive, onPageChange }: Pd
     let cancelled = false;
     doc.getPage(1).then((page) => {
       if (cancelled) return;
-      const viewport = page.getViewport({ scale });
-      setEstimatedSize({ width: viewport.width, height: viewport.height });
+      const viewport = page.getViewport({ scale: 1 });
+      setNaturalSize({ width: viewport.width, height: viewport.height });
     });
     return () => {
       cancelled = true;
     };
-  }, [loading, scale]);
+  }, [loading]);
+
+  const estimatedSize =
+    naturalSize && scale !== null ? { width: naturalSize.width * scale, height: naturalSize.height * scale } : null;
 
   // Resume at the saved reading position once page sizes are known.
+  const sized = estimatedSize !== null;
   useEffect(() => {
-    if (loading || pageCount === 0 || !estimatedSize) return;
+    if (loading || pageCount === 0 || !sized) return;
     const target = pendingScrollTarget.current;
     if (target === null) return;
     pendingScrollTarget.current = null;
@@ -159,7 +183,7 @@ export function PdfReader({ data, initialPage = 1, immersive, onPageChange }: Pd
       const el = scrollRef.current?.querySelector(`[data-page="${target}"]`);
       el?.scrollIntoView({ block: 'start' });
     });
-  }, [loading, pageCount, estimatedSize]);
+  }, [loading, pageCount, sized]);
 
   const registerVisibility = useCallback((pageNumber: number, ratio: number) => {
     if (ratio <= 0) visibilityRef.current.delete(pageNumber);
@@ -187,14 +211,6 @@ export function PdfReader({ data, initialPage = 1, immersive, onPageChange }: Pd
     const clamped = Math.min(pageCount, Math.max(1, page));
     const el = scrollRef.current?.querySelector(`[data-page="${clamped}"]`);
     el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  };
-
-  const adjustZoom = (delta: number) => {
-    setScale((prev) => {
-      const next = Math.min(PDF_ZOOM_MAX, Math.max(PDF_ZOOM_MIN, Math.round((prev + delta) * 100) / 100));
-      setPdfZoom(next);
-      return next;
-    });
   };
 
   useEffect(() => {
@@ -231,37 +247,38 @@ export function PdfReader({ data, initialPage = 1, immersive, onPageChange }: Pd
           <ActionIcon variant="light" onClick={() => jumpToPage(currentPage + 1)} disabled={currentPage >= pageCount}>
             <IconChevronRight size={18} />
           </ActionIcon>
-          <ActionIcon variant="subtle" color="gray" onClick={() => adjustZoom(-0.2)} ml="md">
+          <ActionIcon variant="subtle" color="gray" onClick={() => adjust(-0.2)} ml="md" aria-label="Мельче">
             <IconMinus size={16} />
           </ActionIcon>
-          <ActionIcon variant="subtle" color="gray" onClick={() => adjustZoom(0.2)}>
+          <ActionIcon variant="subtle" color="gray" onClick={() => adjust(0.2)} aria-label="Крупнее">
             <IconPlus size={16} />
           </ActionIcon>
+          <Tooltip label="По ширине экрана" withArrow>
+            <ActionIcon
+              variant={isFit ? 'light' : 'subtle'}
+              color={isFit ? 'brand' : 'gray'}
+              onClick={fitWidth}
+              aria-label="По ширине экрана"
+              aria-pressed={isFit}
+            >
+              <IconArrowAutofitWidth size={16} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       )}
-      <div
-        ref={scrollRef}
-        style={{
-          maxHeight: immersive ? '92vh' : '75vh',
-          overflowY: 'auto',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: '4px 0',
-        }}
-      >
-        {Array.from({ length: pageCount }, (_, i) => i + 1).map((pageNumber) => (
-          <PdfPage
-            key={pageNumber}
-            doc={doc}
-            pageNumber={pageNumber}
-            scale={scale}
-            estimatedSize={estimatedSize}
-            registerVisibility={registerVisibility}
-          />
-        ))}
-      </div>
+      <PageScroller frameRef={attachFrame} maxHeight={immersive ? '92vh' : '75vh'}>
+        {scale !== null &&
+          Array.from({ length: pageCount }, (_, i) => i + 1).map((pageNumber) => (
+            <PdfPage
+              key={pageNumber}
+              doc={doc}
+              pageNumber={pageNumber}
+              scale={scale}
+              estimatedSize={estimatedSize}
+              registerVisibility={registerVisibility}
+            />
+          ))}
+      </PageScroller>
     </Stack>
   );
 }

@@ -45,6 +45,7 @@ import {
 import dayjs from 'dayjs';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { WallpaperPicker } from '../features/appearance/WallpaperPicker';
 import { useSidebarOrder } from '../components/layout/useSidebarOrder';
 import { AuthApiError, changePassword, updateProfile } from '../features/auth/authApi';
 import { useAuth, useLogout, useUpdateAuthUser } from '../features/auth/AuthContext';
@@ -307,6 +308,8 @@ export function DoctorPage() {
             })}
           </SimpleGrid>
         </Card>
+
+        <WallpaperPicker />
 
         <Card withBorder padding="lg">
           <Group gap={8} mb={4}>

@@ -3,22 +3,33 @@ import { DatesProvider } from '@mantine/dates';
 import { Notifications } from '@mantine/notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
 
+import { AppearanceProvider, useAppearance } from './features/appearance/AppearanceProvider';
 import { AuthProvider } from './features/auth/AuthContext';
 import { queryClient } from './lib/queryClient';
-import { theme } from './theme';
 import { AppRouter } from './router';
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={theme} defaultColorScheme="light">
-        <DatesProvider settings={{ locale: 'ru' }}>
-          <Notifications position="top-right" />
-          <AuthProvider>
-            <AppRouter />
-          </AuthProvider>
-        </DatesProvider>
-      </MantineProvider>
+      {/* Снаружи `MantineProvider`: тему, перекрашенную под обои, нужно посчитать до него. */}
+      <AppearanceProvider>
+        <ThemedApp />
+      </AppearanceProvider>
     </QueryClientProvider>
+  );
+}
+
+function ThemedApp() {
+  const { theme } = useAppearance();
+
+  return (
+    <MantineProvider theme={theme} defaultColorScheme="light">
+      <DatesProvider settings={{ locale: 'ru' }}>
+        <Notifications position="top-right" />
+        <AuthProvider>
+          <AppRouter />
+        </AuthProvider>
+      </DatesProvider>
+    </MantineProvider>
   );
 }

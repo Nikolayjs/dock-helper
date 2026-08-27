@@ -1,6 +1,12 @@
 import { createTheme, type MantineColorsTuple } from '@mantine/core';
 
-const brand: MantineColorsTuple = [
+/**
+ * Фирменная палитра — и заодно профиль, по которому строится палитра под обои.
+ *
+ * `accent.ts` берёт отсюда светлоту и насыщенность каждой ступени и меняет только тон: всё, что
+ * сегодня читается и нажимается, обязано читаться и нажиматься в перекрашенном виде.
+ */
+export const BRAND_STEPS = [
   '#eef1ff',
   '#dce3ff',
   '#b9c8ff',
@@ -11,7 +17,9 @@ const brand: MantineColorsTuple = [
   '#3e5ce0',
   '#3049c2',
   '#1f35a0',
-];
+] as const;
+
+const brand: MantineColorsTuple = [...BRAND_STEPS] as unknown as MantineColorsTuple;
 
 const mint: MantineColorsTuple = [
   '#e8fbf5',

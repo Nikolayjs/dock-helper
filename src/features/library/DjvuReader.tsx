@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionIcon, Center, Group, Loader, Stack, Text } from '@mantine/core';
-import { IconChevronLeft, IconChevronRight, IconMinus, IconPlus } from '@tabler/icons-react';
+import { ActionIcon, Center, Group, Loader, Stack, Text, Tooltip } from '@mantine/core';
+import { IconArrowAutofitWidth, IconChevronLeft, IconChevronRight, IconMinus, IconPlus } from '@tabler/icons-react';
 
 import { loadDjvuDocument, type DjvuDocumentHandle, type DjvuPageSizeInfo } from './djvuMeta';
+import { PageScroller } from './PageScroller';
 import { DJVU_ZOOM_MAX, DJVU_ZOOM_MIN, getDjvuZoom, setDjvuZoom } from './readerPrefs';
+import { useElementWidth, useReaderZoom } from './readerZoom';
 
 interface DjvuReaderProps {
   data: ArrayBuffer;
@@ -97,11 +99,11 @@ function DjvuPage({ handle, pageNumber, nativeSize, scale, registerVisibility }:
 }
 
 export function DjvuReader({ data, initialPage = 1, immersive, onPageChange }: DjvuReaderProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null);
   const handleRef = useRef<DjvuDocumentHandle | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [pagesSizes, setPagesSizes] = useState<DjvuPageSizeInfo[]>([]);
-  const [scale, setScale] = useState(() => getDjvuZoom());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPage);
@@ -112,6 +114,23 @@ export function DjvuReader({ data, initialPage = 1, immersive, onPageChange }: D
   const visibilityRef = useRef<Map<number, number>>(new Map());
   const rafRef = useRef(0);
   const pendingScrollTarget = useRef<number | null>(initialPage);
+
+  // Одна и та же рамка нужна и как ссылка (искать страницы), и как узел (мерить ширину).
+  const attachFrame = useCallback((element: HTMLDivElement | null) => {
+    scrollRef.current = element;
+    setFrame(element);
+  }, []);
+
+  const containerWidth = useElementWidth(frame);
+  const naturalWidth = pagesSizes[0] ? (pagesSizes[0].width * CSS_DPI) / pagesSizes[0].dpi : null;
+  const { scale, isFit, adjust, fitWidth } = useReaderZoom({
+    stored: getDjvuZoom(),
+    save: setDjvuZoom,
+    min: DJVU_ZOOM_MIN,
+    max: DJVU_ZOOM_MAX,
+    naturalWidth,
+    containerWidth,
+  });
 
   useEffect(() => {
     onPageChangeRef.current = onPageChange;
@@ -189,14 +208,6 @@ export function DjvuReader({ data, initialPage = 1, immersive, onPageChange }: D
     el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
 
-  const adjustZoom = (delta: number) => {
-    setScale((prev) => {
-      const next = Math.min(DJVU_ZOOM_MAX, Math.max(DJVU_ZOOM_MIN, Math.round((prev + delta) * 100) / 100));
-      setDjvuZoom(next);
-      return next;
-    });
-  };
-
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'ArrowRight') jumpToPage(currentPageRef.current + 1);
@@ -239,37 +250,38 @@ export function DjvuReader({ data, initialPage = 1, immersive, onPageChange }: D
           <ActionIcon variant="light" onClick={() => jumpToPage(currentPage + 1)} disabled={currentPage >= pageCount}>
             <IconChevronRight size={18} />
           </ActionIcon>
-          <ActionIcon variant="subtle" color="gray" onClick={() => adjustZoom(-0.2)} ml="md">
+          <ActionIcon variant="subtle" color="gray" onClick={() => adjust(-0.2)} ml="md" aria-label="Мельче">
             <IconMinus size={16} />
           </ActionIcon>
-          <ActionIcon variant="subtle" color="gray" onClick={() => adjustZoom(0.2)}>
+          <ActionIcon variant="subtle" color="gray" onClick={() => adjust(0.2)} aria-label="Крупнее">
             <IconPlus size={16} />
           </ActionIcon>
+          <Tooltip label="По ширине экрана" withArrow>
+            <ActionIcon
+              variant={isFit ? 'light' : 'subtle'}
+              color={isFit ? 'brand' : 'gray'}
+              onClick={fitWidth}
+              aria-label="По ширине экрана"
+              aria-pressed={isFit}
+            >
+              <IconArrowAutofitWidth size={16} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       )}
-      <div
-        ref={scrollRef}
-        style={{
-          maxHeight: immersive ? '92vh' : '75vh',
-          overflowY: 'auto',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: '4px 0',
-        }}
-      >
-        {pagesSizes.map((size, index) => (
-          <DjvuPage
-            key={index + 1}
-            handle={handle}
-            pageNumber={index + 1}
-            nativeSize={size}
-            scale={scale}
-            registerVisibility={registerVisibility}
-          />
-        ))}
-      </div>
+      <PageScroller frameRef={attachFrame} maxHeight={immersive ? '92vh' : '75vh'}>
+        {scale !== null &&
+          pagesSizes.map((size, index) => (
+            <DjvuPage
+              key={index + 1}
+              handle={handle}
+              pageNumber={index + 1}
+              nativeSize={size}
+              scale={scale}
+              registerVisibility={registerVisibility}
+            />
+          ))}
+      </PageScroller>
     </Stack>
   );
 }

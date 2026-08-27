@@ -3,7 +3,13 @@
  * signatures never store a multi-megabyte photo as text in the database — same idea as the
  * cover-thumbnail extraction already done for library books (see features/library/pdfMeta.ts).
  */
-export function resizeImageToDataUrl(file: File, maxDimension: number, mimeType: 'image/png' | 'image/jpeg' = 'image/png'): Promise<string> {
+export function resizeImageToDataUrl(
+  file: File,
+  maxDimension: number,
+  mimeType: 'image/png' | 'image/jpeg' = 'image/png',
+  /** Учитывается только для JPEG. Обоям хватает и меньшего: их видно приглушёнными и под карточками. */
+  quality = 0.9,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Не удалось прочитать файл'));
@@ -21,7 +27,7 @@ export function resizeImageToDataUrl(file: File, maxDimension: number, mimeType:
           return;
         }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL(mimeType, 0.9));
+        resolve(canvas.toDataURL(mimeType, quality));
       };
       img.src = reader.result as string;
     };
