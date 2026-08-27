@@ -2,6 +2,7 @@ import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type Cli
 import { ActionIcon, Button, Group, Menu, Text, TextInput, Tooltip } from '@mantine/core';
 import { IconDotsVertical, IconPlus, IconSearch, IconSortAscending, IconSortDescending, IconTrash } from '@tabler/icons-react';
 
+import { SCROLL_ROOT_ID } from '../../components/layout/scrollRoot';
 import { columnLetter, FIRST_DATA_ROW, HEADER_ROW } from '../../lib/sheet/cellRef';
 import { cellAddress, evaluateGrid, isFormula } from '../../lib/sheet/formula';
 import { completeFunction, formulaHint } from '../../lib/sheet/formulaHint';
@@ -43,7 +44,10 @@ interface CellAddress {
 
 /** Полоса прокрутки, кнопки «Строка» и «Столбец» и отступ под ними — то, что должно остаться на виду. */
 const BOTTOM_RESERVE = 88;
-/** Ниже этого таблица перестаёт быть таблицей; лучше прокрутить страницу, чем показать две строки. */
+/**
+ * Ниже этого таблица перестаёт быть таблицей — лучше прокрутить страницу, чем показать две строки.
+ * Обычный пол — половина окна (см. `useFittedHeight`); это число держит совсем низкие окна.
+ */
 const MIN_FRAME_HEIGHT = 220;
 
 /** Ошибка вычисления печатается красным — её видно и в потоке чисел, и в потоке текста. */
@@ -243,21 +247,30 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
   const frameHeight = useFittedHeight(frameRef, { reserve: BOTTOM_RESERVE, min: MIN_FRAME_HEIGHT });
 
   /**
-   * Если под таблицу не осталось места — она прокручивается в вид один раз, при открытии.
+   * Если под таблицу не осталось места — страница прокручивается к ней один раз, при открытии.
    *
    * Над ней название, описание, выбор пациента и теги; на невысоком окне они занимают его целиком,
    * и таблица открывается за нижним краем вместе со своей полосой прокрутки и кнопками. Считать это
    * нормальным нельзя: врач нажал «Редактировать» на таблице, а таблицы не видно. Один раз и только
    * когда действительно не помещается — дальше страница слушается обычной прокрутки.
+   *
+   * Прокручивается ровно на недостающее, а не `scrollIntoView({ block: 'end' })`: тот совмещает низ
+   * рамки с низом окна, а под рамкой ещё кнопки «Строка» и «Столбец» и прилипшая панель «Сохранить»
+   * — они остались бы за краем. И ждать приходится измеренной высоты: на первом кадре рамка ещё
+   * запасной высоты из стилей, и по ней недостающее посчиталось бы не то.
    */
+  const scrolledIntoView = useRef(false);
   useLayoutEffect(() => {
     const frame = frameRef.current;
-    if (!frame) return;
+    if (!frame || frameHeight === null || scrolledIntoView.current) return;
+    scrolledIntoView.current = true;
     const actions = document.querySelector<HTMLElement>('[data-form-actions]');
     const covered = actions ? actions.getBoundingClientRect().height : 0;
-    if (frame.getBoundingClientRect().bottom + BOTTOM_RESERVE + covered <= window.innerHeight) return;
-    frame.scrollIntoView({ block: 'end', behavior: 'smooth' });
-  }, []);
+    const missing = frame.getBoundingClientRect().bottom + BOTTOM_RESERVE + covered - window.innerHeight;
+    if (missing <= 0) return;
+    const root = document.getElementById(SCROLL_ROOT_ID);
+    (root ?? window).scrollBy({ top: missing, behavior: 'smooth' });
+  }, [frameHeight]);
 
   const grid = useMemo(() => buildGrid(value), [value]);
   const shown = useMemo(() => evaluateGrid(grid), [grid]);

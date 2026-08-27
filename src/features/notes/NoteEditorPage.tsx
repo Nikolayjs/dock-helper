@@ -3,6 +3,7 @@ import { notifications } from '@mantine/notifications';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+import { EDITOR_MIN_HEIGHT } from '../../components/common/editorHeight';
 import { NoteForm } from './NoteForm';
 import type { NoteInput } from './useNotes';
 import { QUERY_KEY as NOTES_KEY, useNotes } from './useNotes';
@@ -83,7 +84,7 @@ export function NoteEditorPage() {
           onSubmit={handleSubmit}
           onCancel={() => navigate(backTo, { state: { from } })}
           onDelete={editingNote ? handleDelete : undefined}
-          contentMinHeight={320}
+          contentMinHeight={EDITOR_MIN_HEIGHT}
         />
       </Stack>
     </Container>

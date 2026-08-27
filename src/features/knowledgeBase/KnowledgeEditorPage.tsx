@@ -3,6 +3,7 @@ import { notifications } from '@mantine/notifications';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { EDITOR_MIN_HEIGHT } from '../../components/common/editorHeight';
 import { useAuth } from '../auth/AuthContext';
 import { DocumentForm } from './DocumentForm';
 import type { DocumentFormInput } from './DocumentForm';
@@ -70,7 +71,7 @@ export function KnowledgeEditorPage({
           Назад
         </Button>
         <Title order={3}>{editingDoc ? editTitle : newTitle}</Title>
-        <DocumentForm initialDocument={editingDoc} onSubmit={handleSubmit} onCancel={() => navigate(backTo)} contentMinHeight={320} />
+        <DocumentForm initialDocument={editingDoc} onSubmit={handleSubmit} onCancel={() => navigate(backTo)} contentMinHeight={EDITOR_MIN_HEIGHT} />
       </Stack>
     </Container>
   );

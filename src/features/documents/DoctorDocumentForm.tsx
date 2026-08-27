@@ -12,6 +12,7 @@ import { SheetEditor } from './SheetEditor';
 import { trimTrailingRows } from './sheetOps';
 import { blankSheet, type DoctorDocument, type DoctorDocumentKind, type DocumentSheet } from './types';
 import type { DoctorDocumentInput } from './useDoctorDocuments';
+import { EDITOR_MIN_HEIGHT } from '../../components/common/editorHeight';
 import { RichTextField } from '../../components/common/RichTextField';
 import { useRichTextEditor } from '../../components/common/useRichTextEditor';
 import { FormActions } from '../../components/common/FormActions';
@@ -143,7 +144,7 @@ export function DoctorDocumentForm({
       <TagsInput label="Теги" placeholder="Например: экспертиза" value={tags} onChange={setTags} />
 
       {kind === 'text' ? (
-        <RichTextField editor={editor} exportTitle={title} minHeight={320} onImportedTitle={(imported) => !title.trim() && setTitle(imported)} />
+        <RichTextField editor={editor} exportTitle={title} minHeight={EDITOR_MIN_HEIGHT} onImportedTitle={(imported) => !title.trim() && setTitle(imported)} />
       ) : (
         <div>
           <Group justify="space-between" mb={6} wrap="wrap" gap="xs">

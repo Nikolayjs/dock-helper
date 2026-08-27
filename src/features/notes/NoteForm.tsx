@@ -35,7 +35,7 @@ interface NoteFormProps {
   onSubmit: (input: NoteInput) => void;
   onCancel: () => void;
   onDelete?: () => void;
-  contentMinHeight?: number;
+  contentMinHeight?: number | string;
 }
 
 export function NoteForm({ initialNote, initialDate, onSubmit, onCancel, onDelete, contentMinHeight = 220 }: NoteFormProps) {

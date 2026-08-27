@@ -15,7 +15,8 @@ import {
   closestCenter,
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -84,9 +85,20 @@ export function DashboardPage() {
   // Ниже `md` каждая карточка занимает всю ширину, и менять её нечем — ручка там только мешала бы.
   const isWide = useMediaQuery('(min-width: 62em)') ?? false;
 
+  /**
+   * Мышь и палец разведены по разным сенсорам нарочно: жест у них разный.
+   *
+   * Мышь — те же 4 px, что в сайдбаре и планере: щелчок остаётся щелчком. Палец — удержание, потому
+   * что провести пальцем по карточке значит прокрутить страницу, и отличить одно от другого можно
+   * только паузой. Общий `PointerSensor` этого не умеет: одно правило на оба устройства означает
+   * либо мышь, требующую удержания, либо дашборд, который на телефоне нельзя прокрутить.
+   *
+   * `tolerance` — насколько палец имеет право дрогнуть за это время: сдвинулся дальше — это была
+   * прокрутка, и перетаскивание отменяется, не начавшись.
+   */
   const sensors = useSensors(
-    // The same 4px threshold the sidebar and the planner use, so a click stays a click.
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 

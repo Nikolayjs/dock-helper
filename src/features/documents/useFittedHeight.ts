@@ -13,10 +13,16 @@ import { SCROLL_ROOT_ID } from '../../components/layout/scrollRoot';
  * Пересчитывается при прокрутке и изменении размера: сдвигая страницу, врач меняет то, сколько
  * места осталось под рамкой. Прокрутку слушает не окно, а корень AppShell — с `mode="static"`
  * прокручивается именно он.
+ *
+ * Снизу высота ограничена долей окна (`minRatio`), а не одним лишь числом пикселей. Место «до низа
+ * окна» на невысоком экране вырождается в полторы строки: формально таблица видна, работать в ней
+ * нельзя. Половина окна — это пол, а не потолок, и он безопасен именно потому, что ставится
+ * `max-height`: короткая таблица останется короткой, а длинная получит хотя бы половину экрана и
+ * прокрутит страницу под себя.
  */
 export function useFittedHeight(
   ref: RefObject<HTMLElement | null>,
-  { reserve, min }: { reserve: number; min: number },
+  { reserve, min, minRatio = 0.5 }: { reserve: number; min: number; minRatio?: number },
 ): number | null {
   const [height, setHeight] = useState<number | null>(null);
 
@@ -30,7 +36,8 @@ export function useFittedHeight(
       const actions = document.querySelector<HTMLElement>('[data-form-actions]');
       const covered = actions ? actions.getBoundingClientRect().height : 0;
       const available = window.innerHeight - element.getBoundingClientRect().top - reserve - covered;
-      const next = Math.max(min, Math.round(available));
+      const floor = Math.max(min, Math.round(window.innerHeight * minRatio));
+      const next = Math.max(floor, Math.round(available));
       // Порог в пиксель: без него дробные координаты после прокрутки гоняли бы состояние по кругу.
       setHeight((current) => (current !== null && Math.abs(current - next) <= 1 ? current : next));
     };
@@ -50,7 +57,7 @@ export function useFittedHeight(
       window.removeEventListener('resize', measure);
       observer.disconnect();
     };
-  }, [min, ref, reserve]);
+  }, [min, minRatio, ref, reserve]);
 
   return height;
 }

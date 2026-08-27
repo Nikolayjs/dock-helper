@@ -55,7 +55,7 @@ interface RichTextFieldProps {
   editor: Editor | null;
   label?: string;
   hint?: ReactNode;
-  minHeight?: number;
+  minHeight?: number | string;
   /** Название и автор для выгружаемого .docx. */
   exportTitle: string;
   exportAuthor?: string;

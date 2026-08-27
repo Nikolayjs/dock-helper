@@ -16,7 +16,7 @@ interface DocumentFormProps {
   onSubmit: (input: DocumentFormInput) => void;
   onCancel: () => void;
   onDelete?: () => void;
-  contentMinHeight?: number;
+  contentMinHeight?: number | string;
 }
 
 export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, contentMinHeight = 220 }: DocumentFormProps) {

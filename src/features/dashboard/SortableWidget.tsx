@@ -117,8 +117,33 @@ export function SortableWidget({ widget, ctx, editing, span, wide, onHide, onRes
     >
       {/* Меряется и позиционируется относительно самой карточки, а не ячейки сетки: ячейка выше
           карточки настолько, насколько высок сосед, и ползунок, привязанный к ней, повисал в
-          пустоте под карточкой. */}
-      <div ref={cardRef} style={{ position: 'relative' }}>
+          пустоте под карточкой.
+
+          Перетаскивается тоже она целиком, а не ручка в углу: на телефоне карточку берут за
+          карточку, и попасть пальцем в значок 28 px — задача, которой пользователь себе не ставил.
+          Содержимое в режиме настройки всё равно не нажимается, так что отнимать у карточки нечего.
+          Значок остаётся подсказкой о том, что её можно двигать. */}
+      <div
+        ref={cardRef}
+        style={{
+          position: 'relative',
+          ...(editing
+            ? {
+                cursor: isDragging ? 'grabbing' : 'grab',
+                // `manipulation`, а не `none`: прокрутить страницу пальцем по карточке нужно
+                // по-прежнему — в режиме настройки экран занят ими целиком. Отличает прокрутку от
+                // перетаскивания удержание (`TouchSensor` на странице), а не запрет прокрутки.
+                touchAction: 'manipulation',
+                // Иначе удержание на телефоне начинает выделять текст и показывает свой callout.
+                userSelect: 'none',
+                WebkitTouchCallout: 'none',
+              }
+            : null),
+        }}
+        {...(editing ? attributes : null)}
+        {...(editing ? listeners : null)}
+        aria-label={editing ? `Переместить карточку «${widget.title}»` : undefined}
+      >
         {editing && (
           <Group gap={4} style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }} wrap="nowrap">
             {isEmptyNow && (
@@ -126,27 +151,22 @@ export function SortableWidget({ widget, ctx, editing, span, wide, onHide, onRes
                 пусто
               </Badge>
             )}
-            <Tooltip label="Перетащить" withArrow>
-              <ActionIcon
-                variant="default"
-                size="md"
-                {...attributes}
-                {...listeners}
-                style={{
-                  cursor: isDragging ? 'grabbing' : 'grab',
-                  // Без этого на телефоне карточку не сдвинуть вовсе: браузер считает касание
-                  // началом прокрутки страницы и отменяет указатель раньше, чем dnd-kit успевает
-                  // признать его перетаскиванием. `touch-action: none` говорит браузеру, что с
-                  // этого элемента прокручивать нечего.
-                  touchAction: 'none',
-                }}
-                aria-label={`Переместить карточку «${widget.title}»`}
-              >
+            <Tooltip label="Перетащить — или тяните саму карточку" withArrow>
+              <ActionIcon component="div" variant="default" size="md" aria-hidden tabIndex={-1}>
                 <IconGripVertical size={16} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label="Скрыть" withArrow>
-              <ActionIcon variant="default" size="md" onClick={onHide} aria-label={`Скрыть карточку «${widget.title}»`}>
+              <ActionIcon
+                variant="default"
+                size="md"
+                onClick={onHide}
+                // Нажатие на «скрыть» не должно доходить до карточки: неторопливое касание иначе
+                // успевает превратиться в перетаскивание, и кнопка не срабатывает.
+                onMouseDown={(event) => event.stopPropagation()}
+                onTouchStart={(event) => event.stopPropagation()}
+                aria-label={`Скрыть карточку «${widget.title}»`}
+              >
                 <IconEyeOff size={16} />
               </ActionIcon>
             </Tooltip>
@@ -165,6 +185,10 @@ export function SortableWidget({ widget, ctx, editing, span, wide, onHide, onRes
             onPointerMove={moveResize}
             onPointerUp={endResize}
             onPointerCancel={endResize}
+            // Ползунок ширины — не перетаскивание карточки: `pointerdown` останавливается в
+            // `beginResize`, но `touchstart` приходит после него и дошёл бы до карточки сам.
+            onTouchStart={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
             style={{
               position: 'absolute',
               top: 8,
