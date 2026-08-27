@@ -29,8 +29,12 @@ export function NewsCard({ item, onOpen }: NewsCardProps) {
       )}
 
       <Stack gap={6} style={{ flex: 1 }}>
+        {/* Ужимается название ленты, а не дата. Имя источника бывает длиной в строку —
+            «CYBERSPORT.RU — новости киберспорта и компьютерных игр», — и с несжимаемым бейджем
+            дата уезжала за край карточки. Дата коротка и постоянна, название и в обрезанном виде
+            узнаётся по началу; целиком его показывает подсказка. */}
         <Group gap={6} justify="space-between" wrap="nowrap">
-          <Badge size="xs" variant="light" color="brand" style={{ flexShrink: 0 }}>
+          <Badge size="xs" variant="light" color="brand" title={item.sourceTitle} style={{ minWidth: 0, flexShrink: 1 }}>
             {item.sourceTitle}
           </Badge>
           {date && (

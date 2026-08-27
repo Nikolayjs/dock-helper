@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Button, Group, Modal, Stack, Text, Textarea, TextInput, UnstyledButton } from '@mantine/core';
+import { Button, Group, Modal, Select, Stack, Text, Textarea, TextInput, UnstyledButton } from '@mantine/core';
 import { IconCheck, IconTrash } from '@tabler/icons-react';
 
+import { findMember, useWorkspaceMembers } from '../workspace/useWorkspaceMembers';
+import { MemberSignature } from './MemberSignature';
 import { CARD_COLORS } from './types';
 import type { PlannerCard, PlannerCardColor } from './types';
 
@@ -9,7 +11,13 @@ interface PlannerCardModalProps {
   opened: boolean;
   card: PlannerCard | null;
   onClose: () => void;
-  onSave: (input: { title: string; description: string; color: PlannerCardColor | null; dueDate: string | null }) => void;
+  onSave: (input: {
+    title: string;
+    description: string;
+    color: PlannerCardColor | null;
+    dueDate: string | null;
+    assigneeId: string | null;
+  }) => void;
   onDelete: (id: string) => void;
 }
 
@@ -18,6 +26,8 @@ export function PlannerCardModal({ opened, card, onClose, onSave, onDelete }: Pl
   const [description, setDescription] = useState('');
   const [color, setColor] = useState<PlannerCardColor | null>(null);
   const [dueDate, setDueDate] = useState('');
+  const [assigneeId, setAssigneeId] = useState<string | null>(null);
+  const { members } = useWorkspaceMembers();
 
   useEffect(() => {
     if (!opened) return;
@@ -25,11 +35,14 @@ export function PlannerCardModal({ opened, card, onClose, onSave, onDelete }: Pl
     setDescription(card?.description ?? '');
     setColor(card?.color ?? null);
     setDueDate(card?.dueDate ?? '');
+    setAssigneeId(card?.assigneeId ?? null);
   }, [opened, card]);
+
+  const author = findMember(members, card?.authorId);
 
   const handleSave = () => {
     if (!title.trim()) return;
-    onSave({ title: title.trim(), description: description.trim(), color, dueDate: dueDate || null });
+    onSave({ title: title.trim(), description: description.trim(), color, dueDate: dueDate || null, assigneeId });
   };
 
   return (
@@ -66,6 +79,19 @@ export function PlannerCardModal({ opened, card, onClose, onSave, onDelete }: Pl
             setDueDate(value);
           }}
         />
+        {/* Исполнителя выбирают, автор проставляется сам: подпись, которую можно выставить себе
+            любую, ничего не значит. Пусто — нормальное состояние: карточку ещё никто не взял. */}
+        <Select
+          label="Взялся за работу"
+          placeholder="Никто пока"
+          data={members.map((member) => ({ value: member.id, label: member.name }))}
+          value={assigneeId}
+          onChange={setAssigneeId}
+          clearable
+          searchable={members.length > 6}
+          nothingFoundMessage="Никого не найдено"
+        />
+
         <div>
           <Text size="sm" fw={500} mb={6}>
             Метка
@@ -108,6 +134,15 @@ export function PlannerCardModal({ opened, card, onClose, onSave, onDelete }: Pl
             ))}
           </Group>
         </div>
+
+        {author && (
+          <Group gap={6} wrap="nowrap">
+            <MemberSignature member={author} kind="author" />
+            <Text size="xs" c="dimmed">
+              завёл карточку
+            </Text>
+          </Group>
+        )}
 
         <Group justify="space-between" mt="sm">
           {card ? (

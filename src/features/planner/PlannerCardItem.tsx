@@ -1,9 +1,11 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Badge, Box, Card, Text } from '@mantine/core';
+import { Badge, Box, Card, Group, Text } from '@mantine/core';
 import { IconCalendar } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
+import { MemberSignature } from './MemberSignature';
+import { findMember, useWorkspaceMembers } from '../workspace/useWorkspaceMembers';
 import type { PlannerCard } from './types';
 
 interface PlannerCardItemProps {
@@ -25,6 +27,12 @@ export function PlannerCardItem({ card, onOpen }: PlannerCardItemProps) {
 
   const overdue = card.dueDate ? dayjs(card.dueDate).isBefore(dayjs(), 'day') : false;
 
+  // Подписан тот, кто взялся за работу; если не взялся никто — тот, кто карточку завёл.
+  const { members } = useWorkspaceMembers();
+  const assignee = findMember(members, card.assigneeId);
+  const author = findMember(members, card.authorId);
+  const signature = assignee ?? author;
+
   return (
     <Card
       ref={setNodeRef}
@@ -45,16 +53,17 @@ export function PlannerCardItem({ card, onOpen }: PlannerCardItemProps) {
           {card.description}
         </Text>
       )}
-      {card.dueDate && (
-        <Badge
-          mt={8}
-          size="xs"
-          variant="light"
-          color={overdue ? 'red' : 'gray'}
-          leftSection={<IconCalendar size={11} />}
-        >
-          {dayjs(card.dueDate).format('D MMM')}
-        </Badge>
+      {(card.dueDate || signature) && (
+        <Group justify="space-between" wrap="nowrap" mt={8} gap="xs">
+          {card.dueDate ? (
+            <Badge size="xs" variant="light" color={overdue ? 'red' : 'gray'} leftSection={<IconCalendar size={11} />}>
+              {dayjs(card.dueDate).format('D MMM')}
+            </Badge>
+          ) : (
+            <span />
+          )}
+          <MemberSignature member={signature} kind={assignee ? 'assignee' : 'author'} />
+        </Group>
       )}
     </Card>
   );

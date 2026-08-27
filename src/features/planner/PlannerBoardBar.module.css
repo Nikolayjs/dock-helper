@@ -1,0 +1,35 @@
+/*
+ * Полоса задач прокручивается вбок, а не переносится на вторую строку: задач бывает десяток, и
+ * доска под ними важнее, чем возможность увидеть их все разом.
+ */
+.bar {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.tab {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: var(--mantine-radius-xl);
+  border: 1px solid transparent;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  color: var(--mantine-color-dimmed);
+  background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6));
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.tab:hover {
+  background-color: light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+  color: light-dark(var(--mantine-color-gray-9), var(--mantine-color-white));
+}
+
+/* Выбранная задача — не просто выделена цветом: на ней сейчас всё, что ниже. */
+.tab[data-active] {
+  background-color: var(--mantine-color-brand-light);
+  border-color: var(--mantine-color-brand-4);
+  color: var(--mantine-color-brand-light-color);
+}

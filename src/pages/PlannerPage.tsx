@@ -15,12 +15,15 @@ import { arrayMove, horizontalListSortingStrategy, SortableContext, sortableKeyb
 import { Box, Button, Container, Group, Paper, Skeleton, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconPlus } from '@tabler/icons-react';
+import { useSearchParams } from 'react-router-dom';
 
+import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { PlannerBoardBar } from '../features/planner/PlannerBoardBar';
 import { PlannerCardItem } from '../features/planner/PlannerCardItem';
 import { PlannerCardModal } from '../features/planner/PlannerCardModal';
 import { PlannerColumnCard } from '../features/planner/PlannerColumnCard';
 import { positionBetween } from '../features/planner/position';
-import type { PlannerCard, PlannerCardColor, PlannerColumn } from '../features/planner/types';
+import type { PlannerBoard as GlobalTask, PlannerCard, PlannerCardColor, PlannerColumn } from '../features/planner/types';
 import { usePlanner } from '../features/planner/usePlanner';
 
 type ModalState = { mode: 'closed' } | { mode: 'edit'; card: PlannerCard } | { mode: 'create'; columnId: string };
@@ -42,16 +45,51 @@ function buildBoard(columns: PlannerColumn[], cards: PlannerCard[]): Board {
 }
 
 export function PlannerPage() {
-  const { columns, cards, isLoading, addColumn, renameColumn, reorderColumn, deleteColumn, addCard, updateCard, moveCard, deleteCard } =
-    usePlanner();
+  const {
+    boards,
+    columns,
+    cards,
+    isLoading,
+    addBoard,
+    renameBoard,
+    deleteBoard,
+    addColumn,
+    renameColumn,
+    reorderColumn,
+    deleteColumn,
+    addCard,
+    updateCard,
+    moveCard,
+    deleteCard,
+  } = usePlanner();
+  const confirmDelete = useDeleteWithConfirm();
+
+  /**
+   * Выбранная задача живёт в адресе, а не в состоянии страницы.
+   *
+   * Ссылка на доску должна открывать ту самую доску — по той же причине, по которой в адресе живёт
+   * вкладка раздела «Документы». Пока адрес молчит или называет доску, которой больше нет, открыта
+   * первая: пустой планер при непустом списке задач был бы враньём.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedBoardId = searchParams.get('board');
+  const activeBoard = boards.find((item) => item.id === requestedBoardId) ?? boards[0] ?? null;
+
+  const selectBoard = (id: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('board', id);
+    setSearchParams(next, { replace: true });
+  };
 
   const [board, setBoard] = useState<Board>({ columns: [], cardsByColumn: {} });
   const isDraggingRef = useRef(false);
 
   useEffect(() => {
     if (isDraggingRef.current) return;
-    setBoard(buildBoard(columns, cards));
-  }, [columns, cards]);
+    // На доске только её колонки. Карточка принадлежит колонке, поэтому отбирать их отдельно не
+    // нужно: чужие просто не найдут, куда лечь.
+    setBoard(buildBoard(columns.filter((column) => column.boardId === activeBoard?.id), cards));
+  }, [columns, cards, activeBoard?.id]);
 
   const [activeCard, setActiveCard] = useState<PlannerCard | null>(null);
   const [modal, setModal] = useState<ModalState>({ mode: 'closed' });
@@ -158,8 +196,9 @@ export function PlannerPage() {
       return;
     }
     const lastPosition = board.columns.at(-1)?.position;
+    if (!activeBoard) return;
     try {
-      await addColumn({ title, position: positionBetween(lastPosition, undefined) });
+      await addColumn({ boardId: activeBoard.id, title, position: positionBetween(lastPosition, undefined) });
       setNewColumnTitle('');
       setAddingColumn(false);
     } catch {
@@ -175,7 +214,13 @@ export function PlannerPage() {
     }
   };
 
-  const handleSaveCard = async (input: { title: string; description: string; color: PlannerCardColor | null; dueDate: string | null }) => {
+  const handleSaveCard = async (input: {
+    title: string;
+    description: string;
+    color: PlannerCardColor | null;
+    dueDate: string | null;
+    assigneeId: string | null;
+  }) => {
     try {
       if (modal.mode === 'edit') {
         await updateCard(modal.card.id, input);
@@ -198,6 +243,19 @@ export function PlannerPage() {
     }
   };
 
+  const handleDeleteBoard = (task: GlobalTask) => {
+    confirmDelete({
+      what: 'задачу',
+      name: task.title,
+      notice: 'Задача удалена',
+      queryKey: ['planner-boards'],
+      id: task.id,
+      perform: () => deleteBoard(task.id),
+      // Уходит вся доска целиком, а не только строка в полосе задач.
+      alsoRemoves: 'Вместе с ней удалятся её колонки и карточки',
+    });
+  };
+
   if (isLoading) {
     return (
       <Container size="xl" px={0}>
@@ -210,8 +268,52 @@ export function PlannerPage() {
     );
   }
 
+  const boardBar = (
+    <PlannerBoardBar
+      boards={boards}
+      activeId={activeBoard?.id ?? null}
+      onSelect={selectBoard}
+      onCreate={async (input) => {
+        try {
+          const created = await addBoard({ ...input, position: positionBetween(boards.at(-1)?.position, undefined) });
+          selectBoard(created.id);
+        } catch {
+          notifications.show({ message: 'Не удалось создать задачу', color: 'red' });
+        }
+      }}
+      onRename={async (id, input) => {
+        try {
+          await renameBoard(id, input);
+        } catch {
+          notifications.show({ message: 'Не удалось сохранить задачу', color: 'red' });
+        }
+      }}
+      onDelete={handleDeleteBoard}
+    />
+  );
+
+  if (!activeBoard) {
+    return (
+      <Container size="xl" px={0} style={{ maxWidth: 'none' }}>
+        <Stack gap="lg">
+          {boardBar}
+          <Paper withBorder radius="lg" p="xl">
+            <Stack align="center" gap={6}>
+              <Text fw={600}>Пока ни одной задачи</Text>
+              <Text size="sm" c="dimmed" ta="center">
+                Задача — это доска: колонки и карточки принадлежат ей одной. Ремонт кабинета и подготовка к аттестации не
+                мешают друг другу, потому что живут на разных досках.
+              </Text>
+            </Stack>
+          </Paper>
+        </Stack>
+      </Container>
+    );
+  }
+
   return (
     <Container size="xl" px={0} style={{ maxWidth: 'none' }}>
+      <Box mb="md">{boardBar}</Box>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
