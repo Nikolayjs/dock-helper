@@ -135,6 +135,9 @@ export async function readDocx(bytes: Uint8Array): Promise<DocxRead> {
         "p[style-name='Цитата'] => blockquote:fresh",
         'u => u',
         'strike => s',
+        // Маркер: без этой строки выделение, поставленное здесь и выгруженное в Word, при обратном
+        // чтении пропадало бы молча. Надстрочный и подстрочный индексы mammoth переносит сам.
+        'highlight => mark',
       ],
       /**
        * Replaces mammoth's default handler, which inlines every picture at Word's own resolution.

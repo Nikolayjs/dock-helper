@@ -136,6 +136,27 @@ tr:hover .rowActions button,
   display: none;
 }
 
-.matched {
-  background-color: light-dark(var(--mantine-color-yellow-1), rgba(250, 176, 5, 0.18));
+
+/* Ячейка в выделении: подкрашивается сама ячейка, а не её поле, — иначе заливка, заданная врачом,
+   перекрыла бы отметку выделения и стало бы непонятно, к чему применится кнопка панели. */
+.selected {
+  box-shadow: inset 0 0 0 9999px light-dark(rgba(34, 88, 214, 0.1), rgba(110, 152, 255, 0.16));
+}
+
+/* Номер строки и буква столбца выбирают всю строку или столбец — как в Excel. */
+.pickable {
+  cursor: pointer;
+}
+
+.pickable:hover {
+  color: var(--mantine-color-brand-6);
+}
+
+/* Ячейка с переносом по словам: текст виден целиком, а не прячется за краем столбца. */
+.wrapped {
+  composes: input;
+  min-height: 46px;
+  resize: vertical;
+  line-height: 1.35;
+  font-family: inherit;
 }

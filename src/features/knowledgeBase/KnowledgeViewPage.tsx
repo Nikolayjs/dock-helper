@@ -4,6 +4,7 @@ import { IconDownload, IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import './editorContent.css';
 import { downloadDocx } from '../../lib/docx/downloadDocx';
 import type { KnowledgeKind } from './types';
 import { useAllDocuments, useDocuments } from './useDocuments';

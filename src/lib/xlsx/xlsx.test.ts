@@ -299,3 +299,66 @@ describe('круговой тест с формулами', () => {
     expect(rows[3]).toEqual(['Итого', 10200]);
   });
 });
+
+describe('оформление ячеек', () => {
+  const styled = sheetToXlsxBytes({
+    sheetName: 'Л',
+    columns: ['Пациент', 'Дней'],
+    rows: [
+      ['Иванов', '14'],
+      ['Петрова', '3'],
+    ],
+    formats: {
+      '2:0': { bold: true, fill: 'FFF3BF' },
+      '2:1': { align: 'center', numberFormat: 'decimal' },
+      '3:0': { italic: true, wrap: true },
+      // То же сочетание, что у 2:0 — в таблице стилей оно обязано занять одну строку.
+      '3:1': { bold: true, fill: 'FFF3BF' },
+    },
+  });
+  const sheet = partOf(styled, 'xl/worksheets/sheet1.xml');
+  const styles = partOf(styled, 'xl/styles.xml');
+
+  it('одинаковые сочетания получают один номер стиля', () => {
+    // Оформление в .xlsx — это номер строки в общей таблице; повторять её на каждую ячейку значило
+    // бы раздувать файл ровно во столько раз, сколько в нём ячеек.
+    const of = (reference: string) => new RegExp('<c r="' + reference + '"[^>]* s="([0-9]+)"').exec(sheet)?.[1];
+    expect(of('A2')).toBe(of('B3'));
+    expect(of('A2')).not.toBe(of('B2'));
+  });
+
+  it('полужирный и курсив попадают в список шрифтов', () => {
+    expect(styles).toContain('<font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font>');
+    expect(styles).toContain('<font><i/><sz val="11"/><name val="Calibri"/><family val="2"/></font>');
+  });
+
+  it('заливка записывается сплошной, как её понимает Excel', () => {
+    expect(styles).toContain('<patternFill patternType="solid"><fgColor rgb="FFFFF3BF"/>');
+  });
+
+  it('выравнивание и перенос идут отдельным элементом', () => {
+    expect(styles).toContain('<alignment horizontal="center"/>');
+    expect(styles).toContain('wrapText="1"');
+  });
+
+  it('числовой формат получает свой номер, начиная со 164', () => {
+    // Номера ниже зарезервированы Excel под встроенные форматы.
+    expect(styles).toContain('<numFmt numFmtId="164" formatCode="0.00"/>');
+    expect(styles).toMatch(/<xf numFmtId="164"[^>]*applyNumberFormat="1"/);
+  });
+
+  it('таблица стилей остаётся валидной без оформления', () => {
+    const plain = partOf(sheetToXlsxBytes({ sheetName: 'Л', columns: ['А'], rows: [['1']] }), 'xl/styles.xml');
+    expect(plain).toContain('<fonts count="2">');
+    expect(plain).toContain('<fills count="2">');
+    expect(plain).not.toContain('<numFmts');
+  });
+
+  it('ширина, заданная руками, важнее посчитанной по содержимому', () => {
+    const wide = partOf(
+      sheetToXlsxBytes({ sheetName: 'Л', columns: ['Очень длинное название'], rows: [['x']], widths: [12] }),
+      'xl/worksheets/sheet1.xml',
+    );
+    expect(wide).toContain('<col min="1" max="1" width="12"');
+  });
+});

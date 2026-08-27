@@ -13,7 +13,7 @@ import {
   shrinkImage,
   targetWidth,
 } from './shrinkImage';
-import { docxFileName, escapeXml, htmlToDocxBytes } from './writeDocx';
+import { docxFileName, escapeXml, halfPointsFrom, hexColor, htmlToDocxBytes } from './writeDocx';
 
 /** Smallest valid PNG: 1×1, transparent. Used wherever a test needs real image bytes. */
 const PNG_1PX_BASE64 =
@@ -282,5 +282,90 @@ describe('shrinkImage', () => {
     const big = new Uint8Array(MAX_INLINE_BYTES + 10);
     big.set([0x89, 0x50, 0x4e, 0x47]);
     expect(await shrinkImage(big, 'image/png')).toBeNull();
+  });
+});
+
+describe('расширенное форматирование', () => {
+  const bodyOf = (html: string) => strFromU8(unzipSync(htmlToDocxBytes({ title: 'Т', html }))['word/document.xml']);
+
+  it('надстрочный и подстрочный индексы', () => {
+    const xml = bodyOf('<p><sup>2</sup> и <sub>3</sub></p>');
+    expect(xml).toContain('<w:vertAlign w:val="superscript"/>');
+    expect(xml).toContain('<w:vertAlign w:val="subscript"/>');
+  });
+
+  it('цвет текста', () => {
+    expect(bodyOf('<p><span style="color: #c92a2a">красный</span></p>')).toContain('<w:color w:val="C92A2A"/>');
+  });
+
+  it('кегль в половинах пункта — единице, в которой его хранит Word', () => {
+    expect(bodyOf('<p><span style="font-size: 14pt">крупно</span></p>')).toContain('<w:sz w:val="28"/>');
+    // 96 пикселей на дюйм против 72 пунктов: 16px это 12pt, то есть 24 половины.
+    expect(bodyOf('<p><span style="font-size: 16px">вставлено</span></p>')).toContain('<w:sz w:val="24"/>');
+  });
+
+  it('гарнитура', () => {
+    expect(bodyOf('<p><span style="font-family: Times New Roman">текст</span></p>')).toContain(
+      '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>',
+    );
+  });
+
+  it('маркер переводится в именованный цвет Word', () => {
+    // w:highlight принимает только свой список названий; произвольный цвет пришлось бы отдавать
+    // заливкой, а она в Word ведёт себя как фон абзаца, а не как маркер.
+    expect(bodyOf('<p><mark data-color="#ffec99">жёлтый</mark></p>')).toContain('<w:highlight w:val="yellow"/>');
+    expect(bodyOf('<p><mark data-color="#b2f2bb">зелёный</mark></p>')).toContain('<w:highlight w:val="green"/>');
+    // Цвет не из палитры не роняет выгрузку — выделение просто становится жёлтым.
+    expect(bodyOf('<p><mark data-color="#123456">чужой</mark></p>')).toContain('<w:highlight w:val="yellow"/>');
+  });
+
+  it('выравнивание абзаца', () => {
+    expect(bodyOf('<p style="text-align: center">по центру</p>')).toContain('<w:jc w:val="center"/>');
+    expect(bodyOf('<p style="text-align: justify">по ширине</p>')).toContain('<w:jc w:val="both"/>');
+  });
+
+  it('разрыв страницы — настоящий, а не пустые абзацы', () => {
+    expect(bodyOf('<p>раз</p><div data-page-break="true"></div><p>два</p>')).toContain('<w:br w:type="page"/>');
+  });
+
+  it('список задач уходит символами флажков', () => {
+    // Настоящего флажка в .docx нет — есть поле формы, которое в половине просмотрщиков не
+    // рисуется. Символ виден везде и печатается.
+    const xml = bodyOf(
+      '<ul data-type="taskList">' +
+        '<li data-checked="true"><label><input type="checkbox"><span></span></label><div><p>Сделано</p></div></li>' +
+        '<li data-checked="false"><label><input type="checkbox"><span></span></label><div><p>Осталось</p></div></li>' +
+        '</ul>',
+    );
+    expect(xml).toContain('☑ ');
+    expect(xml).toContain('☐ ');
+    expect(xml).toContain('Сделано');
+    expect(xml).not.toContain('<w:numPr>');
+  });
+
+  it('свойства пробега идут в порядке, который требует схема', () => {
+    // Word открывает файл и с нарушенным порядком, а LibreOffice теряет часть свойств.
+    const xml = bodyOf('<p><strong><span style="color: #111111; font-size: 12pt"><u><mark>всё сразу</mark></u></span></strong></p>');
+    const props = /<w:rPr>(.*?)<\/w:rPr>/.exec(xml)![1];
+    const order = ['<w:b/>', '<w:color', '<w:sz ', '<w:highlight', '<w:u '];
+    const positions = order.map((tag) => props.indexOf(tag));
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+});
+
+describe('hexColor и halfPointsFrom', () => {
+  it('читают цвет в разных записях', () => {
+    expect(hexColor('#c92a2a')).toBe('C92A2A');
+    expect(hexColor('#abc')).toBe('AABBCC');
+    expect(hexColor('rgb(201, 42, 42)')).toBe('C92A2A');
+    // Непонятое отбрасывается, а не пишется наугад: неверный цвет хуже, чем цвет по умолчанию.
+    expect(hexColor('красный')).toBeUndefined();
+  });
+
+  it('переводят кегль в половины пункта', () => {
+    expect(halfPointsFrom('11pt')).toBe(22);
+    expect(halfPointsFrom('16px')).toBe(24);
+    expect(halfPointsFrom('крупно')).toBeUndefined();
   });
 });

@@ -85,8 +85,38 @@ function canonicalName(name: string): string | null {
   return FUNCTION_ALIASES[upper] ?? null;
 }
 
+/**
+ * Справочник функций — **тот же список, что понимает вычислитель**.
+ *
+ * Один источник на движок и на подсказку: справка, живущая отдельно, рано или поздно начинает
+ * обещать функцию, которой нет, или молчать о той, которая есть. Совпадение проверяется тестом.
+ */
+export interface FunctionDoc {
+  name: string;
+  english: string;
+  summary: string;
+  example: string;
+}
+
+export const FUNCTION_DOCS: FunctionDoc[] = [
+  { name: 'СУММ', english: 'SUM', summary: 'Сумма чисел и диапазонов', example: '=СУММ(C2:C20)' },
+  { name: 'СРЗНАЧ', english: 'AVERAGE', summary: 'Среднее по числам', example: '=СРЗНАЧ(B2:B20)' },
+  { name: 'МИН', english: 'MIN', summary: 'Наименьшее из чисел', example: '=МИН(B2:B20)' },
+  { name: 'МАКС', english: 'MAX', summary: 'Наибольшее из чисел', example: '=МАКС(B2:B20)' },
+  { name: 'СЧЁТ', english: 'COUNT', summary: 'Сколько ячеек с числами', example: '=СЧЁТ(B2:B20)' },
+  { name: 'СЧЁТЗ', english: 'COUNTA', summary: 'Сколько непустых ячеек', example: '=СЧЁТЗ(A2:A20)' },
+  { name: 'ОКРУГЛ', english: 'ROUND', summary: 'Округление до N знаков', example: '=ОКРУГЛ(B2/3;2)' },
+  { name: 'ЦЕЛОЕ', english: 'INT', summary: 'Отбросить дробную часть', example: '=ЦЕЛОЕ(B2/7)' },
+  { name: 'ABS', english: 'ABS', summary: 'Число без знака', example: '=ABS(B2-C2)' },
+  { name: 'ПРОИЗВЕД', english: 'PRODUCT', summary: 'Произведение чисел', example: '=ПРОИЗВЕД(B2:B4)' },
+  { name: 'ЕСЛИ', english: 'IF', summary: 'Одно значение или другое по условию', example: '=ЕСЛИ(B2>14;"долго";"в срок")' },
+];
+
 /** Все имена, которые принимает вычислитель — для подсказки в редакторе. */
 export const KNOWN_FUNCTIONS = Object.keys(FUNCTION_ALIASES).filter((name) => /[А-Яа-яЁё]/.test(name));
+
+/** Английские имена, которые понимает вычислитель — для сверки со справочником. */
+export const SUPPORTED_ENGLISH = [...ENGLISH_NAMES];
 
 // ─── Разбор ──────────────────────────────────────────────────────────────────
 

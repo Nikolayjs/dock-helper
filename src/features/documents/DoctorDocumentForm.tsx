@@ -87,6 +87,8 @@ export function DoctorDocumentForm({
         columns: clean.columns,
         rows: clean.rows,
         totals: clean.totals,
+        formats: clean.formats,
+        widths: clean.widths,
       });
     } catch {
       notifications.show({ message: 'Не удалось собрать файл .xlsx', color: 'red' });

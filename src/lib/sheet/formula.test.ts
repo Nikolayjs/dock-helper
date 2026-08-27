@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { columnIndex, columnLetter, formatRef, parseRef, shiftFormula } from './cellRef';
-import { ERRORS, evaluateGrid, formatNumber, formulaForExcel, isFormula, literalValue } from './formula';
+import {
+  ERRORS,
+  evaluateGrid,
+  formatNumber,
+  formulaForExcel,
+  FUNCTION_DOCS,
+  isFormula,
+  literalValue,
+  SUPPORTED_ENGLISH,
+} from './formula';
 
 /** Лист: нулевая строка — заголовки, то есть строка 1 в адресах Excel. */
 const sheet = (rows: string[][]) => evaluateGrid(rows);
@@ -232,5 +241,28 @@ describe('isFormula', () => {
     expect(isFormula('A1')).toBe(false);
     expect(isFormula('')).toBe(false);
     expect(isFormula('1=2')).toBe(false);
+  });
+});
+
+describe('справочник функций', () => {
+  it('описывает ровно то, что понимает вычислитель', () => {
+    // Справка, живущая отдельно от движка, рано или поздно начинает обещать функцию, которой нет.
+    expect([...FUNCTION_DOCS.map((doc) => doc.english)].sort()).toEqual([...SUPPORTED_ENGLISH].sort());
+  });
+
+  it('каждый пример из справочника считается без ошибок', () => {
+    const grid = [
+      ['A', 'B', 'C', 'D'],
+      ['1', '14', '10', ''],
+      ['2', '21', '20', ''],
+      ['3', '7', '30', ''],
+    ];
+    for (const doc of FUNCTION_DOCS) {
+      // Пример кладётся в столбец D — за пределами диапазонов, на которые он ссылается: иначе
+      // формула попала бы в собственную сумму и честно вернула бы #ЦИКЛ!.
+      const result = evaluateGrid([...grid, ['', '', '', doc.example]]);
+      const value = result[result.length - 1][3];
+      expect(value.startsWith('#'), `${doc.name}: ${doc.example} → ${value}`).toBe(false);
+    }
   });
 });

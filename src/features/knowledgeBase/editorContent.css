@@ -49,3 +49,119 @@
 .mantine-RichTextEditor-content .ProseMirror.resize-cursor {
   cursor: col-resize;
 }
+
+/* ─── Разрыв страницы ────────────────────────────────────────────────────────
+   В HTML разрыва страницы нет, поэтому его нужно нарисовать: без отметки врач не увидит, что
+   поставил его, и поставит второй. Пунктир с подписью показывает ровно то, что произойдёт в Word. */
+.mantine-RichTextEditor-content .ProseMirror [data-page-break] {
+  position: relative;
+  height: 0;
+  margin: var(--mantine-spacing-lg) 0;
+  border-top: 2px dashed light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3));
+}
+
+.mantine-RichTextEditor-content .ProseMirror [data-page-break]::after {
+  content: 'Разрыв страницы';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0 8px;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  background: var(--mantine-color-body);
+  white-space: nowrap;
+}
+
+.mantine-RichTextEditor-content .ProseMirror [data-page-break].ProseMirror-selectednode {
+  border-top-color: var(--mantine-color-brand-5);
+}
+
+/* ─── Список задач ─────────────────────────────────────────────────────────── */
+.mantine-RichTextEditor-content .ProseMirror ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.mantine-RichTextEditor-content .ProseMirror ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.mantine-RichTextEditor-content .ProseMirror ul[data-type='taskList'] li > label {
+  flex-shrink: 0;
+  margin-top: 4px;
+  user-select: none;
+}
+
+.mantine-RichTextEditor-content .ProseMirror ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Выполненный пункт гаснет — так видно, что осталось, не вчитываясь. */
+.mantine-RichTextEditor-content .ProseMirror ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--mantine-color-dimmed);
+  text-decoration: line-through;
+}
+
+/* ─── Маркер ──────────────────────────────────────────────────────────────── */
+.mantine-RichTextEditor-content .ProseMirror mark {
+  border-radius: 2px;
+  padding: 0 2px;
+  /* Цвет приходит инлайном от Highlight; текст держим тёмным — на светлом маркере белый пропадает,
+     а тема здесь ни при чём: в Word и на бумаге фон всегда светлый. */
+  color: #212529;
+}
+
+/* ─── То же самое при чтении ─────────────────────────────────────────────────
+   Просмотр документа и статьи рисует сохранённый HTML внутри Mantine Typography. Разметку, которой
+   в обычном HTML нет — маркер, список задач, разрыв страницы, — там нужно оформить отдельно, иначе
+   документ на экране выглядит не так, как он же в редакторе и на бумаге. */
+.mantine-Typography-root mark {
+  border-radius: 2px;
+  padding: 0 2px;
+  color: #212529;
+}
+
+.mantine-Typography-root ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.mantine-Typography-root ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.mantine-Typography-root ul[data-type='taskList'] li > label {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.mantine-Typography-root ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--mantine-color-dimmed);
+  text-decoration: line-through;
+}
+
+.mantine-Typography-root [data-page-break] {
+  position: relative;
+  height: 0;
+  margin: var(--mantine-spacing-lg) 0;
+  border-top: 2px dashed light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3));
+}
+
+.mantine-Typography-root [data-page-break]::after {
+  content: 'Разрыв страницы';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0 8px;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  background: var(--mantine-color-body);
+  white-space: nowrap;
+}

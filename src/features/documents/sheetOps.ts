@@ -1,6 +1,7 @@
 import { columnLetter, FIRST_DATA_ROW, shiftFormula } from '../../lib/sheet/cellRef';
 import { evaluateGrid, isFormula, literalValue } from '../../lib/sheet/formula';
 import { MAX_IMPORT_COLUMNS, MAX_IMPORT_ROWS } from '../../lib/xlsx/readSheet';
+import { remapFormats } from './sheetFormat';
 import type { DocumentSheet } from './types';
 
 /**
@@ -61,12 +62,30 @@ export function setColumnName(sheet: DocumentSheet, columnIndex: number, name: s
 export function addRow(sheet: DocumentSheet): DocumentSheet {
   if (sheet.rows.length >= MAX_ROWS) return sheet;
   const rows = [...sheet.rows, sheet.columns.map(() => '')];
-  return { ...sheet, rows, totals: retargetTotals(sheet, rows.length) };
+  const totalsRow = sheet.rows.length + FIRST_DATA_ROW;
+  return {
+    ...sheet,
+    rows,
+    totals: retargetTotals(sheet, rows.length),
+    // Строка итогов уезжает на строку вниз, и её оформление обязано уехать вместе с ней.
+    formats: remapFormats(sheet.formats ?? undefined, (row, column) =>
+      sheet.totals && row === totalsRow ? { row: row + 1, column } : { row, column },
+    ),
+  };
 }
 
 export function removeRow(sheet: DocumentSheet, rowIndex: number): DocumentSheet {
   const rows = sheet.rows.filter((_, index) => index !== rowIndex);
-  return { ...sheet, rows, totals: retargetTotals(sheet, rows.length) };
+  const removed = rowIndex + FIRST_DATA_ROW;
+  return {
+    ...sheet,
+    rows,
+    totals: retargetTotals(sheet, rows.length),
+    formats: remapFormats(sheet.formats ?? undefined, (row, column) => {
+      if (row === removed) return null;
+      return row > removed ? { row: row - 1, column } : { row, column };
+    }),
+  };
 }
 
 /**
@@ -106,9 +125,14 @@ export function addColumn(sheet: DocumentSheet, afterIndex?: number): DocumentSh
   };
 
   return {
+    ...sheet,
     columns: insert(sheet.columns, columnName(sheet.columns.length)),
     rows: sheet.rows.map((row) => insert(row, '')),
     totals: sheet.totals ? insert(sheet.totals, '') : sheet.totals,
+    widths: sheet.widths ? insert(sheet.widths, null) : sheet.widths,
+    formats: remapFormats(sheet.formats ?? undefined, (row, column) =>
+      column >= at ? { row, column: column + 1 } : { row, column },
+    ),
   };
 }
 
@@ -120,9 +144,15 @@ export function removeColumn(sheet: DocumentSheet, columnIndex: number): Documen
   if (sheet.columns.length <= 1) return sheet;
   const without = <T,>(list: T[]): T[] => list.filter((_, index) => index !== columnIndex);
   return {
+    ...sheet,
     columns: without(sheet.columns),
     rows: sheet.rows.map(without),
     totals: sheet.totals ? without(sheet.totals) : sheet.totals,
+    widths: sheet.widths ? without(sheet.widths) : sheet.widths,
+    formats: remapFormats(sheet.formats ?? undefined, (row, column) => {
+      if (column === columnIndex) return null;
+      return column > columnIndex ? { row, column: column - 1 } : { row, column };
+    }),
   };
 }
 
@@ -215,7 +245,19 @@ export function sortRows(sheet: DocumentSheet, columnIndex: number, direction: S
     return entry.row.map((cell) => (isFormula(cell) ? shiftFormula(cell, delta, 0) : cell));
   });
 
-  return { ...sheet, rows };
+  // Куда уехала каждая строка — по этой же карте едет и её оформление: заливка, отмечавшая
+  // просроченную явку, обязана остаться на той же явке, а не на том же месте.
+  const movedTo = new Map<number, number>();
+  ordered.forEach((entry, newIndex) => movedTo.set(entry.index + FIRST_DATA_ROW, newIndex + FIRST_DATA_ROW));
+
+  return {
+    ...sheet,
+    rows,
+    formats: remapFormats(sheet.formats ?? undefined, (row, column) => ({
+      row: movedTo.get(row) ?? row,
+      column,
+    })),
+  };
 }
 
 // ─── Буфер обмена ────────────────────────────────────────────────────────────
@@ -301,7 +343,7 @@ export function pasteInto(sheet: DocumentSheet, rowIndex: number, columnIndex: n
     ? Array.from({ length: width }, (_, index) => sheet.totals?.[index] ?? '')
     : sheet.totals;
 
-  return retargetSheet({ columns, rows, totals }, sheet);
+  return retargetSheet({ ...sheet, columns, rows, totals }, sheet);
 }
 
 /** Вставка меняет число строк, а значит диапазоны итогов надо дотянуть — тем же правилом. */

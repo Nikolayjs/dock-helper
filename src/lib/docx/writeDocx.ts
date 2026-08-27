@@ -51,8 +51,70 @@ interface Marks {
   underline?: boolean;
   strike?: boolean;
   code?: boolean;
+  /** 'superscript' | 'subscript' — Word's own two values for w:vertAlign. */
+  vertAlign?: 'superscript' | 'subscript';
+  /** RRGGBB without the hash, the only form w:color takes. */
+  color?: string;
+  /** One of Word's named highlight colours; see HIGHLIGHT_TO_WORD. */
+  highlight?: string;
+  /** Half-points, the unit w:sz measures in. */
+  halfPoints?: number;
+  fontFamily?: string;
   /** Relationship id of the enclosing hyperlink, if any. */
   linkRel?: string;
+}
+
+/**
+ * Цвет маркера переводится в **именованный** цвет Word, а не в произвольный.
+ *
+ * `w:highlight` принимает только свой список названий — это настоящий маркер, который видно и в
+ * режиме правки, и на печати. Произвольный цвет пришлось бы отдавать заливкой `w:shd`, а она в Word
+ * ведёт себя как фон абзаца, а не как выделение. Поэтому палитра в редакторе ровно из тех цветов,
+ * для которых у Word есть имя.
+ */
+const HIGHLIGHT_TO_WORD: Record<string, string> = {
+  '#ffec99': 'yellow',
+  '#b2f2bb': 'green',
+  '#99e9f2': 'cyan',
+  '#ffc9c9': 'red',
+  '#eebefa': 'magenta',
+  '#a5d8ff': 'blue',
+};
+
+export function wordHighlight(color: string): string {
+  return HIGHLIGHT_TO_WORD[color.trim().toLowerCase()] ?? 'yellow';
+}
+
+/** `#1a2b3c` или `rgb(26, 43, 60)` → `1A2B3C`; всё непонятое отбрасывается, а не пишется наугад. */
+export function hexColor(raw: string): string | undefined {
+  const value = raw.trim().toLowerCase();
+  const hex = /^#([0-9a-f]{6})$/.exec(value);
+  if (hex) return hex[1].toUpperCase();
+  const short = /^#([0-9a-f]{3})$/.exec(value);
+  if (short) return short[1].split('').map((c) => c + c).join('').toUpperCase();
+  const rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(value);
+  if (rgb) {
+    return [rgb[1], rgb[2], rgb[3]]
+      .map((part) => Math.min(255, Number(part)).toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
+  }
+  return undefined;
+}
+
+/**
+ * Размер шрифта в половинах пункта — единица, в которой его хранит Word.
+ *
+ * Редактор пишет `pt`, вставка из другого редактора может принести `px`; 96 пикселей на дюйм против
+ * 72 пунктов дают коэффициент 0,75.
+ */
+export function halfPointsFrom(raw: string): number | undefined {
+  const value = raw.trim().toLowerCase();
+  const points = /^([\d.]+)pt$/.exec(value);
+  if (points) return Math.round(Number(points[1]) * 2);
+  const pixels = /^([\d.]+)px$/.exec(value);
+  if (pixels) return Math.round(Number(pixels[1]) * 0.75 * 2);
+  return undefined;
 }
 
 interface MediaPart {
@@ -132,10 +194,21 @@ function runProps(marks: Marks): string {
   const parts: string[] = [];
   if (marks.linkRel) parts.push('<w:rStyle w:val="Hyperlink"/>');
   if (marks.code) parts.push('<w:rStyle w:val="HTMLCode"/>');
+  // Порядок элементов в w:rPr задан схемой, а не вкусом: rFonts, b, i, strike, color, sz,
+  // highlight, u, vertAlign. Word открывает файл и с нарушенным порядком, но валидатор ругается,
+  // а LibreOffice часть свойств теряет.
+  if (marks.fontFamily) {
+    const font = escapeXml(marks.fontFamily);
+    parts.push(`<w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:cs="${font}"/>`);
+  }
   if (marks.bold) parts.push('<w:b/>');
   if (marks.italic) parts.push('<w:i/>');
-  if (marks.underline) parts.push('<w:u w:val="single"/>');
   if (marks.strike) parts.push('<w:strike/>');
+  if (marks.color) parts.push(`<w:color w:val="${marks.color}"/>`);
+  if (marks.halfPoints) parts.push(`<w:sz w:val="${marks.halfPoints}"/><w:szCs w:val="${marks.halfPoints}"/>`);
+  if (marks.highlight) parts.push(`<w:highlight w:val="${marks.highlight}"/>`);
+  if (marks.underline) parts.push('<w:u w:val="single"/>');
+  if (marks.vertAlign) parts.push(`<w:vertAlign w:val="${marks.vertAlign}"/>`);
   return parts.length ? `<w:rPr>${parts.join('')}</w:rPr>` : '';
 }
 
@@ -226,6 +299,18 @@ function collectRuns(builder: DocxBuilder, node: Node, marks: Marks, out: string
   if (tag === 'u' || tag === 'ins') next.underline = true;
   if (tag === 's' || tag === 'strike' || tag === 'del') next.strike = true;
   if (tag === 'code') next.code = true;
+  if (tag === 'sup') next.vertAlign = 'superscript';
+  if (tag === 'sub') next.vertAlign = 'subscript';
+  if (tag === 'mark') {
+    next.highlight = wordHighlight(el.getAttribute('data-color') ?? (el as HTMLElement).style?.backgroundColor ?? '');
+  }
+
+  // Цвет, кегль и гарнитуру Tiptap пишет инлайновым стилем на <span>; они наследуются вложенными
+  // элементами, поэтому собираются в те же марки, а не обрабатываются отдельной веткой.
+  const style = (el as HTMLElement).style;
+  if (style?.color) next.color = hexColor(style.color) ?? next.color;
+  if (style?.fontSize) next.halfPoints = halfPointsFrom(style.fontSize) ?? next.halfPoints;
+  if (style?.fontFamily) next.fontFamily = style.fontFamily.split(',')[0].replace(/['"]/g, '').trim() || next.fontFamily;
 
   if (tag === 'a') {
     const href = el.getAttribute('href');
@@ -256,6 +341,28 @@ const HEADING_STYLE: Record<string, string> = {
   h5: 'Heading5',
   h6: 'Heading6',
 };
+
+/**
+ * Список задач уходит в Word обычным списком, у которого перед текстом стоит символ флажка.
+ *
+ * Настоящего флажка в `.docx` нет — есть поле формы, которое ведёт себя как элемент управления и в
+ * половине просмотрщиков не рисуется вовсе. Символ виден везде и печатается: на бумаге галочка
+ * важнее того, можно ли по ней щёлкнуть.
+ */
+function emitTaskList(builder: DocxBuilder, el: Element): void {
+  Array.from(el.children).forEach((item) => {
+    if (item.tagName.toLowerCase() !== 'li') return;
+    const checked = item.getAttribute('data-checked') === 'true';
+    const runs: string[] = [textRun(checked ? '☑ ' : '☐ ', {})];
+    // Tiptap заворачивает текст пункта в <div><p>…</p></div> рядом с <label>; берётся только он.
+    const body = item.querySelector('div');
+    (body ?? item).childNodes.forEach((child) => {
+      if ((child as Element).tagName?.toLowerCase() === 'label') return;
+      collectRuns(builder, child, {}, runs);
+    });
+    builder.body.push(`<w:p>${runs.join('')}</w:p>`);
+  });
+}
 
 function emitList(builder: DocxBuilder, el: Element, ordered: boolean, level: number, numId?: number): void {
   const listId = numId ?? builder.newListInstance(ordered);
@@ -343,6 +450,10 @@ function emitBlock(builder: DocxBuilder, el: Element): void {
     emitParagraph(builder, el, {});
     return;
   }
+  if (tag === 'ul' && el.getAttribute('data-type') === 'taskList') {
+    emitTaskList(builder, el);
+    return;
+  }
   if (tag === 'ul' || tag === 'ol') {
     emitList(builder, el, tag === 'ol', 0);
     return;
@@ -371,6 +482,12 @@ function emitBlock(builder: DocxBuilder, el: Element): void {
   }
   if (tag === 'hr') {
     builder.body.push('<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="auto"/></w:pBdr></w:pPr></w:p>');
+    return;
+  }
+  if (el.hasAttribute('data-page-break')) {
+    // Настоящий разрыв страницы Word, а не пустые абзацы до конца листа: строки, набранные после
+    // него, начнутся с новой страницы при любом размере шрифта и любых полях.
+    builder.body.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
     return;
   }
   if (tag === 'img') {

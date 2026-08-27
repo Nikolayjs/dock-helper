@@ -12,6 +12,8 @@
  */
 import { zipSync, strToU8 } from 'fflate';
 
+import type { CellFormat, SheetFormats } from '../../features/documents/types';
+import { numberFormatCode } from '../../features/documents/sheetFormat';
 import { columnLetter } from '../sheet/cellRef';
 import { evaluateCell, excelError, formatNumber, formulaForExcel, isError, isFormula } from '../sheet/formula';
 
@@ -22,6 +24,10 @@ export interface XlsxInput {
   rows: string[][];
   /** Строка итогов, если врач её завёл: идёт последней и печатается полужирным, как заголовки. */
   totals?: string[] | null;
+  /** Оформление ячеек по адресу `строка:столбец` в номерах Excel. */
+  formats?: SheetFormats | null;
+  /** Ширина столбцов в знаках; `null` — считать по содержимому. */
+  widths?: (number | null)[] | null;
 }
 
 export { columnLetter };
@@ -87,14 +93,23 @@ function formulaCellXml(reference: string, raw: string, grid: string[][], row: n
   return `<c r="${reference}" t="str"><f>${formula}</f><v>${escapeXml(value)}</v></c>`;
 }
 
-function cellXml(reference: string, value: string, bold: boolean, grid: string[][], row: number, col: number): string {
-  const style = bold ? ' s="1"' : '';
+function cellXml(
+  reference: string,
+  value: string,
+  styleId: number,
+  bold: boolean,
+  grid: string[][],
+  row: number,
+  col: number,
+): string {
+  const style = styleId ? ` s="${styleId}"` : '';
   if (isFormula(value)) {
     const cell = formulaCellXml(reference, value, grid, row, col);
-    return bold ? cell.replace(/^<c r="[^"]+"/, (head) => `${head} s="1"`) : cell;
+    return styleId ? cell.replace(/^<c r="[^"]+"/, (head) => `${head} s="${styleId}"`) : cell;
   }
   if (!value) return `<c r="${reference}"${style}/>`;
 
+  // В строке заголовков и в подписи итогов число — это всё-таки подпись, а не величина.
   const number = bold ? null : numericValue(value);
   if (number !== null) return `<c r="${reference}"${style}><v>${number}</v></c>`;
 
@@ -103,9 +118,37 @@ function cellXml(reference: string, value: string, bold: boolean, grid: string[]
   return `<c r="${reference}"${style} t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
 }
 
-function rowXml(cells: string[], rowNumber: number, bold: boolean, grid: string[][]): string {
+/**
+ * Оформление ячейки: то, что задал врач, поверх полужирного для заголовков и строки итогов.
+ *
+ * Служебное начертание идёт первым слоем, а не последним: врач, покрасивший шапку в жёлтый,
+ * не должен терять её жирный шрифт, но, сняв полужирный явно, должен его снять.
+ */
+function formatOf(formats: SheetFormats | null | undefined, row: number, column: number, bold: boolean): CellFormat {
+  const own = formats?.[`${row}:${column}`] ?? {};
+  return bold ? { bold: true, ...own } : own;
+}
+
+function rowXml(
+  cells: string[],
+  rowNumber: number,
+  bold: boolean,
+  grid: string[][],
+  input: XlsxInput,
+  styles: StyleTable,
+): string {
   const body = cells
-    .map((value, index) => cellXml(`${columnLetter(index)}${rowNumber}`, value, bold, grid, rowNumber, index))
+    .map((value, index) =>
+      cellXml(
+        `${columnLetter(index)}${rowNumber}`,
+        value,
+        styles.indexOf(formatOf(input.formats, rowNumber, index, bold)),
+        bold,
+        grid,
+        rowNumber,
+        index,
+      ),
+    )
     .join('');
   return `<row r="${rowNumber}">${body}</row>`;
 }
@@ -118,6 +161,9 @@ function columnWidths(input: XlsxInput, grid: string[][]): number[] {
   return input.columns.map((column, index) => {
     // По вычисленным значениям: столбец из формул иначе мерился бы длиной их текста, а в файле
     // видны будут числа.
+    const manual = input.widths?.[index];
+    if (manual) return Math.min(120, Math.max(4, manual));
+
     let longest = column.length;
     for (let row = 1; row < grid.length; row++) {
       const raw = grid[row][index] ?? '';
@@ -134,7 +180,7 @@ function displayLength(grid: string[][], row: number, col: number): number {
   return String(value).length;
 }
 
-function sheetXml(input: XlsxInput): string {
+function sheetXml(input: XlsxInput, styles: StyleTable): string {
   const grid = gridOf(input);
   const widths = columnWidths(input, grid);
   const cols = widths.length
@@ -143,7 +189,11 @@ function sheetXml(input: XlsxInput): string {
         .join('')}</cols>`
     : '';
 
-  const rows = grid.map((cells, index) => rowXml(cells, index + 1, index === 0 || (!!input.totals && index === grid.length - 1), grid)).join('');
+  const rows = grid
+    .map((cells, index) =>
+      rowXml(cells, index + 1, index === 0 || (!!input.totals && index === grid.length - 1), grid, input, styles),
+    )
+    .join('');
 
   // Заголовок закреплён: реестр на двести строк без этого листается вслепую.
   return (
@@ -178,29 +228,110 @@ export function sheetNameFrom(title: string): string {
 }
 
 /**
- * Минимальная таблица стилей: обычное начертание и полужирное для строки заголовков.
+ * Таблица стилей собирается по тому, что в документе действительно встретилось.
  *
- * Две заливки — не украшение: Excel требует, чтобы нулевая была `none`, а первая — `gray125`, и
- * файл с одной открывается через диалог восстановления.
+ * В `.xlsx` оформление ячейки — не набор свойств на самой ячейке, а **номер строки** в общей
+ * таблице `cellXfs`; шрифты, заливки и числовые форматы лежат в своих списках, и ячейка ссылается
+ * на них номерами. Поэтому собрать стили можно только после обхода всех ячеек: сначала копим
+ * встретившиеся сочетания, потом печатаем таблицу и раздаём номера.
+ *
+ * Две заливки в начале — не украшение: Excel требует, чтобы нулевая была `none`, а первая —
+ * `gray125`, и файл с одной открывается через диалог восстановления.
  */
-function stylesXml(): string {
-  return (
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    `<styleSheet xmlns="${MAIN_NS}">` +
-    '<fonts count="2">' +
-    '<font><sz val="11"/><name val="Calibri"/><family val="2"/></font>' +
-    '<font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font>' +
-    '</fonts>' +
-    '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
-    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
-    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-    '<cellXfs count="2">' +
-    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
-    '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
-    '</cellXfs>' +
-    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
-    '</styleSheet>'
-  );
+class StyleTable {
+  /** Ключ сочетания → номер строки в cellXfs. Нулевая строка всегда обычная ячейка. */
+  private readonly indexByKey = new Map<string, number>();
+  private readonly entries: CellFormat[] = [{}];
+  private readonly fonts: string[] = [];
+  private readonly fills: string[] = [];
+  private readonly numberFormats: string[] = [];
+
+  /** Номер стиля для формата; одинаковые сочетания получают один номер, как и делает Excel. */
+  indexOf(format: CellFormat): number {
+    if (Object.keys(format).length === 0) return 0;
+    const key = JSON.stringify([format.bold, format.italic, format.align, format.fill, format.numberFormat, format.wrap]);
+    const known = this.indexByKey.get(key);
+    if (known !== undefined) return known;
+
+    const index = this.entries.length;
+    this.entries.push(format);
+    this.indexByKey.set(key, index);
+    return index;
+  }
+
+  private fontId(format: CellFormat): number {
+    if (!format.bold && !format.italic) return 0;
+    // Полужирное уже есть под номером 1 — им набраны заголовки и строка итогов. Без этой ветки
+    // каждый файл нёс бы второй, точно такой же шрифт.
+    if (format.bold && !format.italic) return 1;
+    const font =
+      `<font>${format.bold ? '<b/>' : ''}${format.italic ? '<i/>' : ''}` +
+      '<sz val="11"/><name val="Calibri"/><family val="2"/></font>';
+    let id = this.fonts.indexOf(font);
+    if (id === -1) id = this.fonts.push(font) - 1;
+    // Ноль занят обычным начертанием, единица — полужирным для заголовков.
+    return id + 2;
+  }
+
+  private fillId(format: CellFormat): number {
+    if (!format.fill) return 0;
+    const fill = `<fill><patternFill patternType="solid"><fgColor rgb="FF${format.fill}"/><bgColor indexed="64"/></patternFill></fill>`;
+    let id = this.fills.indexOf(fill);
+    if (id === -1) id = this.fills.push(fill) - 1;
+    return id + 2;
+  }
+
+  private numFmtId(format: CellFormat): number {
+    const code = numberFormatCode(format.numberFormat);
+    if (!code) return 0;
+    let id = this.numberFormats.indexOf(code);
+    if (id === -1) id = this.numberFormats.push(code) - 1;
+    // Номера ниже 164 зарезервированы Excel под встроенные форматы.
+    return id + 164;
+  }
+
+  toXml(): string {
+    const cellXfs = this.entries.map((format, index) => {
+      if (index === 0) return '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>';
+      const fontId = this.fontId(format);
+      const fillId = this.fillId(format);
+      const numFmtId = this.numFmtId(format);
+      const alignment =
+        format.align || format.wrap
+          ? `<alignment${format.align ? ` horizontal="${format.align}"` : ''}${format.wrap ? ' wrapText="1"' : ''}/>`
+          : '';
+      const flags =
+        `${fontId ? ' applyFont="1"' : ''}${fillId ? ' applyFill="1"' : ''}` +
+        `${numFmtId ? ' applyNumberFormat="1"' : ''}${alignment ? ' applyAlignment="1"' : ''}`;
+      return `<xf numFmtId="${numFmtId}" fontId="${fontId}" fillId="${fillId}" borderId="0" xfId="0"${flags}>${alignment}</xf>`;
+    });
+
+    const numFmts = this.numberFormats.length
+      ? `<numFmts count="${this.numberFormats.length}">` +
+        this.numberFormats.map((code, index) => `<numFmt numFmtId="${index + 164}" formatCode="${escapeXml(code)}"/>`).join('') +
+        '</numFmts>'
+      : '';
+
+    return (
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      `<styleSheet xmlns="${MAIN_NS}">` +
+      numFmts +
+      `<fonts count="${this.fonts.length + 2}">` +
+      '<font><sz val="11"/><name val="Calibri"/><family val="2"/></font>' +
+      '<font><b/><sz val="11"/><name val="Calibri"/><family val="2"/></font>' +
+      this.fonts.join('') +
+      '</fonts>' +
+      `<fills count="${this.fills.length + 2}">` +
+      '<fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+      this.fills.join('') +
+      '</fills>' +
+      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      `<cellXfs count="${cellXfs.length}">${cellXfs.join('')}</cellXfs>` +
+      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+      '</styleSheet>'
+    );
+  }
 }
 
 function workbookXml(sheetName: string): string {
@@ -244,6 +375,10 @@ function contentTypesXml(): string {
 /** Вся сборка, как байты — форма, которую проверяют тесты. */
 export function sheetToXlsxBytes(input: XlsxInput): Uint8Array {
   const sheetName = sheetNameFrom(input.sheetName);
+  // Лист собирается первым: стили — это номера строк в общей таблице, и напечатать её можно только
+  // после того, как стало известно, какие сочетания в документе встретились.
+  const styles = new StyleTable();
+  const sheet = sheetXml(input, styles);
 
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(contentTypesXml()),
@@ -263,8 +398,8 @@ export function sheetToXlsxBytes(input: XlsxInput): Uint8Array {
         `<Relationship Id="rId2" Type="${REL_BASE}/styles" Target="styles.xml"/>` +
         '</Relationships>',
     ),
-    'xl/worksheets/sheet1.xml': strToU8(sheetXml(input)),
-    'xl/styles.xml': strToU8(stylesXml()),
+    'xl/worksheets/sheet1.xml': strToU8(sheet),
+    'xl/styles.xml': strToU8(styles.toXml()),
   };
 
   return zipSync(files, { level: 6 });

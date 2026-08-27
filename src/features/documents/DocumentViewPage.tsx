@@ -47,6 +47,8 @@ export function DocumentViewPage() {
           columns: doc.sheet?.columns ?? [],
           rows: doc.sheet?.rows ?? [],
           totals: doc.sheet?.totals,
+          formats: doc.sheet?.formats,
+          widths: doc.sheet?.widths,
         });
       } else {
         await downloadDocx({ title: doc.title, html: doc.content });

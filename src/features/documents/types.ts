@@ -18,7 +18,31 @@ export interface DocumentSheet {
    * — это не мелкий изъян, а неверная бумага.
    */
   totals?: string[] | null;
+  /**
+   * Оформление ячеек — разрежённая карта по адресу `строка:столбец` в номерах Excel.
+   *
+   * Плотная сетка весила бы столько же, сколько сама таблица, а размечены обычно шапка да пара
+   * столбцов. Формат ездит вместе со своей ячейкой при вставке, удалении и сортировке — см.
+   * `remapFormats`.
+   */
+  formats?: SheetFormats | null;
+  /** Ширина столбцов в знаках; отсутствующая считается по содержимому. */
+  widths?: (number | null)[] | null;
 }
+
+export interface CellFormat {
+  bold?: boolean;
+  italic?: boolean;
+  align?: 'left' | 'center' | 'right';
+  /** Заливка, RRGGBB без решётки — в том виде, в каком её принимает Excel. */
+  fill?: string;
+  /** Числовой формат ячейки; текстовые ячейки он не трогает. */
+  numberFormat?: 'integer' | 'decimal' | 'money' | 'percent';
+  /** Переносить длинный текст по словам вместо того, чтобы прятать его за краем. */
+  wrap?: boolean;
+}
+
+export type SheetFormats = Record<string, CellFormat>;
 
 export interface DoctorDocument {
   id: string;
