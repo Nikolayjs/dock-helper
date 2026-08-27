@@ -61,3 +61,57 @@ export function useFittedHeight(
 
   return height;
 }
+
+/** На совсем низком окне рабочее место всё равно должно оставаться рабочим. */
+const MIN_WORKSPACE_HEIGHT = 320;
+
+/**
+ * Высота блока, подобранная так, чтобы **прокрутка страницы кончалась ровно на нём**: докрутив
+ * страницу до конца, врач видит блок от шапки приложения до низа окна.
+ *
+ * Это и есть «максимально доступная высота». Форма над таблицей — название, описание, пациент,
+ * теги — заполняется один раз, а в таблице работают; поэтому она имеет право уехать вверх, а таблица
+ * обязана занять освободившееся место. Само по себе это не работает: если блок ростом с оставшийся
+ * экран, странице некуда прокручиваться и шапка формы никогда не уедет; если он выше — страница
+ * прокручивается **дальше**, чем нужно, и панель инструментов уходит под шапку приложения.
+ *
+ * Поэтому высота считается от «хвоста» — всего, что лежит под блоком до конца прокручиваемого
+ * содержимого (панель «Сохранить», отступы страницы). Хвост от высоты блока не зависит, а вот
+ * предел прокрутки после этого сходится точно: `maxScroll = отступ блока сверху − top`.
+ *
+ * `position: sticky` здесь бесполезен, и это стоило замера: прилипший блок ездит только внутри
+ * своего родителя, а родитель облегает его вплотную — запаса нет, и прилипание не срабатывает
+ * вовсе. Первая попытка так и осталась стоять на месте: `top` = 4 px при `top: 68px` в стилях.
+ */
+export function usePageFillHeight(ref: RefObject<HTMLElement | null>, top: number): number | null {
+  const [height, setHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const element = ref.current;
+      const root = document.getElementById(SCROLL_ROOT_ID);
+      if (!element || !root) return;
+
+      const rootRect = root.getBoundingClientRect();
+      // Низ всего прокручиваемого содержимого в координатах окна.
+      const contentBottom = rootRect.top + root.scrollHeight - root.scrollTop;
+      const tail = contentBottom - element.getBoundingClientRect().bottom;
+      const next = Math.max(MIN_WORKSPACE_HEIGHT, Math.round(root.clientHeight - top - tail));
+      setHeight((current) => (current !== null && Math.abs(current - next) <= 1 ? current : next));
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    // Хвост меняется вместе с панелью действий: она появляется вместе с формой и вырастает во вторую
+    // строку на узком окне.
+    const observer = new ResizeObserver(measure);
+    observer.observe(document.body);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      observer.disconnect();
+    };
+  }, [ref, top]);
+
+  return height;
+}

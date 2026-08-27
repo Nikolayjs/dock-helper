@@ -10,6 +10,7 @@ import { useDrugCategories } from '../features/drugs/useDrugCategories';
 import type { DrugInput } from '../features/drugs/types';
 import { useDrug, useDrugs } from '../features/drugs/useDrugs';
 import { FormActions } from '../components/common/FormActions';
+import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
 
 export function DrugEditorPage() {
   const { id } = useParams();
@@ -61,8 +62,11 @@ export function DrugEditorPage() {
 
   const canSave = form.inn.trim() !== '' && !duplicate && !isSaving;
 
+  const guard = useUnsavedGuard(useDirtyValue({ form }, !id || loadedId === id));
+
   const handleSave = async () => {
     if (!canSave) return;
+    guard.release();
     setIsSaving(true);
     try {
       const payload: DrugInput = {
@@ -206,6 +210,8 @@ export function DrugEditorPage() {
             ))}
           </Stack>
         </Card>
+
+        {guard.render({ onSave: canSave ? handleSave : undefined })}
 
         <FormActions>
           <Group justify="flex-end">

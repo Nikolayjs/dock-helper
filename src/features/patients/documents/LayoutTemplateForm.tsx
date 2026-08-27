@@ -9,6 +9,7 @@ import type { DocumentTemplate } from './templateTypes';
 import { TemplateDocument } from './TemplateDocument';
 import type { DocumentTemplateInput } from './useDocumentTemplates';
 import { FormActions } from '../../../components/common/FormActions';
+import { useDirtyValue, useUnsavedGuard } from '../../../components/common/unsavedChanges';
 
 /**
  * Editing a saved layout template. Mirrors DocumentTemplateForm's props so the editor page can pick
@@ -31,6 +32,14 @@ export function LayoutTemplateForm({ template, onSubmit, onCancel, onDelete }: L
   const [layout, setLayout] = useState(template.layout ?? emptyLayout());
 
   const canSave = title.trim().length > 0;
+
+  const guard = useUnsavedGuard(useDirtyValue({ title, layout }));
+
+  const handleSubmit = () => {
+    if (!canSave) return;
+    guard.release();
+    onSubmit({ title: title.trim(), kind: 'layout', bodyHtml: template.bodyHtml, layout });
+  };
 
   const copies = copiesPerSheet(layout);
   const plan = planSheet(layout, copies);
@@ -92,6 +101,8 @@ export function LayoutTemplateForm({ template, onSubmit, onCancel, onDelete }: L
         </div>
       </Card>
 
+      {guard.render({ onSave: canSave ? handleSubmit : undefined })}
+
       <FormActions>
         <Group justify="space-between" mt="sm">
           {onDelete ? (
@@ -105,10 +116,7 @@ export function LayoutTemplateForm({ template, onSubmit, onCancel, onDelete }: L
             <Button variant="default" onClick={onCancel}>
               Отмена
             </Button>
-            <Button
-              disabled={!canSave}
-              onClick={() => onSubmit({ title: title.trim(), kind: 'layout', bodyHtml: template.bodyHtml, layout })}
-            >
+            <Button disabled={!canSave} onClick={handleSubmit}>
               Сохранить
             </Button>
           </Group>

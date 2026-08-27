@@ -11,6 +11,7 @@ import type { Questionnaire } from '../features/diagnostics/types';
 import { QUERY_KEY as QUESTIONNAIRES_KEY, slugifyQuestionnaireId, useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { FormActions } from '../components/common/FormActions';
+import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
 
 function emptySymptom(): DraftSymptom {
   return { uid: crypto.randomUUID(), id: crypto.randomUUID(), label: '', generalPrevalence: 0.3 };
@@ -88,8 +89,11 @@ export function QuestionnaireBuilderPage() {
     [title, description, symptoms, diseases],
   );
 
+  const guard = useUnsavedGuard(useDirtyValue({ title, description, symptoms, diseases }, hydrated));
+
   const handleSave = async () => {
     if (errors.length > 0) return;
+    guard.release();
     const now = new Date().toISOString();
 
     const questionnaire: Questionnaire = {
@@ -209,6 +213,8 @@ export function QuestionnaireBuilderPage() {
                 </Stack>
               </Alert>
             )}
+
+            {guard.render({ onSave: errors.length === 0 ? handleSave : undefined })}
 
             <FormActions>
               <Group justify="flex-end">

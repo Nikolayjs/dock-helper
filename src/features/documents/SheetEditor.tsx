@@ -1,8 +1,9 @@
-import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties } from 'react';
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type ReactNode } from 'react';
 import { ActionIcon, Button, Group, Menu, Text, TextInput, Tooltip } from '@mantine/core';
 import { IconDotsVertical, IconPlus, IconSearch, IconSortAscending, IconSortDescending, IconTrash } from '@tabler/icons-react';
 
 import { SCROLL_ROOT_ID } from '../../components/layout/scrollRoot';
+import { HEADER_HEIGHT } from '../../layouts/shellMetrics';
 import { columnLetter, FIRST_DATA_ROW, HEADER_ROW } from '../../lib/sheet/cellRef';
 import { cellAddress, evaluateGrid, isFormula } from '../../lib/sheet/formula';
 import { completeFunction, formulaHint } from '../../lib/sheet/formulaHint';
@@ -21,6 +22,7 @@ import {
   pasteInto,
   removeColumn,
   removeRow,
+  isSheetEmpty,
   removeTotalsRow,
   setCell,
   setColumnName,
@@ -29,12 +31,14 @@ import {
   type SortDirection,
 } from './sheetOps';
 import { SheetToolbar } from './SheetToolbar';
-import { useFittedHeight } from './useFittedHeight';
+import { useFittedHeight, usePageFillHeight } from './useFittedHeight';
 import type { CellFormat, DocumentSheet, SheetFormats } from './types';
 
 interface SheetEditorProps {
   value: DocumentSheet;
   onChange: (sheet: DocumentSheet) => void;
+  /** Название поля и обмен с Excel — они прилипают вместе с панелью, а не уезжают с формой. */
+  header?: ReactNode;
 }
 
 interface CellAddress {
@@ -226,7 +230,8 @@ const SheetRow = memo(function SheetRow({
  * дней», и попытка угадать тип превратила бы одно в дату, а второе оставила текстом. Числом ячейка
  * становится в двух местах и по одному осторожному правилу — при вычислении формул и при выгрузке.
  */
-export function SheetEditor({ value, onChange }: SheetEditorProps) {
+export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   /** Ячейка, с которой работает панель и строка формул; переживает уход фокуса. */
   const [active, setActive] = useState<CellAddress | null>(null);
@@ -244,32 +249,29 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
   const dragging = useRef(false);
   const [query, setQuery] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
-  const frameHeight = useFittedHeight(frameRef, { reserve: BOTTOM_RESERVE, min: MIN_FRAME_HEIGHT });
+  // Пола в половину окна здесь нет намеренно: высоту таблице даёт не он, а прокрутка до конца
+  // страницы — там рабочее место занимает всё, что осталось от шапки приложения до панели «Сохранить».
+  const frameHeight = useFittedHeight(frameRef, { reserve: BOTTOM_RESERVE, min: MIN_FRAME_HEIGHT, minRatio: 0 });
+  const workspaceHeight = usePageFillHeight(workspaceRef, HEADER_HEIGHT);
 
   /**
-   * Если под таблицу не осталось места — страница прокручивается к ней один раз, при открытии.
+   * Открывая таблицу с данными, страница один раз прокручивается до конца.
    *
-   * Над ней название, описание, выбор пациента и теги; на невысоком окне они занимают его целиком,
-   * и таблица открывается за нижним краем вместе со своей полосой прокрутки и кнопками. Считать это
-   * нормальным нельзя: врач нажал «Редактировать» на таблице, а таблицы не видно. Один раз и только
-   * когда действительно не помещается — дальше страница слушается обычной прокрутки.
+   * Конец прокрутки — это и есть таблица во весь экран: высота рабочего места подобрана так, что
+   * дальше страница не идёт (см. `usePageFillHeight`). Над таблицей название, описание, выбор
+   * пациента и теги; заполняют их один раз, а работают в таблице, и открывать её в остатке экрана,
+   * заставляя прокручивать самому, — та самая мелочь, из-за которой редактор кажется тесным.
    *
-   * Прокручивается ровно на недостающее, а не `scrollIntoView({ block: 'end' })`: тот совмещает низ
-   * рамки с низом окна, а под рамкой ещё кнопки «Строка» и «Столбец» и прилипшая панель «Сохранить»
-   * — они остались бы за краем. И ждать приходится измеренной высоты: на первом кадре рамка ещё
-   * запасной высоты из стилей, и по ней недостающее посчиталось бы не то.
+   * Пустую таблицу так показывать нельзя: у нового документа сначала заполняют название, и увести
+   * его за верхний край значило бы спрятать обязательное поле от того, кто его ещё не заполнил.
    */
   const scrolledIntoView = useRef(false);
   useLayoutEffect(() => {
-    const frame = frameRef.current;
-    if (!frame || frameHeight === null || scrolledIntoView.current) return;
+    if (scrolledIntoView.current || frameHeight === null) return;
     scrolledIntoView.current = true;
-    const actions = document.querySelector<HTMLElement>('[data-form-actions]');
-    const covered = actions ? actions.getBoundingClientRect().height : 0;
-    const missing = frame.getBoundingClientRect().bottom + BOTTOM_RESERVE + covered - window.innerHeight;
-    if (missing <= 0) return;
+    if (isSheetEmpty(latest.current.value)) return;
     const root = document.getElementById(SCROLL_ROOT_ID);
-    (root ?? window).scrollBy({ top: missing, behavior: 'smooth' });
+    root?.scrollTo({ top: root.scrollHeight, behavior: 'smooth' });
   }, [frameHeight]);
 
   const grid = useMemo(() => buildGrid(value), [value]);
@@ -544,6 +546,9 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
 
   return (
     <div
+      ref={workspaceRef}
+      className={classes.workspace}
+      style={{ height: workspaceHeight ?? undefined }}
       onMouseUp={() => {
         dragging.current = false;
       }}
@@ -551,64 +556,72 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
         dragging.current = false;
       }}
     >
-      <SheetToolbar
-        formats={value.formats ?? undefined}
-        range={selection}
-        hasTotals={Boolean(value.totals)}
-        canUndo={past.current.length > 0}
-        canRedo={future.current.length > 0}
-        onFormat={(patch) => selection && commit(applyFormat(value, selection, patch))}
-        onClearFormat={() => selection && commit(clearFormat(value, selection))}
-        onUndo={undo}
-        onRedo={redo}
-        onAddRow={() => commit(addRow(value))}
-        onRemoveRows={removeSelectedRows}
-        onAddColumn={() => commit(addColumn(value, selection?.right))}
-        onRemoveColumns={removeSelectedColumns}
-        onToggleTotals={() => commit(value.totals ? removeTotalsRow(value) : addTotalsRow(value))}
-        onHelp={() => setHelpOpen(true)}
-      />
-
-      {/* Строка формул: адрес ячейки и её содержимое целиком. Длинная формула в самой ячейке
-          обрезается краем столбца — здесь она видна и правится. */}
-      <Group gap="xs" mb="xs" wrap="nowrap" align="center">
-        <Text size="xs" fw={600} c="dimmed" w={44} ta="center" style={{ flexShrink: 0 }}>
-          {active ? cellAddress(active.row, active.column) : '—'}
-        </Text>
-        <TextInput
-          ref={formulaBarRef}
-          size="xs"
-          style={{ flex: 1 }}
-          disabled={!active}
-          aria-label="Строка формул"
-          placeholder={active ? 'Значение или формула' : 'Выберите ячейку'}
-          value={activeRaw}
-          onFocus={() => active && setEditing({ ...active, caret: activeRaw.length })}
-          onSelect={(event) => active && handleCaret(active, event.currentTarget.selectionStart ?? 0)}
-          onKeyUp={(event) => active && handleCaret(active, event.currentTarget.selectionStart ?? 0)}
-          onBlur={handleBlurCell}
-          onChange={(event) => {
-            writeActive(event.currentTarget.value);
-            if (active) handleCaret(active, event.currentTarget.selectionStart ?? 0);
-          }}
+      {/* Панель и строка формул прилипают под шапкой приложения — как панель редактора Word. При
+          точно подобранной высоте рабочего места они и так не успевают уйти под шапку; прилипание
+          страхует от ошибки замера в несколько пикселей. */}
+      <div className={classes.stickyTop} style={{ top: HEADER_HEIGHT }}>
+        {header}
+        <SheetToolbar
+          formats={value.formats ?? undefined}
+          range={selection}
+          hasTotals={Boolean(value.totals)}
+          canUndo={past.current.length > 0}
+          canRedo={future.current.length > 0}
+          onFormat={(patch) => selection && commit(applyFormat(value, selection, patch))}
+          onClearFormat={() => selection && commit(clearFormat(value, selection))}
+          onUndo={undo}
+          onRedo={redo}
+          onAddRow={() => commit(addRow(value))}
+          onRemoveRows={removeSelectedRows}
+          onAddColumn={() => commit(addColumn(value, selection?.right))}
+          onRemoveColumns={removeSelectedColumns}
+          onToggleTotals={() => commit(value.totals ? removeTotalsRow(value) : addTotalsRow(value))}
+          onHelp={() => setHelpOpen(true)}
         />
-        {active && isFormula(activeRaw) && (
-          <Text size="xs" c={activeShown.startsWith('#') ? 'red' : 'dimmed'} style={{ flexShrink: 0 }}>
-            = {activeShown}
+
+        {/* Строка формул: адрес ячейки и её содержимое целиком. Длинная формула в самой ячейке
+            обрезается краем столбца — здесь она видна и правится. */}
+        <Group gap="xs" pt="xs" pb="xs" wrap="nowrap" align="center">
+          <Text size="xs" fw={600} c="dimmed" w={44} ta="center" style={{ flexShrink: 0 }}>
+            {active ? cellAddress(active.row, active.column) : '—'}
           </Text>
-        )}
-        <TextInput
-          size="xs"
-          w={190}
-          placeholder="Поиск по таблице…"
-          leftSection={<IconSearch size={14} />}
-          value={query}
-          onChange={(event) => setQuery(event.currentTarget.value)}
-          style={{ flexShrink: 0 }}
-        />
-      </Group>
+          <TextInput
+            ref={formulaBarRef}
+            size="xs"
+            style={{ flex: 1 }}
+            disabled={!active}
+            aria-label="Строка формул"
+            placeholder={active ? 'Значение или формула' : 'Выберите ячейку'}
+            value={activeRaw}
+            onFocus={() => active && setEditing({ ...active, caret: activeRaw.length })}
+            onSelect={(event) => active && handleCaret(active, event.currentTarget.selectionStart ?? 0)}
+            onKeyUp={(event) => active && handleCaret(active, event.currentTarget.selectionStart ?? 0)}
+            onBlur={handleBlurCell}
+            onChange={(event) => {
+              writeActive(event.currentTarget.value);
+              if (active) handleCaret(active, event.currentTarget.selectionStart ?? 0);
+            }}
+          />
+          {active && isFormula(activeRaw) && (
+            <Text size="xs" c={activeShown.startsWith('#') ? 'red' : 'dimmed'} style={{ flexShrink: 0 }}>
+              = {activeShown}
+            </Text>
+          )}
+          <TextInput
+            size="xs"
+            w={190}
+            placeholder="Поиск по таблице…"
+            leftSection={<IconSearch size={14} />}
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+            style={{ flexShrink: 0 }}
+          />
+        </Group>
+      </div>
 
-      <div className={classes.frame} ref={frameRef} style={{ maxHeight: frameHeight ?? undefined }}>
+      {/* Высота, а не потолок: рабочее место занимает весь экран, и таблица в нём — тоже. Короткая
+          таблица получает свободное поле снизу, как в самом Excel, а не коробку в три строки. */}
+      <div className={classes.frame} ref={frameRef} style={{ height: frameHeight ?? undefined }}>
         <table className={classes.table}>
           <thead>
             <tr>
@@ -746,7 +759,7 @@ export function SheetEditor({ value, onChange }: SheetEditorProps) {
         </table>
       </div>
 
-      <Group justify="space-between" mt="xs" wrap="wrap" gap="xs">
+      <Group justify="space-between" className={classes.bottomBar} wrap="wrap" gap="xs">
         <Group gap="xs">
           <Button
             size="compact-xs"

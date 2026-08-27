@@ -1,4 +1,6 @@
 import { useState } from 'react';
+
+import { useDirtyValue, useUnsavedGuard } from '../../components/common/unsavedChanges';
 import { Button, Group, Select, Stack } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import dayjs from 'dayjs';
@@ -25,8 +27,11 @@ export function DispensaryForm({ patients, initialRecord, defaultPatientId, onSu
 
   const canSave = patientId !== null && diagnosis.trim().length > 0 && registeredDate.length > 0;
 
+  const guard = useUnsavedGuard(useDirtyValue({ patientId, diagnosis, diagnosisCode, registeredDate, nextVisitDate }));
+
   const handleSubmit = () => {
     if (!canSave || patientId === null) return;
+    guard.release();
     onSubmit({
       patientId,
       diagnosis: diagnosis.trim(),
@@ -71,6 +76,8 @@ export function DispensaryForm({ patients, initialRecord, defaultPatientId, onSu
           clearable
         />
       </Group>
+
+      {guard.render({ onSave: canSave ? handleSubmit : undefined })}
 
       <FormActions>
         <Group justify="flex-end" mt="sm">

@@ -16,6 +16,7 @@ import { EDITOR_MIN_HEIGHT } from '../../components/common/editorHeight';
 import { RichTextField } from '../../components/common/RichTextField';
 import { useRichTextEditor } from '../../components/common/useRichTextEditor';
 import { FormActions } from '../../components/common/FormActions';
+import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../components/common/unsavedChanges';
 
 export type DoctorDocumentFormInput = Omit<DoctorDocumentInput, 'kind'>;
 
@@ -98,8 +99,14 @@ export function DoctorDocumentForm({
 
   const canSave = title.trim().length > 0;
 
+  // Текст живёт внутри Tiptap и через состояние формы не проходит — про него спрашиваем отдельно.
+  const fieldsDirty = useDirtyValue({ title, summary, patientId, tags, sheet });
+  const textDirty = useEditorDirty(editor);
+  const guard = useUnsavedGuard(fieldsDirty || textDirty);
+
   const handleSubmit = () => {
     if (!canSave) return;
+    guard.release();
     onSubmit({
       title: title.trim(),
       summary: summary.trim(),
@@ -147,27 +154,34 @@ export function DoctorDocumentForm({
         <RichTextField editor={editor} exportTitle={title} minHeight={EDITOR_MIN_HEIGHT} onImportedTitle={(imported) => !title.trim() && setTitle(imported)} />
       ) : (
         <div>
-          <Group justify="space-between" mb={6} wrap="wrap" gap="xs">
-            <Text size="sm" fw={500}>
-              Таблица
-            </Text>
-            <Group gap="xs">
-              <Button
-                size="compact-xs"
-                variant="light"
-                leftSection={<IconFileSpreadsheet size={14} />}
-                loading={importing}
-                onClick={() => sheetInputRef.current?.click()}
-              >
-                Импорт из Excel
-              </Button>
-              <Button size="compact-xs" variant="subtle" leftSection={<IconDownload size={14} />} onClick={() => void exportSheet()}>
-                Скачать .xlsx
-              </Button>
-            </Group>
-          </Group>
-
-          <SheetEditor value={sheet} onChange={setSheet} />
+          {/* Название поля и обмен с Excel уходят внутрь редактора: он прилипает под шапкой
+              приложения, и всё, что осталось бы снаружи, уезжало бы за верхний край вместе с формой
+              — «Скачать .xlsx» приходилось бы искать прокруткой вверх. */}
+          <SheetEditor
+            value={sheet}
+            onChange={setSheet}
+            header={
+              <Group justify="space-between" pb={6} wrap="wrap" gap="xs">
+                <Text size="sm" fw={500}>
+                  Таблица
+                </Text>
+                <Group gap="xs">
+                  <Button
+                    size="compact-xs"
+                    variant="light"
+                    leftSection={<IconFileSpreadsheet size={14} />}
+                    loading={importing}
+                    onClick={() => sheetInputRef.current?.click()}
+                  >
+                    Импорт из Excel
+                  </Button>
+                  <Button size="compact-xs" variant="subtle" leftSection={<IconDownload size={14} />} onClick={() => void exportSheet()}>
+                    Скачать .xlsx
+                  </Button>
+                </Group>
+              </Group>
+            }
+          />
 
           <input
             ref={sheetInputRef}
@@ -183,6 +197,8 @@ export function DoctorDocumentForm({
           />
         </div>
       )}
+
+      {guard.render({ onSave: canSave ? handleSubmit : undefined })}
 
       <FormActions>
         <Group justify="space-between" mt="sm">

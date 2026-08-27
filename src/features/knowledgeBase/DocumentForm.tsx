@@ -8,6 +8,7 @@ import type { DocumentInput } from './useDocuments';
 import { RichTextField } from '../../components/common/RichTextField';
 import { useRichTextEditor } from '../../components/common/useRichTextEditor';
 import { FormActions } from '../../components/common/FormActions';
+import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../components/common/unsavedChanges';
 
 export type DocumentFormInput = Omit<DocumentInput, 'kind' | 'author'>;
 
@@ -28,8 +29,13 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
 
   const canSave = title.trim().length > 0;
 
+  const fieldsDirty = useDirtyValue({ title, summary, tags });
+  const textDirty = useEditorDirty(editor);
+  const guard = useUnsavedGuard(fieldsDirty || textDirty);
+
   const handleSubmit = () => {
     if (!canSave || !editor) return;
+    guard.release();
     onSubmit({
       title: title.trim(),
       summary: summary.trim(),
@@ -76,6 +82,8 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
           </Text>
         }
       />
+
+      {guard.render({ onSave: canSave ? handleSubmit : undefined })}
 
       <FormActions>
         <Group justify="space-between" mt="sm">

@@ -14,6 +14,7 @@ import type { Note, NoteKind, TodoItem } from './types';
 import type { NoteInput } from './useNotes';
 import { EditorBubbleMenu } from '../../components/common/EditorBubbleMenu';
 import { FormActions } from '../../components/common/FormActions';
+import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../components/common/unsavedChanges';
 import { HEADER_HEIGHT } from '../../layouts/shellMetrics';
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -72,8 +73,13 @@ export function NoteForm({ initialNote, initialDate, onSubmit, onCancel, onDelet
 
   const canSave = title.trim().length > 0;
 
+  const fieldsDirty = useDirtyValue({ kind, title, items, pinnedDate, color });
+  const textDirty = useEditorDirty(editor);
+  const guard = useUnsavedGuard(fieldsDirty || textDirty);
+
   const handleSubmit = () => {
     if (!canSave) return;
+    guard.release();
     onSubmit({
       kind,
       title: title.trim(),
@@ -232,6 +238,8 @@ export function NoteForm({ initialNote, initialDate, onSubmit, onCancel, onDelet
           ))}
         </Group>
       </div>
+
+      {guard.render({ onSave: canSave ? handleSubmit : undefined })}
 
       <FormActions>
         <Group justify="space-between" mt="sm">

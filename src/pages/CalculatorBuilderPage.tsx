@@ -45,6 +45,7 @@ import { QUERY_KEY as CALCULATORS_KEY, useCalculators } from '../features/calcul
 import { useCustomCategories } from '../features/calculators/useCustomCategories';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { FormActions } from '../components/common/FormActions';
+import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const RESERVED_NAMES = new Set([...FORMULA_FUNCTION_NAMES, ...FORMULA_CONSTANT_NAMES]);
@@ -178,8 +179,16 @@ export function CalculatorBuilderPage() {
     [title, description, category, fields, formula, resultLabel, resultUnit, decimals, ranges, presets, presetsLabel],
   );
 
+  const guard = useUnsavedGuard(
+    useDirtyValue(
+      { title, description, category, fields, formula, resultLabel, resultUnit, decimals, ranges, presets, presetsLabel },
+      hydrated,
+    ),
+  );
+
   const handleSave = async () => {
     if (errors.length > 0) return;
+    guard.release();
 
     if (editingCalculator) {
       const definition: CalculatorDefinition = { ...previewDefinition, id: editingCalculator.id, createdAt: editingCalculator.createdAt };
@@ -425,6 +434,8 @@ export function CalculatorBuilderPage() {
                 </Stack>
               </Alert>
             )}
+
+            {guard.render({ onSave: errors.length === 0 ? handleSave : undefined })}
 
             <FormActions>
               <Group justify="flex-end">

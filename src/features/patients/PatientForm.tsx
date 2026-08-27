@@ -1,4 +1,6 @@
 import { useState } from 'react';
+
+import { useDirtyValue, useUnsavedGuard } from '../../components/common/unsavedChanges';
 import { Button, Divider, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { IconTrash } from '@tabler/icons-react';
@@ -29,8 +31,11 @@ export function PatientForm({ initialPatient, onSubmit, onCancel, onDelete }: Pa
 
   const canSave = fullName.trim().length > 0;
 
+  const guard = useUnsavedGuard(useDirtyValue({ fullName, sex, birthDate, phone, reminderDate, reminderNote }));
+
   const handleSubmit = () => {
     if (!canSave) return;
+    guard.release();
     onSubmit({
       fullName: fullName.trim(),
       sex,
@@ -65,6 +70,8 @@ export function PatientForm({ initialPatient, onSubmit, onCancel, onDelete }: Pa
       <Text size="xs" c="dimmed">
         Появится как отметка на карточке пациента — это просто личный напоминатель, без уведомлений.
       </Text>
+
+      {guard.render({ onSave: canSave ? handleSubmit : undefined })}
 
       <FormActions>
         <Group justify="space-between" mt="sm">

@@ -22,6 +22,7 @@ import type { Sex } from '../features/analyzer/types';
 import { QUERY_KEY as LAB_TESTS_KEY, useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { FormActions } from '../components/common/FormActions';
+import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -175,6 +176,8 @@ export function AnalyzerBuilderPage() {
     [previewLabTest, previewValues, previewSex, previewAge],
   );
 
+  const guard = useUnsavedGuard(useDirtyValue({ title, shortTitle, description, parameters, rules }, hydrated));
+
   if (isEditMode && !hydrated) {
     return (
       <Container size="xl" px={0}>
@@ -187,6 +190,7 @@ export function AnalyzerBuilderPage() {
 
   const handleSave = async () => {
     if (errors.length > 0) return;
+    guard.release();
     const payload = labTestDraftToPayload(previewDraft);
 
     if (editingTest) {
@@ -296,6 +300,8 @@ export function AnalyzerBuilderPage() {
                 </Stack>
               </Alert>
             )}
+
+            {guard.render({ onSave: errors.length === 0 ? handleSave : undefined })}
 
             <FormActions>
               <Group justify="flex-end">

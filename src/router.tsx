@@ -1,5 +1,6 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { createBrowserRouter, createRoutesFromElements, Navigate, Outlet, Route, RouterProvider } from 'react-router-dom';
 
+import { DeleteConfirmProvider } from './features/deletion/DeleteConfirmProvider';
 import { AppLayout } from './layouts/AppLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { DoctorPage } from './pages/DoctorPage';
@@ -49,9 +50,29 @@ import { NewsPage } from './pages/NewsPage';
 import { NewsReaderPage } from './pages/NewsReaderPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
-export function AppRouter() {
+/**
+ * Общее для всех маршрутов, чему нужен сам роутер.
+ *
+ * Удаление, начатое на странице записи, переживает переход к списку — его окно отмены живёт здесь,
+ * над всеми страницами.
+ */
+function RouterRoot() {
   return (
-    <Routes>
+    <DeleteConfirmProvider>
+      <Outlet />
+    </DeleteConfirmProvider>
+  );
+}
+
+/**
+ * Маршруты объявлены через `createBrowserRouter`, а не `<BrowserRouter>` с `<Routes>`, ради одного:
+ * `useBlocker` работает только в роутере с данными. Он нужен предупреждению о несохранённых
+ * изменениях — иначе переход по ссылке в сайдбаре молча уносит из редактора всё, что в нём набрано,
+ * и перехватывать его пришлось бы разбором нажатий по ссылкам, то есть враньём наполовину.
+ */
+export const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<RouterRoot />}>
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
@@ -132,6 +153,10 @@ export function AppRouter() {
         <Route path="/messages" element={<ComingSoonPage title="Сообщения" />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
-    </Routes>
-  );
+    </Route>,
+  ),
+);
+
+export function AppRouter() {
+  return <RouterProvider router={router} />;
 }

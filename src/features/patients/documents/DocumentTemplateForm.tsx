@@ -14,6 +14,7 @@ import { TemplateDocument } from './TemplateDocument';
 import type { DocumentTemplateInput } from './useDocumentTemplates';
 import { EditorBubbleMenu } from '../../../components/common/EditorBubbleMenu';
 import { FormActions } from '../../../components/common/FormActions';
+import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../../components/common/unsavedChanges';
 import { HEADER_HEIGHT } from '../../../layouts/shellMetrics';
 
 interface DocumentTemplateFormProps {
@@ -33,8 +34,13 @@ export function DocumentTemplateForm({ initialTemplate, onSubmit, onCancel, onDe
 
   const canSave = title.trim().length > 0;
 
+  const titleDirty = useDirtyValue({ title });
+  const bodyDirty = useEditorDirty(editor);
+  const guard = useUnsavedGuard(titleDirty || bodyDirty);
+
   const handleSubmit = () => {
     if (!canSave) return;
+    guard.release();
     onSubmit({ title: title.trim(), bodyHtml: editor?.getHTML() ?? '' });
   };
 
@@ -144,6 +150,8 @@ export function DocumentTemplateForm({ initialTemplate, onSubmit, onCancel, onDe
           <TemplateDocument template={previewTemplate} patient={SAMPLE_PATIENT} visit={SAMPLE_VISIT} />
         </div>
       </Card>
+
+      {guard.render({ onSave: canSave ? handleSubmit : undefined })}
 
       <FormActions>
         <Group justify="space-between" mt="sm">
