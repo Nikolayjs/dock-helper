@@ -9,6 +9,7 @@ import { downloadDocx } from '../../lib/docx/downloadDocx';
 import { readDocxFile } from '../../lib/docx/readDocx';
 import { LEGACY_DOC_MESSAGE } from '../../lib/docx/wordFormat';
 import { EditorBubbleMenu } from './EditorBubbleMenu';
+import { ImageBubbleMenu } from './ImageBubbleMenu';
 import { RUSSIAN_EDITOR_LABELS } from './editorLabels';
 import { FONT_FAMILIES, FONT_SIZES, fileToDataUrl } from './useRichTextEditor';
 import { HEADER_HEIGHT } from '../../layouts/shellMetrics';
@@ -183,6 +184,7 @@ export function RichTextField({
 
       <RichTextEditor editor={editor} labels={RUSSIAN_EDITOR_LABELS}>
         <EditorBubbleMenu editor={editor} />
+        <ImageBubbleMenu editor={editor} />
         <RichTextEditor.Toolbar sticky stickyOffset={HEADER_HEIGHT}>
           <RichTextEditor.ControlsGroup>
             <RichTextEditor.Undo />

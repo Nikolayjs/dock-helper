@@ -242,8 +242,14 @@ function drawingRun(builder: DocxBuilder, el: Element): string {
   }
 
   const size = readImageSize(decoded.bytes) ?? { width: 600, height: 400 };
-  let widthEmu = size.width * EMU_PER_PX;
-  let heightEmu = size.height * EMU_PER_PX;
+  // Ширина, заданная врачом в редакторе, важнее натуральной: он её и видел, когда писал документ.
+  // Высота считается по ней, а не берётся своя, — иначе снимок уехал бы в другие пропорции.
+  const chosen = Number.parseInt(el.getAttribute('width') ?? '', 10);
+  const width = Number.isFinite(chosen) && chosen > 0 ? chosen : size.width;
+  const height = size.width > 0 ? Math.round((size.height * width) / size.width) : size.height;
+
+  let widthEmu = width * EMU_PER_PX;
+  let heightEmu = height * EMU_PER_PX;
   if (widthEmu > CONTENT_WIDTH_EMU) {
     heightEmu = Math.round((heightEmu * CONTENT_WIDTH_EMU) / widthEmu);
     widthEmu = CONTENT_WIDTH_EMU;
@@ -492,7 +498,11 @@ function emitBlock(builder: DocxBuilder, el: Element): void {
   }
   if (tag === 'img') {
     const run = drawingRun(builder, el);
-    builder.body.push(`<w:p>${run}</w:p>`);
+    // Выравнивание картинки — это выравнивание абзаца, в котором она стоит: другого способа
+    // подвинуть её к середине листа в Word нет.
+    const align = el.getAttribute('data-align');
+    const properties = align === 'center' || align === 'right' ? `<w:pPr><w:jc w:val="${align}"/></w:pPr>` : '';
+    builder.body.push(`<w:p>${properties}${run}</w:p>`);
     return;
   }
   if (tag === 'br') {

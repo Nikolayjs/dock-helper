@@ -23,8 +23,9 @@ export function EditorBubbleMenu({ editor }: { editor: Editor | null }) {
       options={{ placement: 'top', offset: 8 }}
       shouldShow={({ editor: current, from, to }) =>
         // Пустое выделение — это просто курсор, и предлагать ему нечего. В блоке кода
-        // форматирование не применяется, там панель только мешала бы.
-        from !== to && !current.isActive('codeBlock')
+        // форматирование не применяется, там панель только мешала бы. Выделенная картинка — тоже
+        // не пустое выделение, но начертания к ней неприменимы: у неё своя панель.
+        from !== to && !current.isActive('codeBlock') && !current.isActive('image')
       }
     >
       <Paper withBorder shadow="md" radius="md" p={4}>

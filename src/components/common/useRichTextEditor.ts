@@ -1,7 +1,6 @@
 import { Node } from '@tiptap/core';
 import { CharacterCount } from '@tiptap/extensions';
 import { Highlight } from '@tiptap/extension-highlight';
-import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Subscript } from '@tiptap/extension-subscript';
@@ -12,6 +11,8 @@ import { Color, FontFamily, FontSize, TextStyle } from '@tiptap/extension-text-s
 import { Underline } from '@tiptap/extension-underline';
 import { useEditor } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
+
+import { ResizableImage } from './resizableImage';
 
 export function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -72,7 +73,8 @@ export function useRichTextEditor(initialContent: string) {
       TaskList,
       TaskItem.configure({ nested: true }),
       PageBreak,
-      Image.configure({ allowBase64: true }),
+      // Картинке можно задать ширину и выравнивание — оба свойства уходят в .docx.
+      ResizableImage.configure({ allowBase64: true }),
       // Таблицы здесь ради Word: протокол или схема дозирования приходят таблицей, и схема без
       // таблиц роняла бы её на импорте молча.
       TableKit.configure({ table: { resizable: true } }),

@@ -35,14 +35,22 @@
   pointer-events: none;
 }
 
-/* Drag handle on a column border. */
+/*
+ * Отметка границы столбца, за которую её тянут.
+ *
+ * Она в рост ячейки — иначе непонятно, какую границу двигаешь, — а ячейка бывает во весь экран:
+ * шапка бланка, перенесённого из Word, это десяток строк адреса в одной клетке. Сплошная полоса в
+ * четыре пикселя насыщенного синего читалась там как ошибка вёрстки: будто что-то выехало наверх и
+ * перечеркнуло документ. Тонкая и полупрозрачная делает ровно ту же работу, ничего не перечёркивая.
+ */
 .mantine-RichTextEditor-content .ProseMirror .column-resize-handle {
   position: absolute;
-  right: -2px;
+  right: -1px;
   top: 0;
-  bottom: -2px;
-  width: 4px;
+  bottom: 0;
+  width: 2px;
   background: var(--mantine-color-brand-5);
+  opacity: 0.45;
   pointer-events: none;
 }
 
@@ -115,6 +123,56 @@
   color: #212529;
 }
 
+
+/* ─── Картинки ───────────────────────────────────────────────────────────────
+   Ширина и выравнивание — свойства самой картинки (см. `resizableImage.ts`), поэтому правила нужны
+   в обоих местах: и в редакторе, и там, где сохранённый HTML показывают на чтение. */
+.mantine-RichTextEditor-content .ProseMirror .rti-figure {
+  position: relative;
+  display: table;
+  max-width: 100%;
+  margin: 0.5em 0;
+}
+
+.mantine-RichTextEditor-content .ProseMirror .rti-figure[data-align='center'] {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mantine-RichTextEditor-content .ProseMirror .rti-figure[data-align='right'] {
+  margin-left: auto;
+}
+
+.mantine-RichTextEditor-content .ProseMirror .rti-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Уголок появляется у выбранной картинки: висеть на каждой он мешал бы читать. */
+.mantine-RichTextEditor-content .ProseMirror .rti-figure__handle {
+  display: none;
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--mantine-color-body);
+  border-radius: 50%;
+  background: var(--mantine-color-brand-5);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.mantine-RichTextEditor-content .ProseMirror .rti-figure.ProseMirror-selectednode {
+  outline: 2px solid var(--mantine-color-brand-4);
+  outline-offset: 2px;
+}
+
+.mantine-RichTextEditor-content .ProseMirror .rti-figure.ProseMirror-selectednode .rti-figure__handle {
+  display: block;
+}
+
 /* ─── То же самое при чтении ─────────────────────────────────────────────────
    Просмотр документа и статьи рисует сохранённый HTML внутри Mantine Typography. Разметку, которой
    в обычном HTML нет — маркер, список задач, разрыв страницы, — там нужно оформить отдельно, иначе
@@ -164,4 +222,22 @@
   color: var(--mantine-color-dimmed);
   background: var(--mantine-color-body);
   white-space: nowrap;
+}
+
+/* Картинка на чтении: та же ширина и то же выравнивание, что в редакторе. Ширина стоит атрибутом на
+   самом `img`, поэтому здесь остаётся только не дать ей вылезти за колонку и не растянуть по высоте. */
+.mantine-Typography-root img {
+  max-width: 100%;
+  height: auto;
+}
+
+.mantine-Typography-root img[data-align='center'] {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mantine-Typography-root img[data-align='right'] {
+  display: block;
+  margin-left: auto;
 }

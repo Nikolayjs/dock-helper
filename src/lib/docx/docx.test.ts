@@ -148,6 +148,25 @@ describe('htmlToDocxBytes', () => {
     expect(strFromU8(files['[Content_Types].xml'])).toContain('<Default Extension="png" ContentType="image/png"/>');
   });
 
+  it('картинка уходит той ширины, что задал врач, и в тех же пропорциях', () => {
+    // Ширину видел он сам, когда писал документ; высота обязана поехать за ней, иначе снимок
+    // растянет. Картинка здесь квадратная 1×1, поэтому 240 px дают 240 px и по высоте.
+    const docx = htmlToDocxBytes({
+      title: 't',
+      html: `<p><img src="data:image/png;base64,${PNG_1PX_BASE64}" width="240"></p>`,
+    });
+    expect(partOf(docx, 'word/document.xml')).toContain(`<wp:extent cx="${240 * 9525}" cy="${240 * 9525}"/>`);
+  });
+
+  it('картинка по центру — это выравнивание её абзаца', () => {
+    const docx = htmlToDocxBytes({
+      title: 't',
+      html: `<img src="data:image/png;base64,${PNG_1PX_BASE64}" data-align="center">`,
+    });
+    // Другого способа подвинуть картинку к середине листа в Word нет.
+    expect(partOf(docx, 'word/document.xml')).toContain('<w:pPr><w:jc w:val="center"/></w:pPr>');
+  });
+
   it('records a hyperlink as an external relationship', () => {
     const docx = htmlToDocxBytes({ title: 't', html: '<p><a href="https://example.org">сюда</a></p>' });
     expect(partOf(docx, 'word/_rels/document.xml.rels')).toContain('TargetMode="External"');
