@@ -47,6 +47,8 @@ export function FavouriteCalculators({ settings }: { settings: DashboardContext[
           state={{ from: '/dashboard' }}
           className={linkClasses.row}
           style={{ flex: 1, minWidth: 0 }}
+          // Браузер тащит ссылку сам и, отпустив, переходит по ней мимо роутера.
+          draggable={false}
         >
           <Group gap={8} wrap="nowrap" align="flex-start">
             <ThemeIcon variant="light" color="brand" size={28} radius="md">

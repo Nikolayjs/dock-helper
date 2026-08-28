@@ -134,6 +134,7 @@ function ShelfRow({ reading }: { reading: ReadingProgress }) {
       state={{ from: '/dashboard' }}
       className={linkClasses.row}
       style={{ flex: 1, minWidth: 0 }}
+      draggable={false}
     >
       <Group gap={8} wrap="nowrap" align="flex-start">
         <ThemeIcon variant="light" color="gray" size={28} radius="md">

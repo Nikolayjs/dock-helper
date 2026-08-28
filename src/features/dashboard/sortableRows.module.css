@@ -6,6 +6,10 @@
  * ради предотвращения которой у пальца стоит удержание в 200 мс.
  */
 .row {
+  /* Раскладку задаёт класс: обёртка — обычный `div`, а не `Group` (см. SortableRow). */
+  display: flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
   touch-action: manipulation;
   border-radius: var(--mantine-radius-md);
 }
