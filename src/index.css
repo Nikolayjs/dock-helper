@@ -37,11 +37,12 @@ body {
  * контраст зависел бы от того, что врач загрузил. Примесь непрозрачна, известна заранее и меряется.
  * Ровно та же причина, по которой палитра берёт с обоев только тон, а светлоту оставляет фирменную.
  *
- * Цвет берётся из `--mantine-color-brand-6`: при включённом переключателе «Подстраивать цвета под
- * обои» он уже выведен из картинки, при выключенном — фирменный, и родство остаётся с темой
- * приложения. Отдельного переключателя не нужно.
- */
-/*
+ * **Только при `data-wallpaper='tinted'`**, то есть когда цвет действительно взят с картинки.
+ * При выключенном переключателе «Подстраивать цвета под обои» — и на чёрно-белой фотографии, где
+ * брать нечего, — `--mantine-color-brand-6` остаётся фирменным, и подкрашивать им шапку поверх
+ * тёплых обоев значило бы красить в цвет, которого на картинке нет. Замер: «Рассвет» с выключенным
+ * переключателем давал поверхность rgb(242,245,255) — голубую при розовых обоях.
+ *
  * Схемы расписаны раздельно, а не через `light-dark()`, ровно по той же причине, что и подложка
  * выше: в переменную она не кладётся. Проверено замером — в тёмной теме карточка вышла почти белой
  * (243,245,249), контраст текста на ней 1,52:1.
@@ -49,13 +50,13 @@ body {
  * Основа у шапки и у карточки разная (`dark-7` против `dark-6`) — это Mantine, и разницу между
  * ними стоит сохранить: подкрашиваются обе, но каждая от своей основы.
  */
-:root[data-wallpaper] {
+:root[data-wallpaper='tinted'] {
   --app-tint: 7%;
   --mantine-color-body: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #fff);
   --app-card-bg: var(--mantine-color-body);
 }
 
-:root[data-wallpaper][data-mantine-color-scheme='dark'] {
+:root[data-wallpaper='tinted'][data-mantine-color-scheme='dark'] {
   --mantine-color-body: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), var(--mantine-color-dark-7));
   --app-card-bg: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), var(--mantine-color-dark-6));
 }
@@ -69,9 +70,9 @@ body {
  * Перекрывать сам `--mantine-color-white` нельзя ни в коем случае: им набран текст на кнопках с
  * заливкой, и подкрашенная «белая» надпись на брендовой кнопке потеряла бы контраст. Поэтому
  * адресно и только при обоях. Селектор `:where()` у Mantine ничего не весит, так что специфичности
- * `:root[data-wallpaper] .mantine-Card-root` хватает без `!important`.
+ * `:root[data-wallpaper='tinted'] .mantine-Card-root` хватает без `!important`.
  */
-:root[data-wallpaper] .mantine-Card-root {
+:root[data-wallpaper='tinted'] .mantine-Card-root {
   background-color: var(--app-card-bg);
 }
 

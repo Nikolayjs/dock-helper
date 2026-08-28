@@ -64,7 +64,18 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     const image = imageOf(settings.wallpaper);
     if (image) {
-      root.dataset.wallpaper = 'on';
+      /*
+       * Значение различает два состояния переключателя «Подстраивать цвета под обои», а не просто
+       * отмечает наличие обоев. От него зависит, берут ли сплошные поверхности примесь цвета:
+       * при выключенном переключателе — и на чёрно-белой фотографии, где брать нечего, —
+       * `--mantine-color-brand-6` остаётся фирменным, и подкрашивать им шапку поверх, скажем,
+       * розовых обоев значило бы красить в цвет, которого на картинке нет. Замер: «Рассвет» с
+       * выключенным переключателем давал поверхность rgb(242,245,255), голубую при тёплых обоях.
+       *
+       * Правилам, которым важно только наличие обоев (сама картинка, прозрачный `.main`), значение
+       * не нужно — они цепляются за атрибут и работают в обоих случаях.
+       */
+      root.dataset.wallpaper = accent ? 'tinted' : 'plain';
       root.style.setProperty('--wallpaper-image', image);
       root.style.setProperty('--wallpaper-veil-alpha', String(settings.veil));
     } else {
@@ -72,7 +83,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
       root.style.removeProperty('--wallpaper-image');
       root.style.removeProperty('--wallpaper-veil-alpha');
     }
-  }, [settings.wallpaper, settings.veil]);
+  }, [settings.wallpaper, settings.veil, accent]);
 
   const value = useMemo<AppearanceContextValue>(
     () => ({
