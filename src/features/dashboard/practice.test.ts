@@ -4,6 +4,7 @@ import {
   countUndated,
   getAgeDistribution,
   getContinueReading,
+  getReadingShelf,
   getDispensaryQueue,
   getLapsedPatients,
   getMonthlyVisitCount,
@@ -268,6 +269,22 @@ describe('getContinueReading', () => {
   it('reads a reflowable book straight from its fraction', () => {
     const books = [book('docx', { format: 'docx', progress: { location: 0.42, updatedAt: '2026-08-20T10:00:00Z' } })];
     expect(getContinueReading(books)?.percent).toBe(42);
+  });
+
+  it('полка идёт от недавней книги к давней и не включает неоткрытые', () => {
+    // Порядок полки задаёт, какая книга закреплена сверху карточки, — именно поэтому он «по
+    // времени», а не по названию и не по тому, как книги легли в базу.
+    const books = [
+      book('middle', { progress: { location: 5, updatedAt: '2026-08-10T10:00:00Z' } }),
+      book('never'),
+      book('newest', { progress: { location: 5, updatedAt: '2026-08-25T10:00:00Z' } }),
+      book('oldest', { progress: { location: 5, updatedAt: '2026-08-01T10:00:00Z' } }),
+    ];
+    expect(getReadingShelf(books).map((entry) => entry.book.id)).toEqual(['newest', 'middle', 'oldest']);
+  });
+
+  it('пустая полка, когда ни одна книга не открыта', () => {
+    expect(getReadingShelf([book('a'), book('b')])).toEqual([]);
   });
 });
 

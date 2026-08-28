@@ -18,11 +18,12 @@ import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from '../patients/
 import { calcAge, getInitials } from '../patients/utils';
 import { AttentionQueue } from './AttentionQueue';
 import { CardHeading } from './CardHeading';
-import { ContinueReading } from './ContinueReading';
+import { CONTINUE_READING_ID, ContinueReading, SHELF_DEFAULT } from './ContinueReading';
 import { DashboardCalendar } from './DashboardCalendar';
 import { DashboardNews } from './DashboardNews';
-import { FavouriteCalculators } from './FavouriteCalculators';
+import { FAVOURITE_CALCULATORS_ID, FavouriteCalculators } from './FavouriteCalculators';
 import { FrequentDocuments } from './FrequentDocuments';
+import { RowLimitSelect } from './RowLimitSelect';
 import { PatientStructure } from './PatientStructure';
 import { isStructureMode, type StructureMode } from './structureMode';
 import type { DashboardContext } from './dashboardContext';
@@ -353,38 +354,56 @@ export const DASHBOARD_WIDGETS: DashboardWidget[] = [
   {
     id: 'continue-reading',
     title: 'Продолжить чтение',
-    description: 'Книга, которую вы читали последней, с того же места',
+    description: 'Последняя книга с того же места, под ней — остальные начатые',
     span: 4,
-    render: ({ reading }) => (
+    render: ({ readingShelf, widgetSettings }) => (
       <>
         <CardHeading
           title="Продолжить чтение"
           action={
-            <Button component={Link} to="/library" variant="subtle" size="xs">
-              Библиотека
-            </Button>
+            <Group gap={4} wrap="nowrap">
+              {/* Число касается только строк под закреплённой книгой: сама она показывается всегда. */}
+              {readingShelf.length > 1 && (
+                <RowLimitSelect
+                  value={widgetSettings.get(CONTINUE_READING_ID)}
+                  onChange={(value) => widgetSettings.set(CONTINUE_READING_ID, value)}
+                  fallback={SHELF_DEFAULT}
+                />
+              )}
+              <Button component={Link} to="/library" variant="subtle" size="xs">
+                Библиотека
+              </Button>
+            </Group>
           }
         />
-        <ContinueReading reading={reading} />
+        <ContinueReading shelf={readingShelf} settings={widgetSettings} />
       </>
     ),
   },
   {
     id: 'favourite-calculators',
     title: 'Избранные калькуляторы',
-    description: 'Отмеченные звёздочкой — открываются в один клик',
+    description: 'Отмеченные звёздочкой — открываются в один клик, порядок задаётся перетаскиванием',
     span: 4,
-    render: () => (
+    render: ({ widgetSettings }) => (
       <>
         <CardHeading
           title="Избранные калькуляторы"
           action={
-            <Button component={Link} to="/calculators" variant="subtle" size="xs">
-              Все
-            </Button>
+            <Group gap={4} wrap="nowrap">
+              {/* Сколько строк видно сразу. Стоит у самой карточки, а не в панели настройки
+                  дашборда: число меняют, глядя на неё, и результат виден в тот же миг. */}
+              <RowLimitSelect
+                value={widgetSettings.get(FAVOURITE_CALCULATORS_ID)}
+                onChange={(value) => widgetSettings.set(FAVOURITE_CALCULATORS_ID, value)}
+              />
+              <Button component={Link} to="/calculators" variant="subtle" size="xs">
+                Все
+              </Button>
+            </Group>
           }
         />
-        <FavouriteCalculators />
+        <FavouriteCalculators settings={widgetSettings} />
       </>
     ),
   },

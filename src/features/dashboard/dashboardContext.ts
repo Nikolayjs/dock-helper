@@ -37,7 +37,8 @@ export interface DashboardContext {
   undatedCount: number;
   topDiagnoses: BarItem[];
 
-  reading: ReadingProgress | null;
+  /** Начатые книги, недавняя первой. Карточка закрепляет первую и расставляет остальные. */
+  readingShelf: ReadingProgress[];
   frequentTemplates: RankedTemplate[];
   templatesById: Map<string, DocumentTemplate>;
   allNotes: Note[];
@@ -47,6 +48,9 @@ export interface DashboardContext {
   widgetSettings: {
     get: (id: string) => string | undefined;
     set: (id: string, value: string) => void;
+    /** Порядок строк внутри карточки: избранные калькуляторы, книги. */
+    getOrder: (id: string) => string[] | undefined;
+    setOrder: (id: string, ids: string[]) => void;
   };
 
   referrals: {

@@ -59,8 +59,14 @@ describe('moveWidget', () => {
 
 describe('readLayout', () => {
   it('round-trips what was written', () => {
-    writeLayout({ order: ['b', 'a'], hidden: ['c'], spans: { a: 6 }, settings: { s: 'age' } });
-    expect(readLayout()).toEqual({ order: ['b', 'a'], hidden: ['c'], spans: { a: 6 }, settings: { s: 'age' } });
+    writeLayout({ order: ['b', 'a'], hidden: ['c'], spans: { a: 6 }, settings: { s: 'age' }, orders: { fav: ['x', 'y'] } });
+    expect(readLayout()).toEqual({
+      order: ['b', 'a'],
+      hidden: ['c'],
+      spans: { a: 6 },
+      settings: { s: 'age' },
+      orders: { fav: ['x', 'y'] },
+    });
   });
 
   it('falls back to the default when storage holds nonsense', () => {
@@ -72,9 +78,19 @@ describe('readLayout', () => {
     expect(readLayout()).toEqual(EMPTY_LAYOUT);
   });
 
+  it('отбрасывает порядок строк, который записан не списком строк', () => {
+    // Раскладка приходит из localStorage: там может оказаться что угодно, вплоть до чужой версии
+    // приложения. Испорченное значение обязано пропасть, а не обрушить дашборд.
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ orders: { ok: ['a', 'b'], число: [1, 2], строка: 'нет' } }),
+    );
+    expect(readLayout().orders).toEqual({ ok: ['a', 'b'] });
+  });
+
   it('reads a layout saved before widths and per-card choices existed', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ order: ['b'], hidden: [] }));
-    expect(readLayout()).toEqual({ order: ['b'], hidden: [], spans: {}, settings: {} });
+    expect(readLayout()).toEqual({ order: ['b'], hidden: [], spans: {}, settings: {}, orders: {} });
   });
 
   it('keeps only per-card choices that are strings', () => {

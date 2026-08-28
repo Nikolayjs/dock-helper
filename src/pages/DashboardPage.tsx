@@ -33,7 +33,7 @@ import { rankTemplates, readUsage } from '../features/dashboard/documentUsage';
 import {
   countUndated,
   getAgeDistribution,
-  getContinueReading,
+  getReadingShelf,
   getDispensaryQueue,
   getLapsedPatients,
   getMonthlyVisitCount,
@@ -110,7 +110,7 @@ export function DashboardPage() {
   const sexDistribution = useMemo(() => getSexDistribution(patients), [patients]);
   const undatedCount = useMemo(() => countUndated(patients), [patients]);
   const topDiagnoses = useMemo(() => getTopDiagnoses(patients), [patients]);
-  const reading = useMemo(() => getContinueReading(books), [books]);
+  const readingShelf = useMemo(() => getReadingShelf(books), [books]);
 
   // Счётчик печати живёт в localStorage и меняется на другой странице, так что перечитывать его
   // на каждый рендер незачем — возвращение на дашборд пересоздаёт компонент вместе с ним.
@@ -159,12 +159,12 @@ export function DashboardPage() {
     sexDistribution,
     undatedCount,
     topDiagnoses,
-    reading,
+    readingShelf,
     frequentTemplates,
     templatesById,
     allNotes: notes,
     allReminders: reminders,
-    widgetSettings: { get: layout.settingOf, set: layout.setSetting },
+    widgetSettings: { get: layout.settingOf, set: layout.setSetting, getOrder: layout.orderOf, setOrder: layout.setOrder },
     referrals: {
       period: referralPeriod,
       setPeriod: setReferralPeriod,

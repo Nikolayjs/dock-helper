@@ -291,23 +291,32 @@ export interface ReadingProgress {
  * A book with no progress is skipped — it has not been opened, so there is nothing to continue,
  * and offering it would push the half-read book off the card.
  */
+function progressOf(book: Book): ReadingProgress | null {
+  if (!book.progress) return null;
+  const percent =
+    book.pageCount && book.pageCount > 0
+      ? Math.min(100, Math.round((book.progress.location / book.pageCount) * 100))
+      : book.pageCount === null
+        ? Math.min(100, Math.round(book.progress.location * 100))
+        : null;
+  return { book, percent, readAt: book.progress.updatedAt };
+}
+
 export function getContinueReading(books: Book[]): ReadingProgress | null {
-  let latest: ReadingProgress | null = null;
+  return getReadingShelf(books)[0] ?? null;
+}
 
-  for (const book of books) {
-    if (!book.progress) continue;
-    const readAt = book.progress.updatedAt;
-    if (latest && readAt <= latest.readAt) continue;
-
-    const percent =
-      book.pageCount && book.pageCount > 0
-        ? Math.min(100, Math.round((book.progress.location / book.pageCount) * 100))
-        : book.pageCount === null
-          ? Math.min(100, Math.round(book.progress.location * 100))
-          : null;
-
-    latest = { book, percent, readAt };
-  }
-
-  return latest;
+/**
+ * Начатые книги, недавняя первой.
+ *
+ * Порядок здесь — только «по времени», и он же задаёт, какая книга закреплена на карточке сверху.
+ * Расстановку врача карточка накладывает поверх сама: закреплённая строка не должна зависеть от
+ * того, как расставлены остальные, иначе «продолжить чтение» перестало бы означать последнюю
+ * книгу.
+ */
+export function getReadingShelf(books: Book[]): ReadingProgress[] {
+  return books
+    .map(progressOf)
+    .filter((entry): entry is ReadingProgress => entry !== null)
+    .sort((a, b) => b.readAt.localeCompare(a.readAt));
 }

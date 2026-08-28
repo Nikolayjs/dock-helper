@@ -15,11 +15,21 @@ export interface DashboardLayout {
   spans: Record<string, number>;
   /** Per-card choices — which cut a card shows, and the like. Absent means the card's default. */
   settings: Record<string, string>;
+  /**
+   * Порядок строк **внутри** карточки: избранные калькуляторы, книги. Ключ — id карточки, значение
+   * — id строк в том порядке, в каком врач их расставил.
+   *
+   * Живёт здесь, рядом с порядком самих карточек, а не в базе: это расстановка, то же самое, что
+   * порядок карточек и их ширины. Сама отметка «избранное» при этом остаётся в базе — она про
+   * содержимое и терять её при переходе на другую машину было бы обидно, а расстановка
+   * восстанавливается за полминуты.
+   */
+  orders: Record<string, string[]>;
 }
 
 export const STORAGE_KEY = 'medassist:dashboard-layout';
 
-export const EMPTY_LAYOUT: DashboardLayout = { order: [], hidden: [], spans: {}, settings: {} };
+export const EMPTY_LAYOUT: DashboardLayout = { order: [], hidden: [], spans: {}, settings: {}, orders: {} };
 
 /** Narrower than a quarter of the grid nothing here stays readable; wider than the grid is nothing. */
 export const MIN_SPAN = 3;
@@ -43,6 +53,15 @@ function readSettings(value: unknown): Record<string, string> {
   return settings;
 }
 
+function readOrders(value: unknown): Record<string, string[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const orders: Record<string, string[]> = {};
+  for (const [id, list] of Object.entries(value as Record<string, unknown>)) {
+    if (isStringArray(list)) orders[id] = list;
+  }
+  return orders;
+}
+
 function readSpans(value: unknown): Record<string, number> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const spans: Record<string, number> = {};
@@ -63,6 +82,7 @@ export function readLayout(): DashboardLayout {
       // Layouts saved before widths or per-card choices existed simply have none.
       spans: readSpans(parsed.spans),
       settings: readSettings(parsed.settings),
+      orders: readOrders(parsed.orders),
     };
   } catch {
     // A corrupted preference must never take the dashboard down with it.

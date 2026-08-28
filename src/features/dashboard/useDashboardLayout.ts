@@ -50,6 +50,18 @@ export function useDashboardLayout() {
     [layout, save],
   );
 
+  /**
+   * Порядок строк внутри карточки. Пишется целиком: карточка сама сливает сохранённый порядок с
+   * тем, что есть сейчас (`orderWidgets`), и присылает готовый список — так же, как дашборд
+   * поступает со своими карточками.
+   */
+  const setOrder = useCallback(
+    (id: string, ids: string[]) => {
+      save({ ...layout, orders: { ...layout.orders, [id]: ids } });
+    },
+    [layout, save],
+  );
+
   const setSpan = useCallback(
     (id: string, span: number) => {
       save({ ...layout, spans: { ...layout.spans, [id]: clampSpan(span) } });
@@ -74,7 +86,8 @@ export function useDashboardLayout() {
     layout.order.length > 0 ||
     layout.hidden.length > 0 ||
     Object.keys(layout.spans).length > 0 ||
-    Object.keys(layout.settings).length > 0;
+    Object.keys(layout.settings).length > 0 ||
+    Object.keys(layout.orders).length > 0;
 
   return {
     /** Ordered and switched on — what the page draws. */
@@ -89,6 +102,9 @@ export function useDashboardLayout() {
     /** The card's own choice of what to show, if the doctor made one. */
     settingOf: (id: string) => layout.settings[id],
     setSetting,
+    /** Порядок строк внутри карточки, если врач его задавал. */
+    orderOf: (id: string) => layout.orders[id],
+    setOrder,
     isCustomised,
     toggle,
     reorder,
