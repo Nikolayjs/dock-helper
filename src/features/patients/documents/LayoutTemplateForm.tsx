@@ -6,6 +6,7 @@ import { LayoutEditor } from './LayoutEditor';
 import { COPIES_PER_SHEET_OPTIONS, copiesPerSheet, emptyLayout, planSheet } from './layoutTypes';
 import { SAMPLE_PATIENT, SAMPLE_VISIT } from './templateTypes';
 import type { DocumentTemplate } from './templateTypes';
+import { SheetPreview } from './SheetPreview';
 import { TemplateDocument } from './TemplateDocument';
 import type { DocumentTemplateInput } from './useDocumentTemplates';
 import { FormActions } from '../../../components/common/FormActions';
@@ -92,13 +93,16 @@ export function LayoutTemplateForm({ template, onSubmit, onCancel, onDelete }: L
             </Button>
           </Group>
         </Group>
-        {/* A landscape A4 sheet is ~1120px at screen resolution and will outgrow the card on a
-            laptop; scrolling the preview beats scaling it, which would misrepresent the print. */}
-        <div style={{ overflowX: 'auto' }}>
+        {/* Лист А4 — 794 px в книжной и ~1120 в альбомной, и в карточку на ноутбуке он не входит.
+            Пока не входит немного, прокрутка честнее масштабирования. На телефоне это перестаёт
+            работать: замер на экране 390 дал лист 794 в рамке 308 — видно 44 %, и по такому куску
+            не понять, какой бланк перед тобой. Поэтому SheetPreview ужимает лист ровно до рамки и
+            только когда он в неё не помещается; печать при этом идёт в физическом размере. */}
+        <SheetPreview>
           <div className="printable-document">
             <TemplateDocument template={previewTemplate} patient={SAMPLE_PATIENT} visit={SAMPLE_VISIT} />
           </div>
-        </div>
+        </SheetPreview>
       </Card>
 
       {guard.render({ onSave: canSave ? handleSubmit : undefined })}

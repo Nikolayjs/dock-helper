@@ -171,9 +171,15 @@ export function BookReaderPage() {
           </Center>
         ))}
 
+      {/* `miw={0}` у контейнера ниже — несущее, а не косметика. Контейнер здесь элемент
+          flex-колонки, а у такого автоматический минимальный размер равен min-content: широкая
+          таблица или снимок из Word поднимают его до собственного потолка контейнера, и коробка
+          перестаёт помещаться в телефон. Замер на экране 390: рамка читалки 960, абзац 944, правый
+          край 972 при `scrollWidth` страницы 390 — 582 px каждой строки не существовало ни при
+          какой прокрутке. Та же ловушка, из-за которой у PDF появился PageScroller. */}
       {!error && (book.format === 'fb2' || book.format === 'docx') &&
         (flowHtml !== null ? (
-          <Container size="md" px={0}>
+          <Container size="md" px={0} w="100%" miw={0}>
             <FlowReader
               bodyHtml={flowHtml}
               contentClassName={book.format === 'docx' ? 'docx-content' : 'fb2-content'}

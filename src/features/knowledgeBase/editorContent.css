@@ -242,6 +242,25 @@
   height: auto;
 }
 
+/*
+ * Таблица на чтении прокручивается внутри себя, а не растягивает статью.
+ *
+ * Протокол или схема дозирования приходят из Word таблицей на восемь колонок, свёрстанной под А4.
+ * Без этого правила её min-content поднимает ширину всей колонки текста, и на телефоне каждая
+ * строка статьи оказывается обрезанной по правому краю — причём добраться до обрезанного нечем,
+ * страница-то в экран помещается. Та же ловушка, из-за которой у читалки появился `max-width` на
+ * `.flow-reader`, а у PDF — PageScroller.
+ */
+.mantine-Typography-root table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.mantine-Typography-root {
+  overflow-wrap: break-word;
+}
+
 .mantine-Typography-root img[data-align='center'] {
   display: block;
   margin-left: auto;

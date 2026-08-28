@@ -19,6 +19,7 @@ import { IconPlus, IconTrash } from '@tabler/icons-react';
 
 import { PLACEHOLDERS } from './templateTypes';
 import { LayoutDocument } from './LayoutDocument';
+import classes from './layoutEditor.module.css';
 import { LOW_CONFIDENCE_THRESHOLD, PAGE_PRESETS, clampBlock, createLayoutBlock } from './layoutTypes';
 import type { TemplateLayout, TemplateLayoutBlock } from './layoutTypes';
 
@@ -33,6 +34,9 @@ import type { TemplateLayout, TemplateLayoutBlock } from './layoutTypes';
 
 type DragMode = 'move' | 'resize';
 
+/** Кратности увеличения холста. Целые — чтобы «в один лист» читалось однозначно. */
+const CANVAS_ZOOMS = [1, 2, 3];
+
 interface LayoutEditorProps {
   layout: TemplateLayout;
   onChange: (layout: TemplateLayout) => void;
@@ -43,6 +47,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [backdropOpacity, setBackdropOpacity] = useState(0.35);
+  const [zoom, setZoom] = useState(1);
   const dragRef = useRef<{ mode: DragMode; startX: number; startY: number; start: TemplateLayoutBlock } | null>(null);
 
   const selected = layout.blocks.find((b) => b.id === selectedId) ?? null;
@@ -125,8 +130,8 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
   ).length;
 
   return (
-    <Group align="flex-start" gap="lg" wrap="nowrap" style={{ alignItems: 'stretch' }}>
-      <Stack gap="sm" style={{ flex: 1, minWidth: 0 }}>
+    <div className={classes.editor}>
+      <Stack gap="sm" className={classes.canvas}>
         <Group justify="space-between" wrap="wrap" gap="sm">
           <Select
             size="xs"
@@ -161,6 +166,11 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
         </Group>
 
         <Card withBorder padding={0} onPointerDown={() => setSelectedId(null)}>
+          {/* Увеличение меняет ширину холста, а не масштабирует его трансформацией: перетаскивание
+              считает проценты от прямоугольника холста, поэтому при изменении ширины арифметика
+              остаётся верной без единой правки. */}
+          <div className={classes.canvasFrame}>
+          <div className={classes.canvasZoom} style={{ width: `${zoom * 100}%` }}>
           {/* The ref sits on a wrapper that shares the page's exact box rather than on the Card,
               whose 1px border would offset every drag calculation by a fraction of a percent. */}
           <div ref={canvasRef} style={{ position: 'relative' }}>
@@ -211,12 +221,24 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
             })}
           </LayoutDocument>
           </div>
+          </div>
+          </div>
         </Card>
 
-        <Group gap="xs">
+        <Group gap="xs" wrap="wrap">
           <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={addBlock}>
             Добавить блок
           </Button>
+          {/* Строка бланка на телефоне выходит высотой 9 px: разглядеть можно, попасть пальцем —
+              нет. Увеличение существует ради попадания, поэтому подписано кратностью, а не
+              процентами: на бумагу оно не влияет никак. */}
+          <SegmentedControl
+            size="xs"
+            aria-label="Увеличение холста"
+            value={String(zoom)}
+            onChange={(value) => setZoom(Number(value))}
+            data={CANVAS_ZOOMS.map((z) => ({ value: String(z), label: `${z}×` }))}
+          />
           <Text size="xs" c="dimmed">
             блоков: {layout.blocks.length}
             {lowConfidence > 0 && `, сомнительных: ${lowConfidence}`}
@@ -224,7 +246,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
         </Group>
       </Stack>
 
-      <Card withBorder padding="md" w={320} style={{ flexShrink: 0 }}>
+      <Card withBorder padding="md" className={classes.panel}>
         {!selected ? (
           <Stack gap="xs" py="lg">
             <Text fw={600} size="sm">
@@ -324,6 +346,6 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
           </Stack>
         )}
       </Card>
-    </Group>
+    </div>
   );
 }

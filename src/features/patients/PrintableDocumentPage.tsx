@@ -4,6 +4,7 @@ import { IconArrowLeft, IconInfoCircle, IconPrinter, IconSettings } from '@table
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { COPIES_PER_SHEET_OPTIONS, copiesPerSheet, planSheet } from './documents/layoutTypes';
+import { SheetPreview } from './documents/SheetPreview';
 import { TemplateDocument } from './documents/TemplateDocument';
 import { useDocumentTemplates } from './documents/useDocumentTemplates';
 import { recordTemplateUse } from '../dashboard/documentUsage';
@@ -123,7 +124,10 @@ export function PrintableDocumentPage() {
         </Group>
 
         <Card withBorder padding="xl">
-          <div style={{ overflowX: 'auto' }}>
+          {/* Лист печатается в физическом размере, а на экране ужимается до рамки — иначе на
+              телефоне видно меньше половины бланка. Печати это не касается: масштаб снимается в
+              `@media print`. */}
+          <SheetPreview>
             <div className="printable-document">
               <TemplateDocument
                 template={template}
@@ -132,7 +136,7 @@ export function PrintableDocumentPage() {
                 copiesOverride={copiesOverride ?? undefined}
               />
             </div>
-          </div>
+          </SheetPreview>
         </Card>
 
         <Text size="xs" c="dimmed" className="no-print">
