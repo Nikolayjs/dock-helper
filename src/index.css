@@ -62,6 +62,36 @@ body {
 }
 
 /*
+ * Наведение подкрашивается вместе с поверхностями.
+ *
+ * Фирменная палитра под обои подстраивается, а нейтральные серые — нет, и на тёплой поверхности
+ * холодный серый читается голубым: замер на «Рассвете» дал поверхность rgb(252,242,239), а
+ * подсветку строки таблицы и пункта сайдбара — rgb(241,243,245), у которой синий канал старший.
+ * Именно этот разнобой и видно.
+ *
+ * Ступени переписываются целиком, а не через `var()` на самих себя: сослаться на прежнее значение
+ * переменной изнутри её же определения нельзя, поэтому исходные значения Mantine продублированы.
+ * **Сверять их надо по `@mantine/core/styles.css`, а не по памяти:** `dark-5` здесь сначала был
+ * записан как `#2e2e2e` — это значение `dark-6`, — и подсветка в тёмной теме совпала с фоном
+ * карточки, то есть исчезла. Замер показал у наведения и у поверхности одинаковые 49,51,55.
+ *
+ * Доля примеси та же, что у поверхностей (`--app-tint`), поэтому лестница светлот сохраняется:
+ * наведение остаётся ровно на столько же темнее фона, на сколько было.
+ */
+:root[data-wallpaper='tinted'] {
+  --mantine-color-gray-0: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #f8f9fa);
+  --mantine-color-gray-1: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #f1f3f5);
+  --mantine-color-gray-2: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #e9ecef);
+  --mantine-color-default-hover: var(--mantine-color-gray-0);
+}
+
+:root[data-wallpaper='tinted'][data-mantine-color-scheme='dark'] {
+  --mantine-color-dark-4: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #424242);
+  --mantine-color-dark-5: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #3b3b3b);
+  --mantine-color-default-hover: var(--mantine-color-dark-5);
+}
+
+/*
  * Карточке правило нужно отдельное: у Mantine она берёт фон не из `--mantine-color-body`, как
  * шапка, сайдбар и Paper, а напрямую из `--mantine-color-white` — правилом
  * `:where([data-mantine-color-scheme="light"]) .m_e615b15f`. Спрошено у браузера через
