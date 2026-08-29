@@ -38,6 +38,9 @@ const publicCss = [
 ];
 if (publicCss.length === 0) throw new Error('в манифесте не нашлось стилей публичной части');
 
+/** Запасной блок метатегов в `index.html`: пререндер меняет его целиком на страничный. */
+const META_BLOCK = /<!-- prerender:meta:start -->[\s\S]*?<!-- prerender:meta:end -->/;
+
 const escapeAttribute = (value) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 let written = 0;
@@ -66,12 +69,11 @@ for (const page of PUBLIC_PAGES) {
     ...publicCss.map((file) => `<link rel="stylesheet" crossorigin href="/${file}" />`),
   ].join('\n    ');
 
-  const html = template
-    // Заголовок и описание из шаблона заменяются страничными: один и тот же title на пяти адресах
-    // — это пять одинаковых строк в выдаче.
-    .replace(/<title>.*?<\/title>/s, '__HEAD__')
-    .replace('__HEAD__', head)
-    .replace('<div id="root"></div>', `<div id="root">${markup}</div>`);
+  // Запасной блок метатегов вырезается целиком, а не дополняется: рядом со страничным он давал
+  // два canonical и два og:title на одной странице, а два канонических адреса — это ни одного.
+  const withHead = template.replace(META_BLOCK, head);
+  if (withHead === template) throw new Error('в шаблоне не нашлось блока prerender:meta');
+  const html = withHead.replace('<div id="root"></div>', `<div id="root">${markup}</div>`);
 
   const outDir = page.path === '/' ? DIST : path.join(DIST, page.path);
   fs.mkdirSync(outDir, { recursive: true });
