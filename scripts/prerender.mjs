@@ -41,6 +41,38 @@ if (publicCss.length === 0) throw new Error('в манифесте не нашл
 /** Запасной блок метатегов в `index.html`: пререндер меняет его целиком на страничный. */
 const META_BLOCK = /<!-- prerender:meta:start -->[\s\S]*?<!-- prerender:meta:end -->/;
 
+/**
+ * Отключает пререндер, если документ достался не своему адресу.
+ *
+ * Статический сервер отдаёт `index.html` на **любой** неизвестный путь — так работает
+ * одностраничное приложение. А `index.html` — это и есть пререндеренный лендинг, и значит на
+ * `/app/documents/…/edit` и на `/login` он на мгновение показывался поверх всего, пока не
+ * загрузится и не отрисуется приложение. Ровно это и было видно при обновлении залогиненной
+ * страницы.
+ *
+ * Скрипт стоит в `<head>`, то есть отрабатывает **до** разбора разметки: браузеру не приходится
+ * рисовать её, чтобы потом убрать. Заодно снимается лист стилей публичной части — приложению он не
+ * нужен и весит десять килобайт.
+ *
+ * Прятать по классу на `#root` нельзя: React рисует приложение в тот же узел, и правило погасило бы
+ * заодно и его. Поэтому разметка завёрнута в свой `[data-prerender]`, который React при первом
+ * рендере выбрасывает целиком.
+ */
+const guard = (ownPath) => {
+  const own = ownPath === '/' ? '' : ownPath;
+  return [
+    '<script>',
+    '      (function () {',
+    '        var here = location.pathname;',
+    "        if (here.length > 1 && here.charAt(here.length - 1) === '/') here = here.slice(0, -1);",
+    "        if (here === '" + own + "') return;",
+    "        document.head.insertAdjacentHTML('beforeend', '<style>[data-prerender]{display:none}</style>');",
+    "        document.querySelectorAll('link[data-prerender]').forEach(function (link) { link.remove(); });",
+    '      })();',
+    '    </script>',
+  ].join(String.fromCharCode(10));
+};
+
 const escapeAttribute = (value) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 let written = 0;
@@ -66,14 +98,15 @@ for (const page of PUBLIC_PAGES) {
     `<meta name="twitter:title" content="${escapeAttribute(page.title)}" />`,
     `<meta name="twitter:description" content="${escapeAttribute(page.description)}" />`,
     `<meta name="twitter:image" content="${SITE_ORIGIN}/landing/og.png" />`,
-    ...publicCss.map((file) => `<link rel="stylesheet" crossorigin href="/${file}" />`),
+    ...publicCss.map((file) => `<link rel="stylesheet" crossorigin data-prerender href="/${file}" />`),
+    guard(page.path),
   ].join('\n    ');
 
   // Запасной блок метатегов вырезается целиком, а не дополняется: рядом со страничным он давал
   // два canonical и два og:title на одной странице, а два канонических адреса — это ни одного.
   const withHead = template.replace(META_BLOCK, head);
   if (withHead === template) throw new Error('в шаблоне не нашлось блока prerender:meta');
-  const html = withHead.replace('<div id="root"></div>', `<div id="root">${markup}</div>`);
+  const html = withHead.replace('<div id="root"></div>', `<div id="root"><div data-prerender>${markup}</div></div>`);
 
   const outDir = page.path === '/' ? DIST : path.join(DIST, page.path);
   fs.mkdirSync(outDir, { recursive: true });
