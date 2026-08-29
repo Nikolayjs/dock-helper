@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BarChart, DonutChart } from '@mantine/charts';
+import { BarChart, DonutChart } from './LazyCharts';
 import { Avatar, Badge, Button, Group, SegmentedControl, Stack, Table, Text, ThemeIcon } from '@mantine/core';
 import {
   IconBellRinging,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card, Collapse, Container, Group, SegmentedControl, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconAdjustmentsHorizontal, IconChartBar, IconClipboardHeart, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
@@ -8,10 +8,17 @@ import { PatientFilters } from '../features/patients/PatientFilters';
 import { EMPTY_PATIENT_FILTERS, countActiveFilters, matchesPatientFilters, type PatientFilterState } from '../features/patients/patientFiltering';
 import { diagnosisCodeOf, useIcd10Names } from '../features/patients/useIcd10Names';
 import { sortRows, useTableSort } from '../lib/tableSort';
-import { PatientImportModal } from '../features/patients/import/PatientImportModal';
 import { PATIENT_SORT_KEYS, PatientTable, patientSortValue, type PatientSortKey } from '../features/patients/PatientTable';
 import type { DispensaryRecord } from '../features/patients/types';
 import type { Patient } from '../features/patients/types';
+
+/**
+ * Импорт картотеки подключается только при открытии окна: за ним стоит `read-excel-file`, 13 КБ
+ * gzip, а пользуются им редко — обычно один раз, при переезде с прежней программы.
+ */
+const PatientImportModal = lazy(() =>
+  import('../features/patients/import/PatientImportModal').then((module) => ({ default: module.PatientImportModal })),
+);
 import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from '../features/patients/useDispensary';
 import { QUERY_KEY as PATIENTS_KEY, usePatients } from '../features/patients/usePatients';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
@@ -44,6 +51,9 @@ export function PatientsPage() {
     { storageKey: 'medassist:sort:dispensary', keys: DISPENSARY_SORT_KEYS },
   );
   const [importOpen, setImportOpen] = useState(false);
+  // Окно снимается не по закрытию, а никогда: иначе Mantine нечего показывать во время
+  // анимации ухода, и окно исчезало бы рывком.
+  const [importMounted, setImportMounted] = useState(false);
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(() => localStorage.getItem(DISCLAIMER_KEY) === '1');
 
   const dismissDisclaimer = () => {
@@ -183,7 +193,10 @@ export function PatientsPage() {
                 <Button
                   variant="light"
                   leftSection={<IconFileUpload size={18} />}
-                  onClick={() => setImportOpen(true)}
+                  onClick={() => {
+                    setImportMounted(true);
+                    setImportOpen(true);
+                  }}
                 >
                   Загрузить базу
                 </Button>
@@ -281,7 +294,11 @@ export function PatientsPage() {
         )}
       </Stack>
 
-      <PatientImportModal opened={importOpen} onClose={() => setImportOpen(false)} onImport={importPatients} />
+      {importMounted && (
+        <Suspense fallback={null}>
+          <PatientImportModal opened={importOpen} onClose={() => setImportOpen(false)} onImport={importPatients} />
+        </Suspense>
+      )}
     </Container>
   );
 }

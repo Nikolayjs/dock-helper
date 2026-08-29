@@ -1,5 +1,4 @@
 import { request } from '../../../lib/httpRepository';
-import { loadPdfDocument } from '../../library/pdfMeta';
 import type { TemplateLayout } from '../../patients/documents/layoutTypes';
 
 /**
@@ -50,6 +49,9 @@ function assembleLines(fragments: TextFragment[], tolerance: number): string[] {
 }
 
 async function linesFromPdf(file: File): Promise<string[]> {
+  // pdf.js подключается здесь, а не сверху файла: это 94 КБ gzip, и нужны они только тому, кто
+  // действительно принёс PDF из лаборатории. Снимок с телефона идёт через OCR и без них.
+  const { loadPdfDocument } = await import('../../library/pdfMeta');
   const doc = await loadPdfDocument(await file.arrayBuffer());
   try {
     const lines: string[] = [];

@@ -1,21 +1,29 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActionIcon, Button, Center, Container, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import { IconArrowsMaximize, IconArrowsMinimize } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
 
-import { DjvuReader } from '../features/library/DjvuReader';
 import { ReaderBar } from '../features/library/ReaderBar';
 import { AppErrorBoundary } from '../components/common/AppErrorBoundary';
 import { FlowReader } from '../features/library/FlowReader';
 import { ReadingSheet } from '../components/common/ReadingSheet';
 import { decodeFb2Text, parseFb2 } from '../features/library/fb2';
-import { PdfReader } from '../features/library/PdfReader';
 import { loadBookFile, useBook } from '../features/library/useLibrary';
 import { readDocx } from '../lib/docx/readDocx';
 import { BackButton } from '../components/common/BackButton';
 import { STICKY_TOP } from '../layouts/shellMetrics';
 import { SCROLL_ROOT_ID } from '../components/layout/scrollRoot';
 import { useScrollDirection } from '../components/layout/useScrollDirection';
+
+/**
+ * Постраничные читалки подключаются в момент открытия своей книги.
+ *
+ * За `PdfReader` стоит pdf.js — 94 КБ gzip, — и статический импорт заставлял скачивать его при
+ * открытии **любой** книги, включая FB2 и Word, которым он не нужен вовсе. Заглушка та же, что
+ * показывалась, пока файл читается с диска: врач видит один и тот же кружок, а не два разных.
+ */
+const PdfReader = lazy(() => import('../features/library/PdfReader').then((module) => ({ default: module.PdfReader })));
+const DjvuReader = lazy(() => import('../features/library/DjvuReader').then((module) => ({ default: module.DjvuReader })));
 
 const SAVE_DEBOUNCE_MS = 800;
 /** Ниже этого читать нечем: на невысоком экране «до низа окна» вырождается в полоску. */
@@ -299,7 +307,9 @@ export function BookReaderPage() {
           {book.format === 'pdf' ? (
             pdfData ? (
               <AppErrorBoundary what="Читалка PDF" compact>
-                <PdfReader data={pdfData} initialPage={book.progress?.location ?? 1} {...pagedProps} />
+                <Suspense fallback={<Center py={100}><Loader /></Center>}>
+                  <PdfReader data={pdfData} initialPage={book.progress?.location ?? 1} {...pagedProps} />
+                </Suspense>
               </AppErrorBoundary>
             ) : (
               <Center py={100}>
@@ -308,7 +318,9 @@ export function BookReaderPage() {
             )
           ) : djvuData ? (
             <AppErrorBoundary what="Читалка DjVu" compact>
-              <DjvuReader data={djvuData} initialPage={book.progress?.location ?? 1} {...pagedProps} />
+              <Suspense fallback={<Center py={100}><Loader /></Center>}>
+                <DjvuReader data={djvuData} initialPage={book.progress?.location ?? 1} {...pagedProps} />
+              </Suspense>
             </AppErrorBoundary>
           ) : (
             <Center py={100}>
