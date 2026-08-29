@@ -18,7 +18,13 @@ type AstNode =
   | { type: 'var'; name: string }
   | { type: 'call'; name: string; args: AstNode[] }
   | { type: 'unary'; op: '-'; arg: AstNode }
-  | { type: 'bin'; op: '+' | '-' | '*' | '/' | '%' | '^'; left: AstNode; right: AstNode };
+  | { type: 'bin'; op: '+' | '-' | '*' | '/' | '%' | '^'; left: AstNode; right: AstNode }
+  | { type: 'cmp'; op: CompareOp; left: AstNode; right: AstNode };
+
+/** Сравнения записаны как в Excel: равенство — один знак «=», неравенство — «<>». */
+type CompareOp = '<' | '<=' | '>' | '>=' | '=' | '<>';
+
+const COMPARE_OPS: readonly CompareOp[] = ['<=', '>=', '<>', '<', '>', '='];
 
 const CONSTANTS: Record<string, number> = {
   pi: Math.PI,
@@ -38,6 +44,15 @@ const FUNCTIONS: Record<string, (...args: number[]) => number> = {
   ln: Math.log,
   exp: Math.exp,
   sign: Math.sign,
+  // Условие и логика. Ложь — это ноль, истина — единица, потому что движок умеет только числа;
+  // сравнение возвращает то же самое, и `if(x > 5, 1, 0)` совпадает с `x > 5`.
+  //
+  // Ветви вычисляются обе, до выбора. Для арифметики это безразлично — `1/0` даёт бесконечность,
+  // а не падение, — и позволяет оставить функции обычными значениями, а не особым случаем разбора.
+  if: (condition, whenTrue, whenFalse) => (condition !== 0 ? whenTrue : whenFalse),
+  and: (...args) => (args.every((value) => value !== 0) ? 1 : 0),
+  or: (...args) => (args.some((value) => value !== 0) ? 1 : 0),
+  not: (value) => (value === 0 ? 1 : 0),
 };
 
 export const FORMULA_FUNCTION_NAMES = Object.keys(FUNCTIONS);
@@ -80,7 +95,15 @@ function tokenize(source: string): Token[] {
       continue;
     }
 
-    if ('+-*/%^'.includes(ch)) {
+    // Двухсимвольные проверяются раньше односимвольных, иначе «<=» распалось бы на «<» и «=».
+    const two = source.slice(i, i + 2);
+    if (two === '<=' || two === '>=' || two === '<>') {
+      tokens.push({ type: 'op', value: two });
+      i += 2;
+      continue;
+    }
+
+    if ('+-*/%^<>='.includes(ch)) {
       tokens.push({ type: 'op', value: ch });
       i += 1;
       continue;
@@ -98,7 +121,10 @@ function tokenize(source: string): Token[] {
       continue;
     }
 
-    if (ch === ',') {
+    // Точка с запятой принимается наравне с запятой — так же, как в табличном движке: врач приходит
+    // из русского Excel, где разделитель аргументов именно «;». Десятичный разделитель при этом
+    // остаётся точкой, иначе «min(1,5;2)» нельзя было бы разобрать однозначно.
+    if (ch === ',' || ch === ';') {
       tokens.push({ type: 'comma', value: ch });
       i += 1;
       continue;
@@ -141,7 +167,28 @@ class Parser {
     return node;
   }
 
+  /**
+   * Сравнение стоит ниже сложения, как в Excel: `a + 1 > b` — это `(a + 1) > b`.
+   *
+   * Цепочки не бывает: `1 < x < 5` в математике значит одно, а слева направо посчиталось бы совсем
+   * другое (`(1 < x) < 5`, то есть «ноль или единица меньше пяти» — всегда истина). Поэтому второе
+   * сравнение подряд — ошибка, а не тихо неверный ответ. Такое условие пишется через `and`.
+   */
   private parseExpr(): AstNode {
+    const left = this.parseAdditive();
+    const token = this.peek();
+    if (token?.type !== 'op' || !COMPARE_OPS.includes(token.value as CompareOp)) return left;
+
+    const op = this.consume().value as CompareOp;
+    const right = this.parseAdditive();
+    const next = this.peek();
+    if (next?.type === 'op' && COMPARE_OPS.includes(next.value as CompareOp)) {
+      throw new FormulaError('Два сравнения подряд писать нельзя — используйте and(…, …)');
+    }
+    return { type: 'cmp', op, left, right };
+  }
+
+  private parseAdditive(): AstNode {
     let node = this.parseTerm();
     while (this.peek()?.type === 'op' && (this.peek()!.value === '+' || this.peek()!.value === '-')) {
       const op = this.consume().value as '+' | '-';
@@ -243,6 +290,24 @@ function evaluateNode(node: AstNode, variables: Record<string, number>): number 
       if (!fn) throw new FormulaError(`Неизвестная функция «${node.name}»`);
       return fn(...node.args.map((arg) => evaluateNode(arg, variables)));
     }
+    case 'cmp': {
+      const left = evaluateNode(node.left, variables);
+      const right = evaluateNode(node.right, variables);
+      switch (node.op) {
+        case '<':
+          return left < right ? 1 : 0;
+        case '<=':
+          return left <= right ? 1 : 0;
+        case '>':
+          return left > right ? 1 : 0;
+        case '>=':
+          return left >= right ? 1 : 0;
+        case '=':
+          return left === right ? 1 : 0;
+        case '<>':
+          return left !== right ? 1 : 0;
+      }
+    }
     case 'bin': {
       const left = evaluateNode(node.left, variables);
       const right = evaluateNode(node.right, variables);
@@ -278,7 +343,7 @@ export function getFormulaVariables(formula: string): string[] {
       names.add(node.name);
     } else if (node.type === 'unary') {
       walk(node.arg);
-    } else if (node.type === 'bin') {
+    } else if (node.type === 'bin' || node.type === 'cmp') {
       walk(node.left);
       walk(node.right);
     } else if (node.type === 'call') {

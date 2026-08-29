@@ -142,9 +142,12 @@ describe('функции', () => {
   });
 
   it('все объявленные функции действительно считаются', () => {
+    // Каждой — столько аргументов, сколько она берёт; список сверяется с самим движком, чтобы
+    // новая функция без проверки сюда не проскочила.
+    const ARITY: Record<string, number> = { pow: 2, if: 3 };
     for (const name of FORMULA_FUNCTION_NAMES) {
-      const call = name === 'pow' ? 'pow(2, 3)' : name + '(2)';
-      expect(Number.isFinite(calc(call))).toBe(true);
+      const args = Array.from({ length: ARITY[name] ?? 1 }, () => '2').join(', ');
+      expect(Number.isFinite(calc(name + '(' + args + ')'))).toBe(true);
     }
   });
 
@@ -214,6 +217,90 @@ describe('getFormulaVariables', () => {
   });
 });
 
+describe('сравнения', () => {
+  it('дают единицу и ноль, а не «да» и «нет»', () => {
+    expect(calc('3 > 2')).toBe(1);
+    expect(calc('3 < 2')).toBe(0);
+  });
+
+  it('шесть знаков, записанных как в Excel', () => {
+    expect(calc('2 <= 2')).toBe(1);
+    expect(calc('2 >= 3')).toBe(0);
+    expect(calc('2 = 2')).toBe(1);
+    expect(calc('2 <> 2')).toBe(0);
+    expect(calc('2 <> 3')).toBe(1);
+  });
+
+  it('стоят ниже сложения: a + 1 > b — это (a + 1) > b', () => {
+    expect(calc('1 + 1 > 1')).toBe(1);
+    expect(calc('2 * 3 = 6')).toBe(1);
+  });
+
+  it('два сравнения подряд — ошибка, а не тихо неверный ответ', () => {
+    // «1 < x < 5» слева направо посчиталось бы как «(1 < x) < 5», то есть всегда истина.
+    expect(() => calc('1 < 2 < 5')).toThrow(FormulaError);
+  });
+
+  it('«<» без правой части — ошибка', () => {
+    expect(() => calc('1 <')).toThrow(FormulaError);
+  });
+});
+
+describe('условие и логика', () => {
+  it('if выбирает ветвь по условию', () => {
+    expect(calc('if(1, 10, 20)')).toBe(10);
+    expect(calc('if(0, 10, 20)')).toBe(20);
+  });
+
+  it('условием служит сравнение', () => {
+    expect(calc('if(пол = 1, 1.23 * x, x)', { пол: 1, x: 100 })).toBeCloseTo(123, 6);
+    expect(calc('if(пол = 1, 1.23 * x, x)', { пол: 2, x: 100 })).toBe(100);
+  });
+
+  it('невыбранная ветвь считается тоже, но её значение отбрасывается', () => {
+    // Деление на ноль здесь даёт бесконечность, а не падение, поэтому ленивость не нужна.
+    expect(calc('if(x = 0, 0, 100 / x)', { x: 0 })).toBe(0);
+  });
+
+  it('and, or, not', () => {
+    expect(calc('and(1, 1)')).toBe(1);
+    expect(calc('and(1, 0)')).toBe(0);
+    expect(calc('or(0, 1)')).toBe(1);
+    expect(calc('or(0, 0)')).toBe(0);
+    expect(calc('not(0)')).toBe(1);
+    expect(calc('not(5)')).toBe(0);
+  });
+
+  it('and и or принимают сколько угодно условий', () => {
+    expect(calc('and(1, 1, 1, 0)')).toBe(0);
+    expect(calc('or(0, 0, 0, 3)')).toBe(1);
+  });
+
+  it('условия вкладываются', () => {
+    const formula = 'if(and(возраст > 60, пол = 1), 2, if(возраст > 60, 1, 0))';
+    expect(calc(formula, { возраст: 70, пол: 1 })).toBe(2);
+    expect(calc(formula, { возраст: 70, пол: 2 })).toBe(1);
+    expect(calc(formula, { возраст: 30, пол: 1 })).toBe(0);
+  });
+
+  it('переменные внутри условия попадают в список полей калькулятора', () => {
+    expect(getFormulaVariables('if(пол = 1, вес * 1.23, вес)').sort()).toEqual(['вес', 'пол']);
+  });
+});
+
+describe('точка с запятой как разделитель аргументов', () => {
+  it('принимается наравне с запятой — так пишет русский Excel', () => {
+    expect(calc('min(3; 1; 2)')).toBe(1);
+    expect(calc('if(1; 10; 20)')).toBe(10);
+  });
+
+  it('десятичный разделитель при этом только точка', () => {
+    // Иначе «min(1,5; 2)» нельзя разобрать однозначно: это либо два аргумента, либо три.
+    expect(calc('min(1,5; 2)')).toBe(1);
+    expect(calc('min(1.5; 2)')).toBe(1.5);
+  });
+});
+
 describe('формулы, которые действительно считают', () => {
   it('индекс массы тела', () => {
     expect(calc('вес / (рост / 100)^2', { вес: 70, рост: 168 })).toBeCloseTo(24.8, 1);
@@ -228,5 +315,21 @@ describe('формулы, которые действительно считаю
 
   it('площадь поверхности тела по Мостеллеру', () => {
     expect(calc('sqrt(рост * вес / 3600)', { рост: 170, вес: 70 })).toBeCloseTo(1.818, 3);
+  });
+
+  it('Кокрофт-Голт с поправкой на пол — то, ради чего заводились условия', () => {
+    // До появления `if` пол приходилось городить select-полем с числовым множителем.
+    const formula = '(140 - возраст) * вес / (72 * креатинин) * if(пол = 2, 0.85, 1)';
+    expect(calc(formula, { возраст: 60, вес: 80, креатинин: 1.1, пол: 1 })).toBeCloseTo(80.8, 1);
+    expect(calc(formula, { возраст: 60, вес: 80, креатинин: 1.1, пол: 2 })).toBeCloseTo(68.7, 1);
+  });
+
+  it('шкала с порогами', () => {
+    const formula = 'if(скф >= 90, 1, if(скф >= 60, 2, if(скф >= 30, 3, if(скф >= 15, 4, 5))))';
+    expect(calc(formula, { скф: 95 })).toBe(1);
+    expect(calc(formula, { скф: 62 })).toBe(2);
+    expect(calc(formula, { скф: 31 })).toBe(3);
+    expect(calc(formula, { скф: 20 })).toBe(4);
+    expect(calc(formula, { скф: 9 })).toBe(5);
   });
 });

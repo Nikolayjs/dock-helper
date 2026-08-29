@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Card,
+  Code,
   Container,
   Divider,
   Grid,
@@ -355,7 +356,15 @@ export function CalculatorBuilderPage() {
                 Формула
               </Title>
               <Text size="sm" c="dimmed" mb="sm">
-                Используйте переменные полей, операторы + − * / % ^ и функции: {FORMULA_FUNCTION_NAMES.join(', ')}.
+                Переменные полей, операторы <Code>+ − * / % ^</Code>, сравнения{' '}
+                <Code>{'< <= > >= = <>'}</Code> и функции: {FORMULA_FUNCTION_NAMES.join(', ')}.
+              </Text>
+              <Text size="sm" c="dimmed" mb="sm">
+                Условие пишется как <Code>if(условие; если да; если нет)</Code> — например{' '}
+                <Code>if(sex = 2; 0.85 * x; x)</Code> для поправки на пол. Несколько условий
+                соединяются через <Code>and(…)</Code>, <Code>or(…)</Code> и <Code>not(…)</Code>.
+                Десятичный разделитель — только точка; аргументы разделяются точкой с запятой или
+                запятой.
               </Text>
               <Textarea
                 placeholder="weight / ((height / 100) ^ 2)"
