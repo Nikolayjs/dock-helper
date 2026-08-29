@@ -1,4 +1,4 @@
-import { Button, Container, Stack, Text, Title } from '@mantine/core';
+import { Button } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -9,13 +9,14 @@ import type { NoteInput } from './useNotes';
 import { QUERY_KEY as NOTES_KEY, useNotes } from './useNotes';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
+import { RecordEditorPage } from '../../components/common/RecordEditorPage';
 
 export function NoteEditorPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { notes, addNote, updateNote, deleteNote } = useNotes();
+  const { notes, isLoading, addNote, updateNote, deleteNote } = useNotes();
   const confirmDelete = useDeleteWithConfirm();
   const editingNote = id ? notes.find((n) => n.id === id) : undefined;
 
@@ -23,19 +24,6 @@ export function NoteEditorPage() {
   const fallbackTo = from === '/calendar' ? '/calendar' : from === '/doctor' ? '/doctor' : from === '/dashboard' ? '/dashboard' : '/notes';
   const fallbackLabel =
     from === '/calendar' ? 'К календарю' : from === '/doctor' ? 'В профиль' : from === '/dashboard' ? 'К дашборду' : 'К списку заметок';
-
-  if (id && !editingNote) {
-    return (
-      <Container size="md" px={0}>
-        <Stack align="center" gap="sm" py={100}>
-          <Text fw={600}>Заметка не найдена</Text>
-          <Button component={Link} to={fallbackTo} mt="md">
-            {fallbackLabel}
-          </Button>
-        </Stack>
-      </Container>
-    );
-  }
 
   const backTo = editingNote ? `/notes/${editingNote.id}` : fallbackTo;
 
@@ -65,8 +53,12 @@ export function NoteEditorPage() {
   };
 
   return (
-    <Container size="md" px={0}>
-      <Stack gap="lg">
+    <RecordEditorPage
+      id={id}
+      record={editingNote}
+      isLoading={isLoading}
+      notFound={{ text: 'Заметка не найдена', to: fallbackTo, label: fallbackLabel }}
+      back={
         <Button
           component={Link}
           to={backTo}
@@ -78,19 +70,20 @@ export function NoteEditorPage() {
         >
           Назад
         </Button>
-        <Title order={3}>{editingNote ? 'Редактирование заметки' : 'Новая заметка'}</Title>
-        {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
-        <ReadingSheet>
-          <NoteForm
-            initialNote={editingNote}
-            initialDate={searchParams.get('date')}
-            onSubmit={handleSubmit}
-            onCancel={() => navigate(backTo, { state: { from } })}
-            onDelete={editingNote ? handleDelete : undefined}
-            contentMinHeight={EDITOR_MIN_HEIGHT}
-          />
-        </ReadingSheet>
-      </Stack>
-    </Container>
+      }
+      title={editingNote ? 'Редактирование заметки' : 'Новая заметка'}
+    >
+      {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
+      <ReadingSheet>
+        <NoteForm
+          initialNote={editingNote}
+          initialDate={searchParams.get('date')}
+          onSubmit={handleSubmit}
+          onCancel={() => navigate(backTo, { state: { from } })}
+          onDelete={editingNote ? handleDelete : undefined}
+          contentMinHeight={EDITOR_MIN_HEIGHT}
+        />
+      </ReadingSheet>
+    </RecordEditorPage>
   );
 }

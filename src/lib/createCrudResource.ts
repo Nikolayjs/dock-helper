@@ -43,6 +43,7 @@ export function createCrudResource<T, TCreate, TUpdate = Partial<TCreate>>(
 
 export interface CrudHandle<T, TCreate, TUpdate = Partial<TCreate>> {
   items: T[];
+  /** Данных ещё не было ни разу. Не то же, что «запрос сейчас идёт» — см. `isPending` в реализации. */
   isLoading: boolean;
   /**
    * Список действительно пришёл.
@@ -73,7 +74,12 @@ export function useCrudResource<T, TCreate, TUpdate = Partial<TCreate>>(
 ): CrudHandle<T, TCreate, TUpdate> {
   const { queryKey, repo, alsoInvalidate } = resource;
   const queryClient = useQueryClient();
-  const { data: items = [], isLoading, isSuccess, error, refetch } = useQuery({ queryKey, queryFn: repo.list });
+  // `isPending`, а не `isLoading`, и это не придирка к именам. `isLoading` у React Query — это
+  // «первый запрос **в полёте**», и между монтированием наблюдателя и стартом запроса есть кадр,
+  // где данных ещё нет, а `isLoading` уже false. Ровно в этот кадр редактор успевал показать
+  // «Пациент не найден» (замер: одно появление на 426 мс после открытия по прямой ссылке).
+  // `isPending` отвечает на честный вопрос: «данные уже приходили?»
+  const { data: items = [], isPending, isSuccess, error, refetch } = useQuery({ queryKey, queryFn: repo.list });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey });
@@ -89,7 +95,7 @@ export function useCrudResource<T, TCreate, TUpdate = Partial<TCreate>>(
 
   return {
     items,
-    isLoading,
+    isLoading: isPending,
     isSuccess,
     error,
     refetch,

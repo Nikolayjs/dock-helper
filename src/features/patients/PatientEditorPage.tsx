@@ -1,4 +1,4 @@
-import { Button, Container, Stack, Text, Title } from '@mantine/core';
+import { Button } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -9,26 +9,14 @@ import { QUERY_KEY as PATIENTS_KEY, usePatients } from './usePatients';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { visitsWarning } from './deleteWarnings';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
+import { RecordEditorPage } from '../../components/common/RecordEditorPage';
 
 export function PatientEditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { patients, addPatient, updatePatient, deletePatient } = usePatients();
+  const { patients, isLoading, addPatient, updatePatient, deletePatient } = usePatients();
   const confirmDelete = useDeleteWithConfirm();
   const editingPatient = id ? patients.find((p) => p.id === id) : undefined;
-
-  if (id && !editingPatient) {
-    return (
-      <Container size="md" px={0}>
-        <Stack align="center" gap="sm" py={100}>
-          <Text fw={600}>Пациент не найден</Text>
-          <Button component={Link} to="/patients" mt="md">
-            К списку пациентов
-          </Button>
-        </Stack>
-      </Container>
-    );
-  }
 
   const backTo = editingPatient ? `/patients/${editingPatient.id}` : '/patients';
 
@@ -59,17 +47,22 @@ export function PatientEditorPage() {
   };
 
   return (
-    <Container size="md" px={0}>
-      <Stack gap="lg">
+    <RecordEditorPage
+      id={id}
+      record={editingPatient}
+      isLoading={isLoading}
+      notFound={{ text: 'Пациент не найден', to: '/patients', label: 'К списку пациентов' }}
+      back={
         <Button component={Link} to={backTo} variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8} style={{ alignSelf: 'flex-start' }}>
           Назад
         </Button>
-        <Title order={3}>{editingPatient ? 'Редактирование пациента' : 'Новый пациент'}</Title>
-        {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
-        <ReadingSheet>
-          <PatientForm initialPatient={editingPatient} onSubmit={handleSubmit} onCancel={() => navigate(backTo)} onDelete={editingPatient ? handleDelete : undefined} />
-        </ReadingSheet>
-      </Stack>
-    </Container>
+      }
+      title={editingPatient ? 'Редактирование пациента' : 'Новый пациент'}
+    >
+      {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
+      <ReadingSheet>
+        <PatientForm initialPatient={editingPatient} onSubmit={handleSubmit} onCancel={() => navigate(backTo)} onDelete={editingPatient ? handleDelete : undefined} />
+      </ReadingSheet>
+    </RecordEditorPage>
   );
 }

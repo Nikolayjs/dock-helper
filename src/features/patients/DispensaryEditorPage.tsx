@@ -1,4 +1,4 @@
-import { Button, Container, Stack, Text, Title } from '@mantine/core';
+import { Button } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -8,27 +8,15 @@ import { usePatients } from './usePatients';
 import { useDispensary } from './useDispensary';
 import type { DispensaryRecordInput } from './useDispensary';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
+import { RecordEditorPage } from '../../components/common/RecordEditorPage';
 
 export function DispensaryEditorPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { patients } = usePatients();
-  const { records, addRecord, updateRecord } = useDispensary();
+  const { records, isLoading, addRecord, updateRecord } = useDispensary();
   const editingRecord = id ? records.find((r) => r.id === id) : undefined;
-
-  if (id && !editingRecord) {
-    return (
-      <Container size="md" px={0}>
-        <Stack align="center" gap="sm" py={100}>
-          <Text fw={600}>Карта не найдена</Text>
-          <Button component={Link} to="/patients" mt="md">
-            К списку пациентов
-          </Button>
-        </Stack>
-      </Container>
-    );
-  }
 
   const backTo = editingRecord ? `/patients/dispensary/${editingRecord.id}` : '/patients';
 
@@ -45,23 +33,28 @@ export function DispensaryEditorPage() {
   };
 
   return (
-    <Container size="md" px={0}>
-      <Stack gap="lg">
+    <RecordEditorPage
+      id={id}
+      record={editingRecord}
+      isLoading={isLoading}
+      notFound={{ text: 'Карта не найдена', to: '/patients', label: 'К списку пациентов' }}
+      back={
         <Button component={Link} to={backTo} variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8} style={{ alignSelf: 'flex-start' }}>
           Назад
         </Button>
-        <Title order={3}>{editingRecord ? 'Редактирование карты учёта' : 'Постановка на диспансерный учёт'}</Title>
-        {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
-        <ReadingSheet>
-          <DispensaryForm
-            patients={patients}
-            initialRecord={editingRecord}
-            defaultPatientId={searchParams.get('patientId') ?? undefined}
-            onSubmit={handleSubmit}
-            onCancel={() => navigate(backTo)}
-          />
-        </ReadingSheet>
-      </Stack>
-    </Container>
+      }
+      title={editingRecord ? 'Редактирование карты учёта' : 'Постановка на диспансерный учёт'}
+    >
+      {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
+      <ReadingSheet>
+        <DispensaryForm
+          patients={patients}
+          initialRecord={editingRecord}
+          defaultPatientId={searchParams.get('patientId') ?? undefined}
+          onSubmit={handleSubmit}
+          onCancel={() => navigate(backTo)}
+        />
+      </ReadingSheet>
+    </RecordEditorPage>
   );
 }
