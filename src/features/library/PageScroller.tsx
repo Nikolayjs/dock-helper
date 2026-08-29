@@ -27,14 +27,29 @@ interface PageScrollerProps {
   /** Прокручиваемая рамка: по ней читалка ищет страницы и мерит доступную ширину. */
   frameRef: (element: HTMLDivElement | null) => void;
   maxHeight: string;
+  /**
+   * Сколько сверху занимает лежащая на листе панель.
+   *
+   * Отступ идёт дорожке, а `scroll-padding-top` — рамке: первый убирает панель с первой страницы,
+   * второй нужен переходу к странице (`scrollIntoView`), иначе верх выбранной страницы вставал бы
+   * ровно под панель — то есть выбранная страница начиналась бы за ней.
+   */
+  topInset?: number;
   children: ReactNode;
 }
 
-export function PageScroller({ frameRef, maxHeight, children }: PageScrollerProps) {
+export function PageScroller({ frameRef, maxHeight, topInset = 0, children }: PageScrollerProps) {
   return (
     <div
       ref={frameRef}
-      style={{ maxHeight, width: '100%', overflow: 'auto', overscrollBehaviorX: 'contain', scrollbarGutter: 'stable' }}
+      style={{
+        maxHeight,
+        width: '100%',
+        overflow: 'auto',
+        overscrollBehaviorX: 'contain',
+        scrollbarGutter: 'stable',
+        scrollPaddingTop: topInset,
+      }}
     >
       <div
         style={{
@@ -43,7 +58,7 @@ export function PageScroller({ frameRef, maxHeight, children }: PageScrollerProp
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '4px 0',
+          padding: `${4 + topInset}px 0 4px`,
         }}
       >
         {children}

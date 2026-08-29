@@ -12,12 +12,24 @@ interface ReaderBarProps {
   top: string | number;
   /** Убрана ли панель за верхний край: листают вниз — читают, и панель не нужна. */
   hidden?: boolean;
+  /**
+   * Лежать поверх содержимого, а не над ним.
+   *
+   * У постраничных читалок страница не прокручивается — прокручивается их рамка, — и панель,
+   * стоящая в потоке, оставила бы после себя пустую полосу ровно там, где была: спрятать её значит
+   * убрать картинку, а не освободить место. Поэтому там она ложится на лист сверху, как в любой
+   * настоящей смотрелке PDF, и спрятанная действительно отдаёт своё место документу.
+   */
+  overlay?: boolean;
+  /** Сама панель — её высоту меряет страница, чтобы отступить на неё сверху листа. */
+  rootRef?: (element: HTMLDivElement | null) => void;
 }
 
 /** Панель читалки. Почему она есть и почему прилипшая — в `ReaderBar.module.css`. */
-export function ReaderBar({ children, slotRef, top, hidden }: ReaderBarProps) {
+export function ReaderBar({ children, slotRef, top, hidden, overlay, rootRef }: ReaderBarProps) {
+  const className = [classes.bar, overlay ? classes.overlay : '', hidden ? classes.hidden : ''].filter(Boolean).join(' ');
   return (
-    <div className={hidden ? `${classes.bar} ${classes.hidden}` : classes.bar} style={{ top }} aria-hidden={hidden}>
+    <div className={className} style={overlay ? undefined : { top }} aria-hidden={hidden} ref={rootRef}>
       {children}
       <div className={classes.slot} ref={slotRef} />
     </div>

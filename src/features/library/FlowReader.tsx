@@ -51,6 +51,14 @@ export function FlowReader({
   const containerRef = useRef<HTMLDivElement>(null);
   /** Доля прочитанного: по ней место в книге переносится при входе в полный экран и выходе. */
   const fractionRef = useRef(initialProgress);
+  /**
+   * Докуда можно прокрутить. Хранится, а не спрашивается на каждый кадр, и это не оптимизация «на
+   * всякий случай»: `scrollHeight` — свойство, чтение которого заставляет браузер досчитать
+   * раскладку, если её что-то пометило грязной. На книге в 300 000 px такое чтение стоит 30 мс
+   * против нуля в чистом состоянии, а прокрутка спрашивает его каждый кадр. Значение меняется
+   * только когда меняется размер книги или окна — за этим и следит `ResizeObserver`.
+   */
+  const maxScrollRef = useRef(0);
   const [fontScale, setFontScale] = useState(() => getReaderFontScale());
 
   // Кто прокручивается: корень оболочки (обычный режим) или сама рамка (полный экран).
@@ -66,6 +74,7 @@ export function FlowReader({
       const el = scroller();
       const max = el ? el.scrollHeight - el.clientHeight : 0;
       if (el && max > 0) {
+        maxScrollRef.current = max;
         el.scrollTop = max * fractionRef.current;
         return;
       }
@@ -78,12 +87,28 @@ export function FlowReader({
 
   useEffect(() => {
     const el = scroller();
+    const content = containerRef.current;
+    if (!el || !content) return;
+    const remeasure = () => {
+      maxScrollRef.current = el.scrollHeight - el.clientHeight;
+    };
+    remeasure();
+    // Картинки из Word доезжают до своего размера уже после разбора, и книга при этом растёт.
+    const observer = new ResizeObserver(remeasure);
+    observer.observe(content);
+    if (el !== content) observer.observe(el);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [immersive, bodyHtml]);
+
+  useEffect(() => {
+    const el = scroller();
     if (!el) return;
     let frame = 0;
     const handleScroll = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const max = el.scrollHeight - el.clientHeight;
+        const max = maxScrollRef.current;
         const fraction = max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0;
         fractionRef.current = fraction;
         onProgressChange?.(fraction);

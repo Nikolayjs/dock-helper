@@ -6,12 +6,14 @@ import { SCROLL_ROOT_ID } from './scrollRoot';
 const MOVE_THRESHOLD = 8;
 /** У самого верха шапка нужна всегда: там ещё нечего читать, а искать её негде. */
 const TOP_ZONE = 80;
+/** Дальше этого кнопка «наверх» имеет смысл: возвращаться становится далеко. */
+const BACK_TO_TOP_AT = 300;
 
 export interface ScrollState {
-  /** Показывать прилипшие элементы: шапку и кнопку «наверх». */
+  /** Показывать прилипшие элементы: шапку, панель читалки, кнопку «наверх». */
   visible: boolean;
-  /** Текущая прокрутка корня оболочки. */
-  y: number;
+  /** Ушли ли от верха настолько, что кнопке «наверх» есть что делать. */
+  scrolled: boolean;
 }
 
 /**
@@ -29,13 +31,26 @@ export interface ScrollState {
  *
  * Порог в 8 px нужен из-за инерционной прокрутки на телефоне: без него шапка дёргалась бы на
  * микросдвигах в конце жеста.
+ *
+ * **Наружу отдаются только логические значения, и это несущее решение, а не оформление.** Раньше
+ * здесь лежала ещё и сама прокрутка в пикселях — то есть состояние, меняющееся каждый кадр, а с
+ * ним и перерисовка всех, кто хук позвал: оболочки, кнопки «наверх» и страницы. Пока страницы были
+ * лёгкими, это не замечалось. В читалке книги подписчиком стало дерево на семнадцать тысяч узлов, и
+ * перерисовка каждый кадр помечала раскладку грязной; следующее же чтение размера (`scrollHeight`)
+ * заставляло браузер пересчитать её целиком — по 30 мс за раз при пустячном чтении в чистом
+ * состоянии. Замер на книге в 300 000 px: кадр прокрутки 341 мс против 23 мс на обычной странице.
+ * Оба флага меняются только на смене направления и на пересечении порога, то есть считанные разы за
+ * всё листание.
  */
-export function useScrollDirection(): ScrollState {
-  const [state, setState] = useState<ScrollState>({ visible: true, y: 0 });
+export function useScrollDirection(target?: HTMLElement | null): ScrollState {
+  const [state, setState] = useState<ScrollState>({ visible: true, scrolled: false });
   const lastY = useRef(0);
 
   useEffect(() => {
-    const el = document.getElementById(SCROLL_ROOT_ID);
+    // Чаще всего прокручивается корень оболочки. Но у постраничных читалок (PDF, DjVu) страница
+    // стоит на месте, а листается их собственная рамка: лист бывает шире экрана и обязан ездить
+    // вбок, а переход к странице двигает именно рамку. Кто прокручивается — знает вызывающий.
+    const el = target ?? document.getElementById(SCROLL_ROOT_ID);
     if (!el) return;
 
     lastY.current = el.scrollTop;
@@ -50,7 +65,8 @@ export function useScrollDirection(): ScrollState {
         // У верха и при слишком маленьком сдвиге прежнее решение сохраняется.
         const visible = y <= TOP_ZONE ? true : Math.abs(delta) < MOVE_THRESHOLD ? previous.visible : delta < 0;
         if (Math.abs(delta) >= MOVE_THRESHOLD) lastY.current = y;
-        return previous.visible === visible && previous.y === y ? previous : { visible, y };
+        const scrolled = y > BACK_TO_TOP_AT;
+        return previous.visible === visible && previous.scrolled === scrolled ? previous : { visible, scrolled };
       });
     };
 
@@ -66,7 +82,7 @@ export function useScrollDirection(): ScrollState {
       el.removeEventListener('scroll', onScroll);
       if (frame) cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [target]);
 
   return state;
 }

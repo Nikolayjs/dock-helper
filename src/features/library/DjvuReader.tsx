@@ -16,6 +16,12 @@ interface DjvuReaderProps {
   onPageChange?: (page: number, pageCount: number) => void;
   /** Место в панели читалки под её кнопки; без него они рисуются на месте, над рамкой. */
   toolbarSlot?: HTMLElement | null;
+  /** Высота рамки. По умолчанию — три четверти окна, страница задаёт «до низа экрана». */
+  maxHeight?: string;
+  /** Сколько сверху занимает лежащая на листе панель. */
+  topInset?: number;
+  /** Прокручивается рамка, а не страница: наружу она нужна тому, кто следит за направлением. */
+  onFrame?: (element: HTMLDivElement | null) => void;
 }
 
 /** How far outside the viewport a page's image starts rendering, so scrolling never shows a blank page. */
@@ -101,7 +107,7 @@ function DjvuPage({ handle, pageNumber, nativeSize, scale, registerVisibility }:
   );
 }
 
-export function DjvuReader({ data, initialPage = 1, immersive, onPageChange, toolbarSlot }: DjvuReaderProps) {
+export function DjvuReader({ data, initialPage = 1, immersive, onPageChange, toolbarSlot, maxHeight, topInset, onFrame }: DjvuReaderProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [frame, setFrame] = useState<HTMLDivElement | null>(null);
   const handleRef = useRef<DjvuDocumentHandle | null>(null);
@@ -119,10 +125,14 @@ export function DjvuReader({ data, initialPage = 1, immersive, onPageChange, too
   const pendingScrollTarget = useRef<number | null>(initialPage);
 
   // Одна и та же рамка нужна и как ссылка (искать страницы), и как узел (мерить ширину).
-  const attachFrame = useCallback((element: HTMLDivElement | null) => {
-    scrollRef.current = element;
-    setFrame(element);
-  }, []);
+  const attachFrame = useCallback(
+    (element: HTMLDivElement | null) => {
+      scrollRef.current = element;
+      setFrame(element);
+      onFrame?.(element);
+    },
+    [onFrame],
+  );
 
   const containerWidth = useElementWidth(frame);
   const naturalWidth = pagesSizes[0] ? (pagesSizes[0].width * CSS_DPI) / pagesSizes[0].dpi : null;
@@ -274,7 +284,11 @@ export function DjvuReader({ data, initialPage = 1, immersive, onPageChange, too
           </Group>
         </ToolbarSlot>
       )}
-      <PageScroller frameRef={attachFrame} maxHeight={immersive ? '92vh' : '75vh'}>
+      <PageScroller
+        frameRef={attachFrame}
+        maxHeight={immersive ? '92vh' : (maxHeight ?? '75vh')}
+        topInset={immersive ? 0 : topInset}
+      >
         {scale !== null &&
           pagesSizes.map((size, index) => (
             <DjvuPage

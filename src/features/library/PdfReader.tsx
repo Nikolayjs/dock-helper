@@ -16,6 +16,12 @@ interface PdfReaderProps {
   onPageChange?: (page: number, pageCount: number) => void;
   /** Место в панели читалки под её кнопки; без него они рисуются на месте, над рамкой. */
   toolbarSlot?: HTMLElement | null;
+  /** Высота рамки. По умолчанию — три четверти окна, страница задаёт «до низа экрана». */
+  maxHeight?: string;
+  /** Сколько сверху занимает лежащая на листе панель. */
+  topInset?: number;
+  /** Прокручивается рамка, а не страница: наружу она нужна тому, кто следит за направлением. */
+  onFrame?: (element: HTMLDivElement | null) => void;
 }
 
 type PdfDocumentProxy = Awaited<ReturnType<typeof loadPdfDocument>>;
@@ -94,7 +100,7 @@ function PdfPage({ doc, pageNumber, scale, estimatedSize, registerVisibility }: 
   );
 }
 
-export function PdfReader({ data, initialPage = 1, immersive, onPageChange, toolbarSlot }: PdfReaderProps) {
+export function PdfReader({ data, initialPage = 1, immersive, onPageChange, toolbarSlot, maxHeight, topInset, onFrame }: PdfReaderProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [frame, setFrame] = useState<HTMLDivElement | null>(null);
   const docRef = useRef<PdfDocumentProxy | null>(null);
@@ -112,10 +118,14 @@ export function PdfReader({ data, initialPage = 1, immersive, onPageChange, tool
   const pendingScrollTarget = useRef<number | null>(initialPage);
 
   // Одна и та же рамка нужна и как ссылка (искать страницы), и как узел (мерить ширину).
-  const attachFrame = useCallback((element: HTMLDivElement | null) => {
-    scrollRef.current = element;
-    setFrame(element);
-  }, []);
+  const attachFrame = useCallback(
+    (element: HTMLDivElement | null) => {
+      scrollRef.current = element;
+      setFrame(element);
+      onFrame?.(element);
+    },
+    [onFrame],
+  );
 
   const containerWidth = useElementWidth(frame);
   const { scale, isFit, adjust, fitWidth } = useReaderZoom({
@@ -271,7 +281,11 @@ export function PdfReader({ data, initialPage = 1, immersive, onPageChange, tool
           </Group>
         </ToolbarSlot>
       )}
-      <PageScroller frameRef={attachFrame} maxHeight={immersive ? '92vh' : '75vh'}>
+      <PageScroller
+        frameRef={attachFrame}
+        maxHeight={immersive ? '92vh' : (maxHeight ?? '75vh')}
+        topInset={immersive ? 0 : topInset}
+      >
         {scale !== null &&
           Array.from({ length: pageCount }, (_, i) => i + 1).map((pageNumber) => (
             <PdfPage

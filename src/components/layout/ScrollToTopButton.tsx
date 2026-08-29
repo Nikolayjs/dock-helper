@@ -4,17 +4,15 @@ import { IconArrowUp } from '@tabler/icons-react';
 import { SCROLL_ROOT_ID } from './scrollRoot';
 import { useScrollDirection } from './useScrollDirection';
 
-const SCROLL_THRESHOLD = 300;
-
 /** Mounted once at the app layout level, so it shows up on every page without each one wiring it up. */
 export function ScrollToTopButton() {
   // Кнопка появляется, только когда прокрутили достаточно далеко **и** листают вверх: при движении
   // вниз пользователь читает, и загораживать ему текст кнопкой возврата незачем.
-  const { visible, y } = useScrollDirection();
+  const { visible, scrolled } = useScrollDirection();
 
   return (
     <Affix position={{ bottom: 24, right: 24 }}>
-      <Transition transition="slide-up" mounted={y > SCROLL_THRESHOLD && visible}>
+      <Transition transition="slide-up" mounted={scrolled && visible}>
         {(styles) => (
           <ActionIcon
             size={48}
