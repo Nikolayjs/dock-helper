@@ -41,6 +41,12 @@ export async function fetchNewsFeed(
   // The backend knows the feed URL, not which locally-titled source it belongs to.
   const items: NewsFeedItem[] = data.items.map((item) => ({
     ...item,
+    // Идентификатор ленты уникален только внутри своего источника — это его ссылка или guid.
+    // Страница новостей сводит источники в один список, и там два агрегатора, перепечатавшие одну
+    // статью, дают одинаковый ключ; то же самое, если врач добавил одну ленту дважды. React на
+    // повторяющийся ключ не падает, а **молча выбрасывает одну из новостей** — заметить это можно
+    // только по счёту. Источник в ключе делает его уникальным во всём списке.
+    id: `${source.id}:${item.id}`,
     sourceId: source.id,
     sourceTitle: source.title,
   }));
