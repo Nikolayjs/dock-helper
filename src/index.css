@@ -62,7 +62,7 @@ body {
 }
 
 /*
- * Наведение подкрашивается вместе с поверхностями.
+ * Наведение и границы подкрашиваются вместе с поверхностями.
  *
  * Фирменная палитра под обои подстраивается, а нейтральные серые — нет, и на тёплой поверхности
  * холодный серый читается голубым: замер на «Рассвете» дал поверхность rgb(252,242,239), а
@@ -77,11 +77,17 @@ body {
  *
  * Доля примеси та же, что у поверхностей (`--app-tint`), поэтому лестница светлот сохраняется:
  * наведение остаётся ровно на столько же темнее фона, на сколько было.
+ *
+ * `gray-3` и `gray-4` — это границы (`--mantine-color-default-border`), в том числе рамка поля
+ * ввода и черта под шапкой. Холодная серая рамка вокруг тёплого поля видна ровно так же, как
+ * холодная подсветка строки. В тёмной теме ту же роль играет `dark-4` — он подкрашен ниже.
  */
 :root[data-wallpaper='tinted'] {
   --mantine-color-gray-0: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #f8f9fa);
   --mantine-color-gray-1: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #f1f3f5);
   --mantine-color-gray-2: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #e9ecef);
+  --mantine-color-gray-3: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #dee2e6);
+  --mantine-color-gray-4: color-mix(in srgb, var(--mantine-color-brand-6) var(--app-tint), #ced4da);
   --mantine-color-default-hover: var(--mantine-color-gray-0);
 }
 
@@ -104,6 +110,29 @@ body {
  */
 :root[data-wallpaper='tinted'] .mantine-Card-root {
   background-color: var(--app-card-bg);
+}
+
+/*
+ * Поле ввода — та же ловушка, что и карточка, и найдена она тем же способом.
+ *
+ * Фон поля Mantine берёт не из `--mantine-color-body`, а из своей переменной `--input-bg`, которой
+ * правило `[data-mantine-color-scheme='light'] .mantine-Input-wrapper[data-variant='default']`
+ * присваивает `--mantine-color-white`. Перекрывать сам «белый» нельзя (им набран текст на кнопках с
+ * заливкой), поэтому правило адресное — и с `[data-variant='default']`, иначе оно весит столько же,
+ * сколько родное, и исход решал бы порядок подключения файлов.
+ *
+ * Берётся цвет карточки, а не страницы, и это не одно и то же в тёмной теме: у Mantine поле там
+ * `dark-6`, то есть ровно фон карточки, а фон страницы `dark-7` — темнее. В светлой теме и поле, и
+ * карточка белые. То есть без обоев поле всегда совпадает с карточкой, на которой лежит, и здесь
+ * восстанавливается ровно это. Замер на «Рассвете»: карточка была rgb(252,242,239), поле —
+ * rgb(255,255,255); на странице анализов, где полей полсотни, белые прямоугольники и читались как
+ * чужие.
+ *
+ * Варианты `filled` и `unstyled` не трогаются: первый берёт `gray-1`/`dark-5`, а они подкрашены
+ * выше, второй прозрачен.
+ */
+:root[data-wallpaper='tinted'] .mantine-Input-wrapper[data-variant='default'] {
+  --input-bg: var(--app-card-bg);
 }
 
 ::-webkit-scrollbar {
