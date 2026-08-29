@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, Container, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { IconArrowLeft } from '@tabler/icons-react';
+import { IconArrowLeft, IconPrinter, IconTableExport } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link } from 'react-router-dom';
 
 import { computeDispensaryStats, computeStatsByDiagnosis } from '../features/patients/dispensaryStats';
+import { buildDispensaryReport } from '../features/patients/dispensaryReport';
+import { downloadXlsx } from '../lib/xlsx/downloadXlsx';
 import { RankedBarList, type BarItem } from '../components/common/RankedBarList';
 import { DispensaryDiagnosisTable } from '../features/patients/DispensaryDiagnosisTable';
 import { DispensaryPatientTable } from '../features/patients/DispensaryPatientTable';
@@ -104,14 +106,55 @@ export function DispensaryStatsPage() {
   ];
   const outcomesTotal = outcomes.reduce((sum, o) => sum + o.value, 0);
 
+  // Отбор словами: он попадает и в выгрузку, и на бумагу. Отчёт, по которому нельзя понять, кого в
+  // него включили, приходится пересчитывать заново — а это как раз то, от чего здесь уходят.
+  const filterSummary = useMemo(() => {
+    const parts: string[] = [];
+    const range = ageOption === 'custom'
+      ? { min: customMinAge === '' ? undefined : customMinAge, max: customMaxAge === '' ? undefined : customMaxAge }
+      : AGE_PRESETS[ageOption];
+    if (range.min !== undefined || range.max !== undefined) {
+      parts.push(`возраст ${range.min ?? 0}–${range.max ?? '∞'}`);
+    }
+    if (sex) parts.push(sex === 'male' ? 'мужчины' : 'женщины');
+    if (diagnosisFilter) parts.push(`диагноз «${diagnosisFilter}»`);
+    return parts.length > 0 ? parts.join(', ') : 'без отбора, все карты учёта';
+  }, [ageOption, customMinAge, customMaxAge, sex, diagnosisFilter]);
+
+  const handleExport = () =>
+    downloadXlsx(
+      buildDispensaryReport({
+        periodStart,
+        periodEnd,
+        filters: filterSummary,
+        stats,
+        byDiagnosis,
+        records: filtered,
+        patientsById,
+        labelOf: (record) => diagnosisLabel(record.diagnosis, record.diagnosisCode, icdNames),
+        codeOf: (record) => diagnosisCodeOf(record.diagnosis, record.diagnosisCode),
+        hideNames,
+      }),
+    );
+
   return (
     <Container size="lg" px={0}>
       <Stack gap="lg">
-        <Button component={Link} to="/patients" variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8} style={{ alignSelf: 'flex-start' }}>
-          К списку пациентов
-        </Button>
+        <Group justify="space-between" align="center" wrap="wrap" gap="sm" className="no-print">
+          <Button component={Link} to="/patients" variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
+            К списку пациентов
+          </Button>
+          <Group gap="xs">
+            <Button variant="light" leftSection={<IconTableExport size={16} />} onClick={handleExport}>
+              Скачать .xlsx
+            </Button>
+            <Button variant="light" leftSection={<IconPrinter size={16} />} onClick={() => window.print()}>
+              Печать
+            </Button>
+          </Group>
+        </Group>
 
-        <Card withBorder padding="md">
+        <Card withBorder padding="md" className="no-print">
           <Stack gap="sm">
             <SegmentedControl
               value={yearOption}
@@ -134,7 +177,7 @@ export function DispensaryStatsPage() {
           </Stack>
         </Card>
 
-        <Card withBorder padding="md">
+        <Card withBorder padding="md" className="no-print">
           <Stack gap="sm">
             <Text size="sm" fw={600}>
               Фильтры
@@ -208,104 +251,120 @@ export function DispensaryStatsPage() {
           </Stack>
         </Card>
 
-        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
-          {[
-            { label: 'Состоит на учёте', value: stats.consists },
-            { label: 'Взято за период', value: stats.taken },
-            { label: 'Снято за период', value: stats.totalRemoved },
-            { label: 'Диагнозов', value: byDiagnosis.length },
-          ].map((tile) => (
-            <Card key={tile.label} withBorder padding="md">
-              <Text size="xs" c="dimmed">
-                {tile.label}
-              </Text>
-              <Text fz={32} fw={700} lh={1.1} mt={4}>
-                {tile.value}
-              </Text>
-            </Card>
-          ))}
-        </SimpleGrid>
-
-        <Card withBorder padding="lg">
-          <Text fw={600} mb={2}>
-            Состоит на учёте по диагнозам
-          </Text>
-          <Text size="xs" c="dimmed" mb="md">
-            На конец периода, от большего к меньшему
-          </Text>
-          <RankedBarList
-            items={byDiagnosis.map((row) => ({ label: row.diagnosis, value: row.consists, code: row.diagnosisCode }))}
-            emptyMessage="За выбранный период на учёте никто не состоит."
-            tailLabel={(count) => `Остальные диагнозы (${count})`}
-          />
-        </Card>
-
-        <Card withBorder padding="lg">
-          <Text fw={600} mb={2}>
-            По диагнозам
-          </Text>
-          <Text size="xs" c="dimmed" mb="md">
-            Те же графы отчёта, разложенные по заболеваниям
-          </Text>
-          <DispensaryDiagnosisTable rows={byDiagnosis} totals={stats} />
-        </Card>
-
-        <Card withBorder padding="lg">
-          <Text fw={600} mb={2}>
-            Исходы наблюдения
-          </Text>
-          {outcomesTotal === 0 ? (
-            <Text size="sm" c="dimmed">
-              За период не отмечено ни одного осмотра с исходом — заполняются в карте диспансерного учёта.
+        {/* Область печати. Отчёт длиннее листа, поэтому печатается потоком, а не как документ
+            на один лист: см. правило `.printable-report` в index.css. */}
+        <div className="printable-report">
+          <div className="print-only" style={{ marginBottom: '1rem' }}>
+            <Text fw={700} fz="lg">
+              Отчёт по диспансерному наблюдению
             </Text>
-          ) : (
-            <>
-              <Text size="xs" c="dimmed" mb="md">
-                По последнему осмотру каждого пациента за период
-              </Text>
-              {/* Five named categories compared by size — one series, so identity rides on the
-                  labels and no pair of hues has to be told apart. */}
-              <RankedBarList items={outcomes} emptyMessage="" />
-            </>
-          )}
-        </Card>
-
-        <Card withBorder padding="lg">
-          <Group justify="space-between" align="flex-start" wrap="wrap" gap="sm" mb="md">
-            <div>
-              <Text fw={600} mb={2}>
-                Сводный отчёт
-              </Text>
-              <Text size="xs" c="dimmed">
-                Все пациенты отбора, поимённо
-              </Text>
-            </div>
-            <Switch
-              checked={hideNames}
-              onChange={(e) => setHideNames(e.currentTarget.checked)}
-              label="Скрыть имена"
-              description="Останутся диагнозы, пол и возраст"
-            />
-          </Group>
-
-          <DispensaryPatientTable
-            records={filtered}
-            patientsById={patientsById}
-            icdNames={icdNames}
-            hideNames={hideNames}
-            asOf={periodEnd}
-          />
-
-          <Text fw={600} mt="xl" mb={2}>
-            Итоговая форма
-          </Text>
-          <Text size="xs" c="dimmed" mb="md">
-            Те же данные в виде отчётной таблицы
-          </Text>
-          <div style={{ overflowX: 'auto' }}>
-            <DispensaryStatsTable stats={stats} />
+            <Text size="sm">
+              Период: {dayjs(periodStart).format('D MMMM YYYY')} — {dayjs(periodEnd).format('D MMMM YYYY')}
+            </Text>
+            <Text size="sm">Отбор: {filterSummary}</Text>
+            <Text size="sm">Карт учёта в отчёте: {filtered.length}</Text>
           </div>
-        </Card>
+          <Stack gap="lg">
+          <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
+            {[
+              { label: 'Состоит на учёте', value: stats.consists },
+              { label: 'Взято за период', value: stats.taken },
+              { label: 'Снято за период', value: stats.totalRemoved },
+              { label: 'Диагнозов', value: byDiagnosis.length },
+            ].map((tile) => (
+              <Card key={tile.label} withBorder padding="md">
+                <Text size="xs" c="dimmed">
+                  {tile.label}
+                </Text>
+                <Text fz={32} fw={700} lh={1.1} mt={4}>
+                  {tile.value}
+                </Text>
+              </Card>
+            ))}
+          </SimpleGrid>
+
+          <Card withBorder padding="lg">
+            <Text fw={600} mb={2}>
+              Состоит на учёте по диагнозам
+            </Text>
+            <Text size="xs" c="dimmed" mb="md">
+              На конец периода, от большего к меньшему
+            </Text>
+            <RankedBarList
+              items={byDiagnosis.map((row) => ({ label: row.diagnosis, value: row.consists, code: row.diagnosisCode }))}
+              emptyMessage="За выбранный период на учёте никто не состоит."
+              tailLabel={(count) => `Остальные диагнозы (${count})`}
+            />
+          </Card>
+
+          <Card withBorder padding="lg">
+            <Text fw={600} mb={2}>
+              По диагнозам
+            </Text>
+            <Text size="xs" c="dimmed" mb="md">
+              Те же графы отчёта, разложенные по заболеваниям
+            </Text>
+            <DispensaryDiagnosisTable rows={byDiagnosis} totals={stats} />
+          </Card>
+
+          <Card withBorder padding="lg">
+            <Text fw={600} mb={2}>
+              Исходы наблюдения
+            </Text>
+            {outcomesTotal === 0 ? (
+              <Text size="sm" c="dimmed">
+                За период не отмечено ни одного осмотра с исходом — заполняются в карте диспансерного учёта.
+              </Text>
+            ) : (
+              <>
+                <Text size="xs" c="dimmed" mb="md">
+                  По последнему осмотру каждого пациента за период
+                </Text>
+                {/* Five named categories compared by size — one series, so identity rides on the
+                    labels and no pair of hues has to be told apart. */}
+                <RankedBarList items={outcomes} emptyMessage="" />
+              </>
+            )}
+          </Card>
+
+          <Card withBorder padding="lg">
+            <Group justify="space-between" align="flex-start" wrap="wrap" gap="sm" mb="md">
+              <div>
+                <Text fw={600} mb={2}>
+                  Сводный отчёт
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Все пациенты отбора, поимённо
+                </Text>
+              </div>
+              <Switch
+                checked={hideNames}
+                onChange={(e) => setHideNames(e.currentTarget.checked)}
+                label="Скрыть имена"
+                description="Останутся диагнозы, пол и возраст"
+              />
+            </Group>
+
+            <DispensaryPatientTable
+              records={filtered}
+              patientsById={patientsById}
+              icdNames={icdNames}
+              hideNames={hideNames}
+              asOf={periodEnd}
+            />
+
+            <Text fw={600} mt="xl" mb={2}>
+              Итоговая форма
+            </Text>
+            <Text size="xs" c="dimmed" mb="md">
+              Те же данные в виде отчётной таблицы
+            </Text>
+            <div style={{ overflowX: 'auto' }}>
+              <DispensaryStatsTable stats={stats} />
+            </div>
+          </Card>
+          </Stack>
+        </div>
       </Stack>
     </Container>
   );

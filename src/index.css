@@ -220,9 +220,52 @@ body {
   cursor: help;
 }
 
+/* Видно только при печати: шапка отчёта с периодом и отбором. */
+.print-only {
+  display: none;
+}
+
 @media print {
-  body * {
+  /* Документ на один лист прячет всё остальное и ложится на страницу целиком. **Отчёт так печатать
+     нельзя** — он длиннее листа, а `position: fixed` обрезал бы его на первой странице. Поэтому
+     правило отключается, когда на странице есть печатаемый отчёт, и там лишнее убирается
+     `display: none`, то есть уходит из потока, а не прячется в нём. */
+  body:not(:has(.printable-report)) * {
     visibility: hidden;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  /* Оболочка на бумагу не идёт ни в каком виде: ни шапка приложения, ни сайдбар. */
+  body:has(.printable-report) .mantine-AppShell-header,
+  body:has(.printable-report) .mantine-AppShell-navbar {
+    display: none !important;
+  }
+
+  body:has(.printable-report) .mantine-AppShell-main {
+    padding: 0 !important;
+  }
+
+  /* Таблица отчёта на бумаге не прокручивается — она переносится на следующую страницу. */
+  .printable-report [class*='ScrollContainer'],
+  .printable-report [style*='overflow'] {
+    overflow: visible !important;
+  }
+
+  .printable-report table {
+    /* Строку рвать между страницами нельзя: половина фамилии внизу листа и половина сверху
+       следующего читается как две разные записи. */
+    page-break-inside: auto;
+  }
+
+  .printable-report tr {
+    page-break-inside: avoid;
+  }
+
+  .printable-report thead {
+    display: table-header-group;
   }
 
   .printable-document,
