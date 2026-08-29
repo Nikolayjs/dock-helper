@@ -1,18 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import {
   ActionIcon,
   Avatar,
-  Badge,
   Box,
   Button,
   Card,
   Container,
   Group,
   Image,
-  Modal,
-  Pagination,
-  PasswordInput,
   SimpleGrid,
   Stack,
   Text,
@@ -24,42 +20,33 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconArrowRight,
   IconArrowsSort,
   IconCamera,
   IconCheck,
-  IconChecklist,
   IconDeviceDesktop,
   IconKey,
   IconLogout,
   IconMoonStars,
-  IconNote,
-  IconNotes,
   IconPrinter,
   IconSun,
   IconUpload,
   IconUserPlus,
-  IconUsers,
   IconX,
 } from '@tabler/icons-react';
-import dayjs from 'dayjs';
-import { Link, useNavigate } from 'react-router-dom';
 
 import { WallpaperPicker } from '../features/appearance/WallpaperPicker';
 import { useSidebarOrder } from '../components/layout/useSidebarOrder';
-import { AuthApiError, changePassword, updateProfile } from '../features/auth/authApi';
+import { updateProfile } from '../features/auth/authApi';
 import { useAuth, useLogout, useUpdateAuthUser } from '../features/auth/AuthContext';
 import { getClinicSettings, setClinicSettings, type ClinicSettings } from '../features/patients/clinicSettings';
-import { stripHtml } from '../features/notes/textPreview';
-import { useNotes } from '../features/notes/useNotes';
 import { getMembers, invite, type WorkspaceMember } from '../features/workspace/workspaceApi';
 import { isDemoSession } from '../features/demo/demoSession';
+import { ChangePasswordModal } from '../features/doctor/ChangePasswordModal';
+import { DoctorNotesCard } from '../features/doctor/DoctorNotesCard';
 import { resizeImageToDataUrl } from '../lib/imageResize';
 
 const AVATAR_MAX_DIMENSION = 256;
 const SIGNATURE_MAX_DIMENSION = 480;
-
-const NOTES_PAGE_SIZE = 10;
 
 type SchemeOption = 'light' | 'dark' | 'auto';
 
@@ -78,21 +65,12 @@ function getInitials(name: string) {
     .join('');
 }
 
-function getNoteExcerpt(note: { kind: string; content: string; items: { text: string }[] }) {
-  if (note.kind === 'todo') {
-    return note.items.map((item) => item.text).join(', ') || 'Пустой чек-лист';
-  }
-  return stripHtml(note.content) || 'Без текста';
-}
-
 export function DoctorPage() {
   // Гостевая сессия: часть настроек живёт на сервере, которого у демо нет.
   const demo = isDemoSession();
-  const { notes } = useNotes();
   const user = useAuth();
   const updateAuthUser = useUpdateAuthUser();
   const logout = useLogout();
-  const navigate = useNavigate();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const { hasCustomOrder, resetOrder } = useSidebarOrder();
   const [clinicSettings, setClinicSettingsState] = useState<ClinicSettings>(() => getClinicSettings());
@@ -110,11 +88,6 @@ export function DoctorPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const showProfileError = (error: unknown, fallback: string) => {
     notifications.show({ message: error instanceof Error ? error.message : fallback, color: 'red' });
@@ -139,32 +112,6 @@ export function DoctorPage() {
       setInviteError(error instanceof Error ? error.message : 'Не удалось добавить врача');
     } finally {
       setIsInviting(false);
-    }
-  };
-
-  const closePasswordModal = () => {
-    setPasswordModalOpen(false);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmNewPassword('');
-    setPasswordError(null);
-  };
-
-  const handleChangePassword = async () => {
-    setPasswordError(null);
-    if (newPassword !== confirmNewPassword) {
-      setPasswordError('Новые пароли не совпадают.');
-      return;
-    }
-    setIsChangingPassword(true);
-    try {
-      await changePassword(currentPassword, newPassword);
-      notifications.show({ message: 'Пароль изменён', color: 'teal' });
-      closePasswordModal();
-    } catch (error) {
-      setPasswordError(error instanceof AuthApiError ? error.message : 'Не удалось сменить пароль');
-    } finally {
-      setIsChangingPassword(false);
     }
   };
 
@@ -212,11 +159,6 @@ export function DoctorPage() {
     }
   };
 
-  const sortedNotes = useMemo(() => [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [notes]);
-  const totalPages = Math.max(1, Math.ceil(sortedNotes.length / NOTES_PAGE_SIZE));
-  const [page, setPage] = useState(1);
-  const activePage = Math.min(page, totalPages);
-  const pageNotes = sortedNotes.slice((activePage - 1) * NOTES_PAGE_SIZE, activePage * NOTES_PAGE_SIZE);
 
   const handleResetOrder = () => {
     resetOrder();
@@ -495,127 +437,9 @@ export function DoctorPage() {
           )}
         </Card>
 
-        <Modal opened={passwordModalOpen} onClose={closePasswordModal} title="Сменить пароль" radius="lg" centered>
-          <Stack gap="md">
-            {passwordError && (
-              <Text size="sm" c="red">
-                {passwordError}
-              </Text>
-            )}
-            <PasswordInput
-              label="Текущий пароль"
-              value={currentPassword}
-              onChange={(e) => {
-                const value = e.currentTarget.value;
-                setCurrentPassword(value);
-              }}
-              disabled={isChangingPassword}
-              required
-            />
-            <PasswordInput
-              label="Новый пароль"
-              value={newPassword}
-              onChange={(e) => {
-                const value = e.currentTarget.value;
-                setNewPassword(value);
-              }}
-              disabled={isChangingPassword}
-              required
-            />
-            <PasswordInput
-              label="Повторите новый пароль"
-              value={confirmNewPassword}
-              onChange={(e) => {
-                const value = e.currentTarget.value;
-                setConfirmNewPassword(value);
-              }}
-              disabled={isChangingPassword}
-              required
-            />
-            <Group justify="flex-end">
-              <Button variant="default" onClick={closePasswordModal} disabled={isChangingPassword}>
-                Отмена
-              </Button>
-              <Button
-                onClick={handleChangePassword}
-                loading={isChangingPassword}
-                disabled={!currentPassword || !newPassword || !confirmNewPassword}
-              >
-                Сохранить
-              </Button>
-            </Group>
-          </Stack>
-        </Modal>
+        <ChangePasswordModal opened={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
 
-        <Card withBorder padding="lg">
-          <Group justify="space-between" mb="md">
-            <Group gap={8}>
-              <ThemeIcon variant="light" color="brand" size={30} radius="md">
-                <IconNotes size={16} />
-              </ThemeIcon>
-              <Title order={5}>Заметки</Title>
-            </Group>
-            <Button component={Link} to="/notes" variant="subtle" size="xs" rightSection={<IconArrowRight size={14} />}>
-              Все заметки
-            </Button>
-          </Group>
-
-          {sortedNotes.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              Заметок пока нет
-            </Text>
-          ) : (
-            <Stack gap="md">
-              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-                {pageNotes.map((note) => (
-                  <Card
-                    key={note.id}
-                    withBorder
-                    padding="sm"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/notes/${note.id}`, { state: { from: '/doctor' } })}
-                  >
-                    <Group gap={8} wrap="nowrap" mb={6}>
-                      <ThemeIcon variant="light" color={note.color} size={24} radius="sm">
-                        {note.kind === 'todo' ? <IconChecklist size={13} /> : <IconNote size={13} />}
-                      </ThemeIcon>
-                      <Text size="sm" fw={600} truncate style={{ flex: 1 }}>
-                        {note.title || 'Без названия'}
-                      </Text>
-                    </Group>
-                    <Text size="xs" c="dimmed" lineClamp={2} mb={6}>
-                      {getNoteExcerpt(note)}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {dayjs(note.createdAt).format('D MMMM YYYY')}
-                    </Text>
-                  </Card>
-                ))}
-              </SimpleGrid>
-
-              {totalPages > 1 && (
-                <Group justify="center">
-                  <Pagination total={totalPages} value={activePage} onChange={setPage} size="sm" />
-                </Group>
-              )}
-            </Stack>
-          )}
-        </Card>
-
-        <Card withBorder padding="lg">
-          <Group gap={8} mb="xs">
-            <ThemeIcon variant="light" color="gray" size={30} radius="md">
-              <IconUsers size={16} />
-            </ThemeIcon>
-            <Title order={5}>Пациенты</Title>
-            <Badge variant="light" color="gray" size="sm">
-              скоро
-            </Badge>
-          </Group>
-          <Text size="sm" c="dimmed">
-            Модуль «Пациенты» ещё в разработке — здесь появится короткий список последних пациентов.
-          </Text>
-        </Card>
+        <DoctorNotesCard />
       </Stack>
     </Container>
   );
