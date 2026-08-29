@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './apiConfig';
 import { backendErrorMessage } from '../features/newsFeed/backendError';
-import { getAuthToken } from './tokenStore';
+import { getAuthToken, reportSessionExpired } from './tokenStore';
 
 /**
  * Every feature's data repository, talking to dock-helper-api over HTTP. `update(id, payload)`
@@ -17,7 +17,16 @@ export interface HttpRepository<T, TCreate, TUpdate = Partial<TCreate>> {
 
 export class HttpRepositoryError extends Error {}
 
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * `expectedUnauthorized` marks the one call where a 401 is an answer, not an expired session:
+ * changing the password returns 401 when the *current* password is wrong (`auth.service.ts`), and
+ * treating that as a dead session would log a doctor out over a typo.
+ */
+export async function request<T>(
+  path: string,
+  init?: RequestInit,
+  { expectedUnauthorized = false }: { expectedUnauthorized?: boolean } = {},
+): Promise<T> {
   const token = getAuthToken();
   let response: Response;
   try {
@@ -36,6 +45,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new HttpRepositoryError('Не удалось подключиться к серверу.');
   }
   if (!response.ok) {
+    if (response.status === 401 && !expectedUnauthorized) reportSessionExpired();
     throw new HttpRepositoryError(await backendErrorMessage(response, `Запрос не выполнен (${response.status}).`));
   }
   if (response.status === 204) return undefined as T;

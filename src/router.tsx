@@ -1,5 +1,7 @@
 import { createBrowserRouter, createRoutesFromElements, Navigate, Outlet, Route, RouterProvider } from 'react-router-dom';
 
+import { APP_BASE } from './lib/appBase';
+import { RequireAuth } from './routes/RequireAuth';
 import { DeleteConfirmProvider } from './features/deletion/DeleteConfirmProvider';
 import { AppLayout } from './layouts/AppLayout';
 import { DashboardPage } from './pages/DashboardPage';
@@ -68,104 +70,114 @@ function RouterRoot() {
  * `useBlocker` работает только в роутере с данными. Он нужен предупреждению о несохранённых
  * изменениях — иначе переход по ссылке в сайдбаре молча уносит из редактора всё, что в нём набрано,
  * и перехватывать его пришлось бы разбором нажатий по ссылкам, то есть враньём наполовину.
+ *
+ * **Приложение живёт под `/app`, и задаёт это `basename`, а не пути маршрутов.** Внутренних ссылок
+ * в коде около полутора сотен в полусотне файлов; приписать префикс каждой значило бы завести
+ * полтораста мест, где о нём можно забыть. С `basename` и маршруты, и `to="/patients"`, и
+ * `navigate('/calendar')` остаются какими были, а префикс объявлен один раз — в `lib/appBase.ts`.
+ * Цена решения: публичная часть сайта — **отдельный роутер** (`publicRouter.tsx`), потому что
+ * адрес `/` этому роутеру недоступен вовсе, и переход между ними — полная загрузка страницы.
  */
 export const router = createBrowserRouter(
   createRoutesFromElements(
     <Route element={<RouterRoot />}>
-      <Route element={<AppLayout />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/analyzer" element={<AnalyzerPage />} />
-        <Route path="/analyzer/new" element={<AnalyzerBuilderPage />} />
-        <Route path="/analyzer/:id/edit" element={<AnalyzerBuilderPage />} />
-        {/* Раздел переехал во вкладку справочника. Строка запроса сохраняется: карточка препарата
-            ведёт сюда с `?drugs=<МНН>`, и без него проверка открылась бы пустой. */}
-        <Route
-          path="/interactions"
-          element={
-            <RedirectTo
-              build={(_params, search) => {
-                search.set('tab', 'interactions');
-                return withSearch('/drugs', search);
-              }}
-            />
-          }
-        />
-        <Route path="/drugs" element={<DrugsPage />} />
-        <Route path="/drugs/new" element={<DrugEditorPage />} />
-        <Route path="/drugs/:id" element={<DrugViewPage />} />
-        <Route path="/drugs/:id/edit" element={<DrugEditorPage />} />
-        <Route path="/planner" element={<PlannerPage />} />
-        <Route path="/doctor" element={<DoctorPage />} />
-        <Route path="/calculators" element={<CalculatorsPage />} />
-        <Route path="/calculators/new" element={<CalculatorBuilderPage />} />
-        <Route path="/calculators/:id" element={<CalculatorRunPage />} />
-        <Route path="/calculators/:id/edit" element={<CalculatorBuilderPage />} />
-        <Route path="/notes" element={<NotesPage />} />
-        <Route path="/notes/new" element={<NoteEditorPage />} />
-        <Route path="/notes/:id" element={<NoteViewPage />} />
-        <Route path="/notes/:id/edit" element={<NoteEditorPage />} />
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/news" element={<NewsPage />} />
-        <Route path="/news/read" element={<NewsReaderPage />} />
-        <Route path="/knowledge/graph" element={<KnowledgeGraphPage />} />
-        <Route path="/knowledge/tag/:tag" element={<KnowledgeTagPage />} />
-        <Route path="/guidelines" element={<GuidelinesPage />} />
-        <Route path="/guidelines/new" element={<GuidelineEditorPage />} />
-        <Route path="/guidelines/:id" element={<GuidelineViewPage />} />
-        <Route path="/guidelines/:id/edit" element={<GuidelineEditorPage />} />
-        <Route path="/diagnostics" element={<QuestionnairesPage />} />
-        <Route path="/diagnostics/new" element={<QuestionnaireBuilderPage />} />
-        <Route path="/diagnostics/:id" element={<QuestionnaireViewPage />} />
-        <Route path="/diagnostics/:id/edit" element={<QuestionnaireBuilderPage />} />
-        <Route path="/articles" element={<ArticlesPage />} />
-        <Route path="/articles/new" element={<ArticleEditorPage />} />
-        <Route path="/articles/:id" element={<ArticleViewPage />} />
-        <Route path="/articles/:id/edit" element={<ArticleEditorPage />} />
-        <Route path="/library" element={<LibraryPage />} />
-        <Route path="/library/:id" element={<BookViewPage />} />
-        <Route path="/library/:id/read" element={<BookReaderPage />} />
-        <Route path="/documents" element={<DocumentsPage />} />
-        <Route path="/documents/new" element={<DocumentEditorPage />} />
-        <Route path="/documents/templates/new" element={<DocumentTemplateEditorPage />} />
-        <Route path="/documents/templates/scan" element={<ScanTemplatePage />} />
-        <Route path="/documents/templates/:id/edit" element={<DocumentTemplateEditorPage />} />
-        <Route path="/documents/:id" element={<DocumentViewPage />} />
-        <Route path="/documents/:id/edit" element={<DocumentEditorPage />} />
-        <Route path="/patients" element={<PatientsPage />} />
-        <Route path="/patients/new" element={<PatientEditorPage />} />
-        {/* Раздел переехал из-под /patients: документ врача может не относиться ни к кому.
-            Старые адреса ведут туда же — закладки и ссылка с дашборда обязаны работать. */}
-        <Route
-          path="/patients/documents"
-          element={
-            <RedirectTo
-              build={(_params, search) => {
-                search.set('tab', 'templates');
-                return withSearch('/documents', search);
-              }}
-            />
-          }
-        />
-        <Route path="/patients/documents/new" element={<RedirectTo build={(_p, q) => withSearch('/documents/templates/new', q)} />} />
-        <Route path="/patients/documents/scan" element={<RedirectTo build={(_p, q) => withSearch('/documents/templates/scan', q)} />} />
-        <Route
-          path="/patients/documents/:id/edit"
-          element={<RedirectTo build={(params, q) => withSearch(`/documents/templates/${params.id}/edit`, q)} />}
-        />
-        <Route path="/patients/dispensary/stats" element={<DispensaryStatsPage />} />
-        <Route path="/patients/dispensary/new" element={<DispensaryEditorPage />} />
-        <Route path="/patients/dispensary/:id" element={<DispensaryViewPage />} />
-        <Route path="/patients/dispensary/:id/edit" element={<DispensaryEditorPage />} />
-        <Route path="/patients/:id" element={<PatientViewPage />} />
-        <Route path="/patients/:id/edit" element={<PatientEditorPage />} />
-        <Route path="/patients/:id/documents/:visitId" element={<PrintableDocumentPage />} />
-        <Route path="/schedule" element={<ComingSoonPage title="Расписание" />} />
-        <Route path="/messages" element={<ComingSoonPage title="Сообщения" />} />
-        <Route path="*" element={<NotFoundPage />} />
+      <Route element={<RequireAuth />}>
+        <Route element={<AppLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/analyzer" element={<AnalyzerPage />} />
+          <Route path="/analyzer/new" element={<AnalyzerBuilderPage />} />
+          <Route path="/analyzer/:id/edit" element={<AnalyzerBuilderPage />} />
+          {/* Раздел переехал во вкладку справочника. Строка запроса сохраняется: карточка препарата
+              ведёт сюда с `?drugs=<МНН>`, и без него проверка открылась бы пустой. */}
+          <Route
+            path="/interactions"
+            element={
+              <RedirectTo
+                build={(_params, search) => {
+                  search.set('tab', 'interactions');
+                  return withSearch('/drugs', search);
+                }}
+              />
+            }
+          />
+          <Route path="/drugs" element={<DrugsPage />} />
+          <Route path="/drugs/new" element={<DrugEditorPage />} />
+          <Route path="/drugs/:id" element={<DrugViewPage />} />
+          <Route path="/drugs/:id/edit" element={<DrugEditorPage />} />
+          <Route path="/planner" element={<PlannerPage />} />
+          <Route path="/doctor" element={<DoctorPage />} />
+          <Route path="/calculators" element={<CalculatorsPage />} />
+          <Route path="/calculators/new" element={<CalculatorBuilderPage />} />
+          <Route path="/calculators/:id" element={<CalculatorRunPage />} />
+          <Route path="/calculators/:id/edit" element={<CalculatorBuilderPage />} />
+          <Route path="/notes" element={<NotesPage />} />
+          <Route path="/notes/new" element={<NoteEditorPage />} />
+          <Route path="/notes/:id" element={<NoteViewPage />} />
+          <Route path="/notes/:id/edit" element={<NoteEditorPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/news" element={<NewsPage />} />
+          <Route path="/news/read" element={<NewsReaderPage />} />
+          <Route path="/knowledge/graph" element={<KnowledgeGraphPage />} />
+          <Route path="/knowledge/tag/:tag" element={<KnowledgeTagPage />} />
+          <Route path="/guidelines" element={<GuidelinesPage />} />
+          <Route path="/guidelines/new" element={<GuidelineEditorPage />} />
+          <Route path="/guidelines/:id" element={<GuidelineViewPage />} />
+          <Route path="/guidelines/:id/edit" element={<GuidelineEditorPage />} />
+          <Route path="/diagnostics" element={<QuestionnairesPage />} />
+          <Route path="/diagnostics/new" element={<QuestionnaireBuilderPage />} />
+          <Route path="/diagnostics/:id" element={<QuestionnaireViewPage />} />
+          <Route path="/diagnostics/:id/edit" element={<QuestionnaireBuilderPage />} />
+          <Route path="/articles" element={<ArticlesPage />} />
+          <Route path="/articles/new" element={<ArticleEditorPage />} />
+          <Route path="/articles/:id" element={<ArticleViewPage />} />
+          <Route path="/articles/:id/edit" element={<ArticleEditorPage />} />
+          <Route path="/library" element={<LibraryPage />} />
+          <Route path="/library/:id" element={<BookViewPage />} />
+          <Route path="/library/:id/read" element={<BookReaderPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/documents/new" element={<DocumentEditorPage />} />
+          <Route path="/documents/templates/new" element={<DocumentTemplateEditorPage />} />
+          <Route path="/documents/templates/scan" element={<ScanTemplatePage />} />
+          <Route path="/documents/templates/:id/edit" element={<DocumentTemplateEditorPage />} />
+          <Route path="/documents/:id" element={<DocumentViewPage />} />
+          <Route path="/documents/:id/edit" element={<DocumentEditorPage />} />
+          <Route path="/patients" element={<PatientsPage />} />
+          <Route path="/patients/new" element={<PatientEditorPage />} />
+          {/* Раздел переехал из-под /patients: документ врача может не относиться ни к кому.
+              Старые адреса ведут туда же — закладки и ссылка с дашборда обязаны работать. */}
+          <Route
+            path="/patients/documents"
+            element={
+              <RedirectTo
+                build={(_params, search) => {
+                  search.set('tab', 'templates');
+                  return withSearch('/documents', search);
+                }}
+              />
+            }
+          />
+          <Route path="/patients/documents/new" element={<RedirectTo build={(_p, q) => withSearch('/documents/templates/new', q)} />} />
+          <Route path="/patients/documents/scan" element={<RedirectTo build={(_p, q) => withSearch('/documents/templates/scan', q)} />} />
+          <Route
+            path="/patients/documents/:id/edit"
+            element={<RedirectTo build={(params, q) => withSearch(`/documents/templates/${params.id}/edit`, q)} />}
+          />
+          <Route path="/patients/dispensary/stats" element={<DispensaryStatsPage />} />
+          <Route path="/patients/dispensary/new" element={<DispensaryEditorPage />} />
+          <Route path="/patients/dispensary/:id" element={<DispensaryViewPage />} />
+          <Route path="/patients/dispensary/:id/edit" element={<DispensaryEditorPage />} />
+          <Route path="/patients/:id" element={<PatientViewPage />} />
+          <Route path="/patients/:id/edit" element={<PatientEditorPage />} />
+          <Route path="/patients/:id/documents/:visitId" element={<PrintableDocumentPage />} />
+          <Route path="/schedule" element={<ComingSoonPage title="Расписание" />} />
+          <Route path="/messages" element={<ComingSoonPage title="Сообщения" />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
       </Route>
     </Route>,
   ),
+  { basename: APP_BASE },
 );
 
 export function AppRouter() {

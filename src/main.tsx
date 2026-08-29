@@ -1,21 +1,22 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import dayjs from 'dayjs';
-import 'dayjs/locale/ru';
-
-dayjs.locale('ru');
 
 import '@mantine/core/styles.css';
-import '@mantine/dates/styles.css';
-import '@mantine/notifications/styles.css';
-import '@mantine/charts/styles.css';
-import '@mantine/tiptap/styles.css';
 import './index.css';
 
-import App from './App.tsx';
+import { isAppPath } from './lib/appBase';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+/**
+ * Which of the two applications to mount is decided here, once, from the address.
+ *
+ * The public site and the doctor's workspace are separate routers (see `publicRouter.tsx` for why),
+ * and the import is dynamic so that they are separate chunks too: a visitor on the landing page
+ * must not download the editor, the PDF reader or the charts to read a headline.
+ */
+const root = createRoot(document.getElementById('root')!);
+
+const mount = isAppPath(window.location.pathname)
+  ? import('./AppRoot').then(({ AppRoot }) => <AppRoot />)
+  : import('./PublicRoot').then(({ PublicRoot }) => <PublicRoot />);
+
+mount.then((app) => root.render(<StrictMode>{app}</StrictMode>));

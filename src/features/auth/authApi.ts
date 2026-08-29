@@ -58,5 +58,10 @@ export function updateProfile(input: UpdateProfileInput): Promise<AuthUser> {
 }
 
 export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  return request<void>('/auth/me/password', { method: 'PATCH', body: JSON.stringify({ currentPassword, newPassword }) });
+  return request<void>(
+    '/auth/me/password',
+    { method: 'PATCH', body: JSON.stringify({ currentPassword, newPassword }) },
+    // A wrong current password comes back as 401 — the one 401 that does not mean "session over".
+    { expectedUnauthorized: true },
+  );
 }
