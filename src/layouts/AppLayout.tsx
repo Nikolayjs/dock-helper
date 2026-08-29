@@ -4,7 +4,7 @@ import { AppShell } from '@mantine/core';
 
 import { HEADER_HEIGHT } from './shellMetrics';
 import { useScrollDirection } from '../components/layout/useScrollDirection';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { ScrollToTopButton } from '../components/layout/ScrollToTopButton';
@@ -139,7 +139,14 @@ export function AppLayout() {
    * в ней живёт бургер, которым панель закрывают, и убирать его из-под пальца нельзя.
    */
   const { visible: headerVisible } = useScrollDirection();
-  const showHeader = headerVisible || opened;
+  /*
+   * Прячется она только ниже точки перелома, и это не осторожность, а исправленная ошибка. На
+   * десктопе сайдбар — элемент второго ряда сетки, прижатый к высоте шапки; уехавшая шапка
+   * оставляла над ним полосу обоев, а первый пункт меню оказывался срезан. Там же, где сайдбар —
+   * выдвижная панель, ничего этого нет, а выигрыш от освободившейся строки экрана наибольший.
+   */
+  const isMobile = useMediaQuery('(max-width: 47.99em)');
+  const showHeader = !isMobile || headerVisible || opened;
 
   useEffect(() => {
     document.getElementById(SCROLL_ROOT_ID)?.scrollTo(0, 0);

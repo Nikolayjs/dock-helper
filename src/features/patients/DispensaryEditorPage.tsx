@@ -7,6 +7,7 @@ import { DispensaryForm } from './DispensaryForm';
 import { usePatients } from './usePatients';
 import { useDispensary } from './useDispensary';
 import type { DispensaryRecordInput } from './useDispensary';
+import { ReadingSheet } from '../../components/common/ReadingSheet';
 
 export function DispensaryEditorPage() {
   const { id } = useParams();
@@ -50,13 +51,16 @@ export function DispensaryEditorPage() {
           Назад
         </Button>
         <Title order={3}>{editingRecord ? 'Редактирование карты учёта' : 'Постановка на диспансерный учёт'}</Title>
-        <DispensaryForm
-          patients={patients}
-          initialRecord={editingRecord}
-          defaultPatientId={searchParams.get('patientId') ?? undefined}
-          onSubmit={handleSubmit}
-          onCancel={() => navigate(backTo)}
-        />
+        {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
+        <ReadingSheet>
+          <DispensaryForm
+            patients={patients}
+            initialRecord={editingRecord}
+            defaultPatientId={searchParams.get('patientId') ?? undefined}
+            onSubmit={handleSubmit}
+            onCancel={() => navigate(backTo)}
+          />
+        </ReadingSheet>
       </Stack>
     </Container>
   );

@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { DispensaryCard } from './DispensaryCard';
+import { PageSection } from '../../components/common/PageSection';
 import { PatientDocuments } from '../documents/PatientDocuments';
 import { useDocumentTemplates } from './documents/useDocumentTemplates';
 import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from './referralUtils';
@@ -151,19 +152,20 @@ export function PatientViewPage() {
           </Group>
         </Card>
 
-        <Group justify="space-between">
-          <Title order={4}>Диспансерный учёт</Title>
-          <Button
-            size="xs"
-            variant="light"
-            leftSection={<IconClipboardHeart size={14} />}
-            onClick={() => navigate(`/patients/dispensary/new?patientId=${patient.id}`)}
-          >
-            Поставить на учёт
-          </Button>
-        </Group>
-
-        {patientDispensaryRecords.length === 0 ? (
+        <PageSection
+          title="Диспансерный учёт"
+          action={
+            <Button
+              size="xs"
+              variant="light"
+              leftSection={<IconClipboardHeart size={14} />}
+              onClick={() => navigate(`/patients/dispensary/new?patientId=${patient.id}`)}
+            >
+              Поставить на учёт
+            </Button>
+          }
+        >
+          {patientDispensaryRecords.length === 0 ? (
           <Text size="sm" c="dimmed">
             Пациент не состоит на диспансерном учёте.
           </Text>
@@ -189,32 +191,32 @@ export function PatientViewPage() {
                 }
               />
             ))}
-          </Stack>
-        )}
+            </Stack>
+          )}
+        </PageSection>
 
         <PatientDocuments patientId={patient.id} />
 
-        <Group justify="space-between">
-          <Title order={4}>История визитов</Title>
-          {visitEditor === null && (
-            <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setVisitEditor('new')}>
-              Добавить визит
-            </Button>
-          )}
-        </Group>
+        <PageSection
+          title="История визитов"
+          action={
+            visitEditor === null ? (
+              <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setVisitEditor('new')}>
+                Добавить визит
+              </Button>
+            ) : null
+          }
+        >
+          {visitEditor === 'new' && <VisitForm onSubmit={handleSaveVisit} onCancel={() => setVisitEditor(null)} />}
 
-        {visitEditor === 'new' && <VisitForm onSubmit={handleSaveVisit} onCancel={() => setVisitEditor(null)} />}
-
-        {sortedVisits.length === 0 && visitEditor !== 'new' ? (
-          <Card withBorder padding="xl">
+          {sortedVisits.length === 0 && visitEditor !== 'new' ? (
             <Stack align="center" gap="sm" py="lg">
               <Text fw={600}>Визитов ещё не было</Text>
               <Text size="sm" c="dimmed" ta="center">
                 Добавьте первый визит — дата, диагноз и короткая заметка для памяти.
               </Text>
             </Stack>
-          </Card>
-        ) : (
+          ) : (
           <Stack gap="sm">
             {sortedVisits.map((visit) =>
               visitEditor !== 'new' && visitEditor?.id === visit.id ? (
@@ -288,7 +290,8 @@ export function PatientViewPage() {
               ),
             )}
           </Stack>
-        )}
+          )}
+        </PageSection>
       </Stack>
     </Container>
   );

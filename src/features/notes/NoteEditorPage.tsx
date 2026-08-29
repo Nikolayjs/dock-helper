@@ -8,6 +8,7 @@ import { NoteForm } from './NoteForm';
 import type { NoteInput } from './useNotes';
 import { QUERY_KEY as NOTES_KEY, useNotes } from './useNotes';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
+import { ReadingSheet } from '../../components/common/ReadingSheet';
 
 export function NoteEditorPage() {
   const { id } = useParams();
@@ -78,14 +79,17 @@ export function NoteEditorPage() {
           Назад
         </Button>
         <Title order={3}>{editingNote ? 'Редактирование заметки' : 'Новая заметка'}</Title>
-        <NoteForm
-          initialNote={editingNote}
-          initialDate={searchParams.get('date')}
-          onSubmit={handleSubmit}
-          onCancel={() => navigate(backTo, { state: { from } })}
-          onDelete={editingNote ? handleDelete : undefined}
-          contentMinHeight={EDITOR_MIN_HEIGHT}
-        />
+        {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
+        <ReadingSheet>
+          <NoteForm
+            initialNote={editingNote}
+            initialDate={searchParams.get('date')}
+            onSubmit={handleSubmit}
+            onCancel={() => navigate(backTo, { state: { from } })}
+            onDelete={editingNote ? handleDelete : undefined}
+            contentMinHeight={EDITOR_MIN_HEIGHT}
+          />
+        </ReadingSheet>
       </Stack>
     </Container>
   );

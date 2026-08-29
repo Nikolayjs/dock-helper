@@ -7,6 +7,7 @@ import { KIND_LABEL, type DoctorDocumentKind } from './types';
 import { useDoctorDocuments } from './useDoctorDocuments';
 import { BackButton } from '../../components/common/BackButton';
 import { useFrom } from '../../lib/backTarget';
+import { ReadingSheet } from '../../components/common/ReadingSheet';
 
 /** Вид приходит из адреса при создании и из самого документа при правке: сменить его нельзя. */
 function kindFromParams(value: string | null): DoctorDocumentKind {
@@ -68,13 +69,16 @@ export function DocumentEditorPage() {
             Формат для сохранения и печати — {KIND_LABEL[kind]}
           </Text>
         </div>
-        <DoctorDocumentForm
-          kind={kind}
-          initialDocument={editing}
-          initialPatientId={searchParams.get('patient')}
-          onSubmit={handleSubmit}
-          onCancel={() => navigate(backTo)}
-        />
+        {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
+        <ReadingSheet>
+          <DoctorDocumentForm
+            kind={kind}
+            initialDocument={editing}
+            initialPatientId={searchParams.get('patient')}
+            onSubmit={handleSubmit}
+            onCancel={() => navigate(backTo)}
+          />
+        </ReadingSheet>
       </Stack>
     </Container>
   );

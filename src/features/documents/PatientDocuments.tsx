@@ -1,8 +1,9 @@
-import { Badge, Button, Card, Group, Menu, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { Badge, Button, Card, Group, Menu, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconFilePlus, IconFileSpreadsheet, IconFileText } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
+import { PageSection } from '../../components/common/PageSection';
 import { KIND_LABEL } from './types';
 import { useDoctorDocuments } from './useDoctorDocuments';
 
@@ -21,9 +22,9 @@ export function PatientDocuments({ patientId }: { patientId: string }) {
   const own = documents.filter((doc) => doc.patientId === patientId);
 
   return (
-    <>
-      <Group justify="space-between">
-        <Title order={4}>Документы</Title>
+    <PageSection
+      title="Документы"
+      action={
         <Menu position="bottom-end" withinPortal>
           <Menu.Target>
             <Button size="xs" variant="light" leftSection={<IconFilePlus size={14} />}>
@@ -45,8 +46,8 @@ export function PatientDocuments({ patientId }: { patientId: string }) {
             </Menu.Item>
           </Menu.Dropdown>
         </Menu>
-      </Group>
-
+      }
+    >
       {own.length === 0 ? (
         <Text size="sm" c="dimmed">
           Для этого пациента документов пока нет.
@@ -91,6 +92,6 @@ export function PatientDocuments({ patientId }: { patientId: string }) {
           ))}
         </Stack>
       )}
-    </>
+    </PageSection>
   );
 }

@@ -1,4 +1,16 @@
 /*
+ * Прилипшая панель редактора: нижние углы и подложка.
+ *
+ * У панели своё скругление со всех четырёх сторон, и внизу оно выедало по уголку из содержимого,
+ * которое к ней вплотную примыкает, — сквозь них просвечивал фон. Прилипший верх скругляться снизу
+ * не должен: он продолжается тем, что под ним.
+ */
+.mantine-RichTextEditor-toolbar {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/*
  * Tables inside the editor. ProseMirror gives a table no appearance of its own — without borders
  * the cells are invisible and the doctor cannot tell where one ends, so these rules are what make
  * the feature usable rather than decoration.

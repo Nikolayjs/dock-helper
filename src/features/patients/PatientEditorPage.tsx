@@ -8,6 +8,7 @@ import type { PatientInput } from './usePatients';
 import { QUERY_KEY as PATIENTS_KEY, usePatients } from './usePatients';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { visitsWarning } from './deleteWarnings';
+import { ReadingSheet } from '../../components/common/ReadingSheet';
 
 export function PatientEditorPage() {
   const { id } = useParams();
@@ -64,7 +65,10 @@ export function PatientEditorPage() {
           Назад
         </Button>
         <Title order={3}>{editingPatient ? 'Редактирование пациента' : 'Новый пациент'}</Title>
-        <PatientForm initialPatient={editingPatient} onSubmit={handleSubmit} onCancel={() => navigate(backTo)} onDelete={editingPatient ? handleDelete : undefined} />
+        {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
+        <ReadingSheet>
+          <PatientForm initialPatient={editingPatient} onSubmit={handleSubmit} onCancel={() => navigate(backTo)} onDelete={editingPatient ? handleDelete : undefined} />
+        </ReadingSheet>
       </Stack>
     </Container>
   );

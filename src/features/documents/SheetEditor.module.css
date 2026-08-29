@@ -16,19 +16,21 @@
 }
 
 /* Панель и строка формул — «шапка» рабочего места. Прилипает под шапкой приложения; фон обязателен,
-   иначе сквозь неё просвечивала бы таблица в те несколько пикселей, на которые она её накрывает. */
+   иначе сквозь неё просвечивала бы таблица в те несколько пикселей, на которые она её накрывает.
+   Цвет — поверхности формы, на которой панель лежит, а не фона страницы: под обоями фон страницы —
+   это сами обои, и сплошная заливка читалась как чужая плита поверх них. */
 .stickyTop {
   position: sticky;
   z-index: 3;
   flex-shrink: 0;
-  background-color: var(--mantine-color-body);
+  background-color: var(--app-card-bg);
 }
 
 .frame {
   border: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
   border-radius: var(--mantine-radius-md);
   overflow: auto;
-  background-color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
+  background-color: var(--app-card-bg);
   /* Внутри flex-колонки рамка — единственное, что имеет право ужаться: если панель перенесётся на
      вторую строку, место она заберёт у таблицы, а не у кнопок под ней. `min-height: 0` для того и
      нужен: без него flex не даёт элементу стать ниже своего содержимого. */

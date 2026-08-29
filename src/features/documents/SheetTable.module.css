@@ -12,7 +12,9 @@
   overflow: auto;
   border: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
   border-radius: var(--mantine-radius-md);
-  background-color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
+  /* Не «белый», а поверхность приложения: под обоями она подкрашена, и чистый белый выбивался бы
+     из темы ровно так же, как выбивалось поле ввода. */
+  background-color: var(--app-card-bg);
 }
 
 .table {
@@ -26,7 +28,7 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+  background-color: var(--app-stripe-bg);
   border-bottom: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
   border-right: 1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
   padding: 8px 10px;
@@ -49,8 +51,10 @@
   vertical-align: top;
 }
 
+/* Чередование строк идёт парой к фону рамки: «белая» строка — сама поверхность, вторая — ступень
+   под ней. Порознь их красить нельзя: в тёмной теме карточка и полоса совпали бы. */
 .row:nth-of-type(even) .cell {
-  background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+  background-color: var(--app-stripe-bg);
 }
 
 /* Строка итогов прилипает к низу рамки: в длинном реестре итог нужен на виду, а не в конце списка. */

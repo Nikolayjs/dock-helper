@@ -9,6 +9,7 @@ import { DocumentForm } from './DocumentForm';
 import type { DocumentFormInput } from './DocumentForm';
 import type { KnowledgeKind } from './types';
 import { useDocuments, useKnowledgeDocument } from './useDocuments';
+import { ReadingSheet } from '../../components/common/ReadingSheet';
 
 interface KnowledgeEditorPageProps {
   kind: KnowledgeKind;
@@ -84,7 +85,10 @@ export function KnowledgeEditorPage({
           Назад
         </Button>
         <Title order={3}>{editingDoc ? editTitle : newTitle}</Title>
-        <DocumentForm initialDocument={editingDoc ?? undefined} onSubmit={handleSubmit} onCancel={() => navigate(backTo)} contentMinHeight={EDITOR_MIN_HEIGHT} />
+        {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
+        <ReadingSheet>
+          <DocumentForm initialDocument={editingDoc ?? undefined} onSubmit={handleSubmit} onCancel={() => navigate(backTo)} contentMinHeight={EDITOR_MIN_HEIGHT} />
+        </ReadingSheet>
       </Stack>
     </Container>
   );
