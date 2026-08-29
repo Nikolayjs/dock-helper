@@ -6,11 +6,12 @@ import dayjs from 'dayjs';
 
 import type { Reminder } from './types';
 import type { ReminderInput } from './useReminders';
+import { useSaveAction } from '../../components/common/useSaveAction';
 
 interface ReminderFormProps {
   initialReminder?: Reminder;
   initialDate?: string;
-  onSubmit: (input: ReminderInput) => void;
+  onSubmit: (input: ReminderInput) => void | Promise<void>;
   onCancel: () => void;
   onDelete?: () => void;
 }
@@ -25,9 +26,11 @@ export function ReminderForm({ initialReminder, initialDate, onSubmit, onCancel,
 
   const canSave = title.trim().length > 0 && Boolean(date) && Boolean(time);
 
+  const { saving, save } = useSaveAction(undefined, onSubmit);
+
   const handleSubmit = () => {
     if (!canSave) return;
-    onSubmit({
+    void save({
       title: title.trim(),
       message: message.trim(),
       datetime: `${date}T${time}`,
@@ -69,7 +72,7 @@ export function ReminderForm({ initialReminder, initialDate, onSubmit, onCancel,
           <Button variant="default" onClick={onCancel}>
             Отмена
           </Button>
-          <Button onClick={handleSubmit} disabled={!canSave}>
+          <Button onClick={handleSubmit} loading={saving} disabled={!canSave}>
             Сохранить
           </Button>
         </Group>

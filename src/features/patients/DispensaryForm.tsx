@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { useDirtyValue, useUnsavedGuard } from '../../components/common/unsavedChanges';
+import { useSaveAction } from '../../components/common/useSaveAction';
 import { Button, Group, Select, Stack } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import dayjs from 'dayjs';
@@ -14,7 +15,7 @@ interface DispensaryFormProps {
   patients: Patient[];
   initialRecord?: DispensaryRecord;
   defaultPatientId?: string;
-  onSubmit: (input: DispensaryRecordInput) => void;
+  onSubmit: (input: DispensaryRecordInput) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -28,11 +29,11 @@ export function DispensaryForm({ patients, initialRecord, defaultPatientId, onSu
   const canSave = patientId !== null && diagnosis.trim().length > 0 && registeredDate.length > 0;
 
   const guard = useUnsavedGuard(useDirtyValue({ patientId, diagnosis, diagnosisCode, registeredDate, nextVisitDate }));
+  const { saving, save } = useSaveAction(guard, onSubmit);
 
   const handleSubmit = () => {
     if (!canSave || patientId === null) return;
-    guard.release();
-    onSubmit({
+    void save({
       patientId,
       diagnosis: diagnosis.trim(),
       diagnosisCode,
@@ -84,11 +85,12 @@ export function DispensaryForm({ patients, initialRecord, defaultPatientId, onSu
           <Button variant="default" onClick={onCancel}>
             Отмена
           </Button>
-          <Button onClick={handleSubmit} disabled={!canSave}>
+          <Button onClick={handleSubmit} loading={saving} disabled={!canSave}>
             Сохранить
           </Button>
         </Group>
       </FormActions>
     </Stack>
   );
+
 }

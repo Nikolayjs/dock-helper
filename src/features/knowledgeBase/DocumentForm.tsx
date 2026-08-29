@@ -9,12 +9,13 @@ import { RichTextField } from '../../components/common/RichTextField';
 import { useRichTextEditor } from '../../components/common/useRichTextEditor';
 import { FormActions } from '../../components/common/FormActions';
 import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../components/common/unsavedChanges';
+import { useSaveAction } from '../../components/common/useSaveAction';
 
 export type DocumentFormInput = Omit<DocumentInput, 'kind' | 'author'>;
 
 interface DocumentFormProps {
   initialDocument?: KnowledgeDocument;
-  onSubmit: (input: DocumentFormInput) => void;
+  onSubmit: (input: DocumentFormInput) => void | Promise<void>;
   onCancel: () => void;
   onDelete?: () => void;
   contentMinHeight?: number | string;
@@ -32,11 +33,11 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
   const fieldsDirty = useDirtyValue({ title, summary, tags });
   const textDirty = useEditorDirty(editor);
   const guard = useUnsavedGuard(fieldsDirty || textDirty);
+  const { saving, save } = useSaveAction(guard, onSubmit);
 
   const handleSubmit = () => {
     if (!canSave || !editor) return;
-    guard.release();
-    onSubmit({
+    void save({
       title: title.trim(),
       summary: summary.trim(),
       tags,
@@ -98,7 +99,7 @@ export function DocumentForm({ initialDocument, onSubmit, onCancel, onDelete, co
             <Button variant="default" onClick={onCancel}>
               Отмена
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSave}>
+            <Button onClick={handleSubmit} loading={saving} disabled={!canSave}>
               Сохранить
             </Button>
           </Group>

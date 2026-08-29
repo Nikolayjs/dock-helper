@@ -23,6 +23,7 @@ import { QUERY_KEY as LAB_TESTS_KEY, useCustomAnalyzers } from '../features/anal
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { FormActions } from '../components/common/FormActions';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
+import { useSaveAction } from '../components/common/useSaveAction';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -177,19 +178,8 @@ export function AnalyzerBuilderPage() {
 
   const guard = useUnsavedGuard(useDirtyValue({ title, shortTitle, description, parameters, rules }, hydrated));
 
-  if (isEditMode && !hydrated) {
-    return (
-      <Container size="xl" px={0}>
-        <Group justify="center" py="xl">
-          <Loader />
-        </Group>
-      </Container>
-    );
-  }
-
-  const handleSave = async () => {
+  const { saving, save: handleSave } = useSaveAction(guard, async () => {
     if (errors.length > 0) return;
-    guard.release();
     const payload = labTestDraftToPayload(previewDraft);
 
     if (editingTest) {
@@ -201,7 +191,17 @@ export function AnalyzerBuilderPage() {
       notifications.show({ message: 'Свой анализ создан', color: 'teal' });
       navigate('/analyzer');
     }
-  };
+  });
+
+  if (isEditMode && !hydrated) {
+    return (
+      <Container size="xl" px={0}>
+        <Group justify="center" py="xl">
+          <Loader />
+        </Group>
+      </Container>
+    );
+  }
 
   const handleDelete = () => {
     if (!editingTest) return;
@@ -304,7 +304,7 @@ export function AnalyzerBuilderPage() {
 
             <FormActions>
               <Group justify="flex-end">
-                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} disabled={errors.length > 0}>
+                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
                   {editingTest ? 'Сохранить изменения' : 'Создать анализ'}
                 </Button>
               </Group>

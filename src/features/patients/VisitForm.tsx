@@ -7,10 +7,11 @@ import { DiagnosisPicker } from './DiagnosisPicker';
 import { REFERRAL_CATEGORY_OPTIONS } from './referralUtils';
 import type { PatientVisit, ReferralCategory } from './types';
 import type { VisitInput } from './usePatients';
+import { useSaveAction } from '../../components/common/useSaveAction';
 
 interface VisitFormProps {
   initialVisit?: PatientVisit;
-  onSubmit: (input: VisitInput) => void;
+  onSubmit: (input: VisitInput) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -24,9 +25,11 @@ export function VisitForm({ initialVisit, onSubmit, onCancel }: VisitFormProps) 
 
   const canSave = date.length > 0;
 
+  const { saving, save } = useSaveAction(undefined, onSubmit);
+
   const handleSubmit = () => {
     if (!canSave) return;
-    onSubmit({
+    void save({
       date,
       diagnosis: diagnosis.trim(),
       diagnosisCode,
@@ -72,7 +75,7 @@ export function VisitForm({ initialVisit, onSubmit, onCancel }: VisitFormProps) 
           <Button variant="default" size="sm" onClick={onCancel}>
             Отмена
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!canSave}>
+          <Button size="sm" onClick={handleSubmit} loading={saving} disabled={!canSave}>
             {initialVisit ? 'Сохранить' : 'Добавить визит'}
           </Button>
         </Group>

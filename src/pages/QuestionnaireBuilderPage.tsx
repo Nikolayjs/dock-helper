@@ -12,6 +12,7 @@ import { QUERY_KEY as QUESTIONNAIRES_KEY, slugifyQuestionnaireId, useQuestionnai
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { FormActions } from '../components/common/FormActions';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
+import { useSaveAction } from '../components/common/useSaveAction';
 
 function emptySymptom(): DraftSymptom {
   return { uid: crypto.randomUUID(), id: crypto.randomUUID(), label: '', generalPrevalence: 0.3 };
@@ -90,9 +91,8 @@ export function QuestionnaireBuilderPage() {
 
   const guard = useUnsavedGuard(useDirtyValue({ title, description, symptoms, diseases }, hydrated));
 
-  const handleSave = async () => {
+  const { saving, save: handleSave } = useSaveAction(guard, async () => {
     if (errors.length > 0) return;
-    guard.release();
     const now = new Date().toISOString();
 
     const questionnaire: Questionnaire = {
@@ -111,7 +111,7 @@ export function QuestionnaireBuilderPage() {
       notifications.show({ message: 'Анкета создана', color: 'teal' });
       navigate(`/diagnostics/${created.id}`);
     }
-  };
+  });
 
   const handleDelete = () => {
     if (!editingQuestionnaire) return;
@@ -217,7 +217,7 @@ export function QuestionnaireBuilderPage() {
 
             <FormActions>
               <Group justify="flex-end">
-                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} disabled={errors.length > 0}>
+                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
                   {editingQuestionnaire ? 'Сохранить изменения' : 'Создать анкету'}
                 </Button>
               </Group>

@@ -17,6 +17,7 @@ import { RichTextField } from '../../components/common/RichTextField';
 import { useRichTextEditor } from '../../components/common/useRichTextEditor';
 import { FormActions } from '../../components/common/FormActions';
 import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../components/common/unsavedChanges';
+import { useSaveAction } from '../../components/common/useSaveAction';
 
 export type DoctorDocumentFormInput = Omit<DoctorDocumentInput, 'kind'>;
 
@@ -25,7 +26,7 @@ interface DoctorDocumentFormProps {
   initialDocument?: DoctorDocument;
   /** Пациент, выбранный заранее — когда документ заводят из карточки пациента. */
   initialPatientId?: string | null;
-  onSubmit: (input: DoctorDocumentFormInput) => void;
+  onSubmit: (input: DoctorDocumentFormInput) => void | Promise<void>;
   onCancel: () => void;
   onDelete?: () => void;
 }
@@ -103,11 +104,11 @@ export function DoctorDocumentForm({
   const fieldsDirty = useDirtyValue({ title, summary, patientId, tags, sheet });
   const textDirty = useEditorDirty(editor);
   const guard = useUnsavedGuard(fieldsDirty || textDirty);
+  const { saving, save } = useSaveAction(guard, onSubmit);
 
   const handleSubmit = () => {
     if (!canSave) return;
-    guard.release();
-    onSubmit({
+    void save({
       title: title.trim(),
       summary: summary.trim(),
       patientId,
@@ -213,7 +214,7 @@ export function DoctorDocumentForm({
             <Button variant="default" onClick={onCancel}>
               Отмена
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSave}>
+            <Button onClick={handleSubmit} loading={saving} disabled={!canSave}>
               Сохранить
             </Button>
           </Group>

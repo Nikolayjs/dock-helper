@@ -83,6 +83,14 @@ const RELEASE_MS = 10_000;
 export interface UnsavedGuard {
   /** Вызывается формой перед сохранением: переход, который сделает сохранение, задерживать не надо. */
   release: () => void;
+  /**
+   * Отменяет разрешение: сохранение сорвалось, и уходить со страницы по-прежнему нельзя.
+   *
+   * Без этого после неудачного «Сохранить» оставалось десятисекундное окно, в котором форма с
+   * несохранёнными правками отпускала врача молча — ровно тогда, когда предупредить его нужнее
+   * всего.
+   */
+  rearm: () => void;
   /** Окно вопроса. `onSave` не передан — значит сохранить нечем, и кнопки не будет. */
   render: (options?: { onSave?: () => void }) => ReactNode;
 }
@@ -107,6 +115,10 @@ export function useUnsavedGuard(dirty: boolean): UnsavedGuard {
 
   const release = useCallback(() => {
     releasedUntil.current = Date.now() + RELEASE_MS;
+  }, []);
+
+  const rearm = useCallback(() => {
+    releasedUntil.current = 0;
   }, []);
 
   useEffect(() => {
@@ -155,5 +167,5 @@ export function useUnsavedGuard(dirty: boolean): UnsavedGuard {
     </Modal>
   );
 
-  return { release, render };
+  return { release, rearm, render };
 }

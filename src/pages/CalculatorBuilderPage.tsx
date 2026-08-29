@@ -45,6 +45,7 @@ import { useCustomCategories } from '../features/calculators/useCustomCategories
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { FormActions } from '../components/common/FormActions';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
+import { useSaveAction } from '../components/common/useSaveAction';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const RESERVED_NAMES = new Set([...FORMULA_FUNCTION_NAMES, ...FORMULA_CONSTANT_NAMES]);
@@ -184,9 +185,8 @@ export function CalculatorBuilderPage() {
     ),
   );
 
-  const handleSave = async () => {
+  const { saving, save: handleSave } = useSaveAction(guard, async () => {
     if (errors.length > 0) return;
-    guard.release();
 
     if (editingCalculator) {
       const definition: CalculatorDefinition = { ...previewDefinition, id: editingCalculator.id, createdAt: editingCalculator.createdAt };
@@ -198,7 +198,7 @@ export function CalculatorBuilderPage() {
       notifications.show({ message: 'Калькулятор создан', color: 'teal' });
       navigate(`/calculators/${created.id}`);
     }
-  };
+  });
 
   const handleDelete = () => {
     if (!editingCalculator) return;
@@ -437,7 +437,7 @@ export function CalculatorBuilderPage() {
 
             <FormActions>
               <Group justify="flex-end">
-                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} disabled={errors.length > 0}>
+                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
                   {editingCalculator ? 'Сохранить изменения' : 'Создать калькулятор'}
                 </Button>
               </Group>

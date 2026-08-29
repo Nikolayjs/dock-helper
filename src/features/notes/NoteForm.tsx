@@ -15,6 +15,7 @@ import type { NoteInput } from './useNotes';
 import { EditorBubbleMenu } from '../../components/common/EditorBubbleMenu';
 import { FormActions } from '../../components/common/FormActions';
 import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../components/common/unsavedChanges';
+import { useSaveAction } from '../../components/common/useSaveAction';
 import { STICKY_TOP } from '../../layouts/shellMetrics';
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -33,7 +34,7 @@ function emptyItem(): TodoItem {
 interface NoteFormProps {
   initialNote?: Note;
   initialDate?: string | null;
-  onSubmit: (input: NoteInput) => void;
+  onSubmit: (input: NoteInput) => void | Promise<void>;
   onCancel: () => void;
   onDelete?: () => void;
   contentMinHeight?: number | string;
@@ -76,11 +77,11 @@ export function NoteForm({ initialNote, initialDate, onSubmit, onCancel, onDelet
   const fieldsDirty = useDirtyValue({ kind, title, items, pinnedDate, color });
   const textDirty = useEditorDirty(editor);
   const guard = useUnsavedGuard(fieldsDirty || textDirty);
+  const { saving, save } = useSaveAction(guard, onSubmit);
 
   const handleSubmit = () => {
     if (!canSave) return;
-    guard.release();
-    onSubmit({
+    void save({
       kind,
       title: title.trim(),
       content: kind === 'note' ? (editor?.getHTML() ?? '') : '',
@@ -254,7 +255,7 @@ export function NoteForm({ initialNote, initialDate, onSubmit, onCancel, onDelet
             <Button variant="default" onClick={onCancel}>
               Отмена
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSave}>
+            <Button onClick={handleSubmit} loading={saving} disabled={!canSave}>
               Сохранить
             </Button>
           </Group>

@@ -5,9 +5,10 @@ import dayjs from 'dayjs';
 
 import type { DispensaryRemovalReason } from './types';
 import { REMOVAL_REASON_LABELS } from './dispensaryUtils';
+import { useSaveAction } from '../../components/common/useSaveAction';
 
 interface RemovalFormProps {
-  onSubmit: (date: string, reason: DispensaryRemovalReason) => void;
+  onSubmit: (date: string, reason: DispensaryRemovalReason) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -20,6 +21,8 @@ export function RemovalForm({ onSubmit, onCancel }: RemovalFormProps) {
   const [date, setDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
   const [reason, setReason] = useState<DispensaryRemovalReason>('recovered');
 
+  const { saving, save } = useSaveAction(undefined, onSubmit);
+
   return (
     <Card withBorder padding="md" radius="md">
       <Stack gap="sm">
@@ -31,7 +34,7 @@ export function RemovalForm({ onSubmit, onCancel }: RemovalFormProps) {
           <Button variant="default" size="sm" onClick={onCancel}>
             Отмена
           </Button>
-          <Button size="sm" color="gray" onClick={() => onSubmit(date, reason)}>
+          <Button size="sm" color="gray" onClick={() => void save(date, reason)} loading={saving}>
             Снять с учёта
           </Button>
         </Group>

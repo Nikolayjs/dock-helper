@@ -6,10 +6,11 @@ import dayjs from 'dayjs';
 import type { ObservationInput } from './useDispensary';
 import { OUTCOME_LABELS } from './dispensaryUtils';
 import type { DispensaryObservation, DispensaryOutcome } from './types';
+import { useSaveAction } from '../../components/common/useSaveAction';
 
 interface ObservationFormProps {
   initialObservation?: DispensaryObservation;
-  onSubmit: (input: ObservationInput) => void;
+  onSubmit: (input: ObservationInput) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -25,9 +26,11 @@ export function ObservationForm({ initialObservation, onSubmit, onCancel }: Obse
 
   const canSave = date.length > 0;
 
+  const { saving, save } = useSaveAction(undefined, onSubmit);
+
   const handleSubmit = () => {
     if (!canSave) return;
-    onSubmit({ date, outcome, ovl, sanatorium, campRest, note: note.trim() });
+    void save({ date, outcome, ovl, sanatorium, campRest, note: note.trim() });
   };
 
   return (
@@ -47,7 +50,7 @@ export function ObservationForm({ initialObservation, onSubmit, onCancel }: Obse
           <Button variant="default" size="sm" onClick={onCancel}>
             Отмена
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!canSave}>
+          <Button size="sm" onClick={handleSubmit} loading={saving} disabled={!canSave}>
             {initialObservation ? 'Сохранить' : 'Добавить осмотр'}
           </Button>
         </Group>

@@ -11,6 +11,7 @@ import type { DrugInput } from '../features/drugs/types';
 import { useDrug, useDrugs } from '../features/drugs/useDrugs';
 import { FormActions } from '../components/common/FormActions';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
+import { useSaveAction } from '../components/common/useSaveAction';
 
 export function DrugEditorPage() {
   const { id } = useParams();
@@ -19,7 +20,6 @@ export function DrugEditorPage() {
   // Форму заполняет полная карточка, а список рядом нужен только для проверки дубля МНН.
   const { drug: existing } = useDrug(id);
   const [form, setForm] = useState<DrugInput>(EMPTY_DRUG);
-  const [isSaving, setIsSaving] = useState(false);
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const { names: categoryNames, addCategory } = useDrugCategories();
   const [categorySearch, setCategorySearch] = useState('');
@@ -60,38 +60,31 @@ export function DrugEditorPage() {
     return drugs.find((drug) => drug.id !== id && normalizeDrugName(drug.inn) === inn) ?? null;
   }, [drugs, form.inn, id]);
 
-  const canSave = form.inn.trim() !== '' && !duplicate && !isSaving;
+  const canSave = form.inn.trim() !== '' && !duplicate;
 
   const guard = useUnsavedGuard(useDirtyValue({ form }, !id || loadedId === id));
 
-  const handleSave = async () => {
+  const { saving, save: handleSave } = useSaveAction(guard, async () => {
     if (!canSave) return;
-    guard.release();
-    setIsSaving(true);
-    try {
-      const payload: DrugInput = {
-        ...form,
-        inn: form.inn.trim(),
-        brandNames: form.brandNames.map((name) => name.trim()).filter(Boolean),
-        forms: form.forms.map((name) => name.trim()).filter(Boolean),
-        pharmGroup: form.pharmGroup.trim(),
-        atcCode: form.atcCode.trim().toUpperCase(),
-      };
-      if (id) {
-        await updateDrug({ id, input: payload });
-        notifications.show({ message: 'Препарат обновлён', color: 'teal' });
-        navigate(`/drugs/${id}`);
-      } else {
-        const created = await createDrug(payload);
-        notifications.show({ message: 'Препарат добавлен в справочник', color: 'teal' });
-        navigate(`/drugs/${created.id}`);
-      }
-    } catch (error) {
-      notifications.show({ message: error instanceof Error ? error.message : 'Не удалось сохранить', color: 'red' });
-    } finally {
-      setIsSaving(false);
+    const payload: DrugInput = {
+      ...form,
+      inn: form.inn.trim(),
+      brandNames: form.brandNames.map((name) => name.trim()).filter(Boolean),
+      forms: form.forms.map((name) => name.trim()).filter(Boolean),
+      pharmGroup: form.pharmGroup.trim(),
+      atcCode: form.atcCode.trim().toUpperCase(),
+    };
+    if (id) {
+      await updateDrug({ id, input: payload });
+      notifications.show({ message: 'Препарат обновлён', color: 'teal' });
+      navigate(`/drugs/${id}`);
+    } else {
+      const created = await createDrug(payload);
+      notifications.show({ message: 'Препарат добавлен в справочник', color: 'teal' });
+      navigate(`/drugs/${created.id}`);
     }
-  };
+    // Свой красный тост здесь был до общего в `queryClient.ts`; теперь их было бы два.
+  });
 
   return (
     <Container size="md" px={0}>
@@ -215,7 +208,7 @@ export function DrugEditorPage() {
 
         <FormActions>
           <Group justify="flex-end">
-            <Button leftSection={<IconDeviceFloppy size={16} />} onClick={handleSave} loading={isSaving} disabled={!canSave}>
+            <Button leftSection={<IconDeviceFloppy size={16} />} onClick={handleSave} loading={saving} disabled={!canSave}>
               Сохранить
             </Button>
           </Group>

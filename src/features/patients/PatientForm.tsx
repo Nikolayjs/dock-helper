@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { useDirtyValue, useUnsavedGuard } from '../../components/common/unsavedChanges';
+import { useSaveAction } from '../../components/common/useSaveAction';
 import { Button, Divider, Group, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { IconTrash } from '@tabler/icons-react';
@@ -16,7 +17,7 @@ const SEX_OPTIONS: { value: PatientSex; label: string }[] = [
 
 interface PatientFormProps {
   initialPatient?: Patient;
-  onSubmit: (input: PatientInput) => void;
+  onSubmit: (input: PatientInput) => void | Promise<void>;
   onCancel: () => void;
   onDelete?: () => void;
 }
@@ -32,11 +33,11 @@ export function PatientForm({ initialPatient, onSubmit, onCancel, onDelete }: Pa
   const canSave = fullName.trim().length > 0;
 
   const guard = useUnsavedGuard(useDirtyValue({ fullName, sex, birthDate, phone, reminderDate, reminderNote }));
+  const { saving, save } = useSaveAction(guard, onSubmit);
 
   const handleSubmit = () => {
     if (!canSave) return;
-    guard.release();
-    onSubmit({
+    void save({
       fullName: fullName.trim(),
       sex,
       birthDate,
@@ -86,7 +87,7 @@ export function PatientForm({ initialPatient, onSubmit, onCancel, onDelete }: Pa
             <Button variant="default" onClick={onCancel}>
               Отмена
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSave}>
+            <Button onClick={handleSubmit} loading={saving} disabled={!canSave}>
               Сохранить
             </Button>
           </Group>
@@ -94,4 +95,5 @@ export function PatientForm({ initialPatient, onSubmit, onCancel, onDelete }: Pa
       </FormActions>
     </Stack>
   );
+
 }

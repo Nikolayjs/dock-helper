@@ -15,11 +15,12 @@ import type { DocumentTemplateInput } from './useDocumentTemplates';
 import { EditorBubbleMenu } from '../../../components/common/EditorBubbleMenu';
 import { FormActions } from '../../../components/common/FormActions';
 import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../../components/common/unsavedChanges';
+import { useSaveAction } from '../../../components/common/useSaveAction';
 import { STICKY_TOP } from '../../../layouts/shellMetrics';
 
 interface DocumentTemplateFormProps {
   initialTemplate?: DocumentTemplate;
-  onSubmit: (input: DocumentTemplateInput) => void;
+  onSubmit: (input: DocumentTemplateInput) => void | Promise<void>;
   onCancel: () => void;
   onDelete?: () => void;
 }
@@ -37,11 +38,11 @@ export function DocumentTemplateForm({ initialTemplate, onSubmit, onCancel, onDe
   const titleDirty = useDirtyValue({ title });
   const bodyDirty = useEditorDirty(editor);
   const guard = useUnsavedGuard(titleDirty || bodyDirty);
+  const { saving, save } = useSaveAction(guard, onSubmit);
 
   const handleSubmit = () => {
     if (!canSave) return;
-    guard.release();
-    onSubmit({ title: title.trim(), bodyHtml: editor?.getHTML() ?? '' });
+    void save({ title: title.trim(), bodyHtml: editor?.getHTML() ?? '' });
   };
 
   const previewTemplate: DocumentTemplate = {
@@ -166,7 +167,7 @@ export function DocumentTemplateForm({ initialTemplate, onSubmit, onCancel, onDe
             <Button variant="default" onClick={onCancel}>
               Отмена
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSave}>
+            <Button onClick={handleSubmit} loading={saving} disabled={!canSave}>
               Сохранить
             </Button>
           </Group>
