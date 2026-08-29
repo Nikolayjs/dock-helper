@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * Отдаёт список порциями по мере прокрутки.
@@ -12,23 +12,26 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  *
  * `items` должен быть стабильным между рендерами (useMemo) — его смена считается сменой набора и
  * возвращает счётчик к первой порции, что и нужно при новом поиске или сортировке.
+ *
+ * **Список, живущий в своей рамке с прокруткой, обязан назвать её `root`.** Наблюдатель по умолчанию
+ * сравнивает метку с окном, а метка, лежащая ниже рамки, обрезана её `overflow` — то есть не видна
+ * ни при какой прокрутке рамки, и дозагрузка не наступает никогда. Ровно это и случилось в окне
+ * списка взаимодействий: строка «загружается ещё… осталось 979» висела, а ничего не грузилось.
  */
-export function useIncrementalList<T>(items: readonly T[], step = 60) {
+export function useIncrementalList<T>(items: readonly T[], step = 60, options: { root?: HTMLElement | null } = {}) {
+  const { root } = options;
   const [count, setCount] = useState(step);
-  const sentinelRef = useRef<HTMLElement | null>(null);
+  // Метка держится в состоянии, а не в ссылке: смену узла React не сообщает, и эффект, зависящий
+  // от ссылки, не пересоздал бы наблюдателя.
+  const [sentinel, setSentinel] = useState<HTMLElement | null>(null);
 
   // Новый набор — снова первая порция: иначе после поиска пришлось бы прокручивать вхолостую.
   useEffect(() => {
     setCount(step);
   }, [items, step]);
 
-  const setSentinel = useCallback((node: HTMLElement | null) => {
-    sentinelRef.current = node;
-  }, []);
-
   useEffect(() => {
-    const node = sentinelRef.current;
-    if (!node || count >= items.length) return;
+    if (!sentinel || count >= items.length) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -37,11 +40,11 @@ export function useIncrementalList<T>(items: readonly T[], step = 60) {
         }
       },
       // Подгружаем заранее, чтобы прокрутка не упиралась в пустоту.
-      { rootMargin: '400px' },
+      { root, rootMargin: '400px' },
     );
-    observer.observe(node);
+    observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [count, items.length, step]);
+  }, [sentinel, count, items.length, step, root]);
 
   return {
     visible: items.slice(0, count),

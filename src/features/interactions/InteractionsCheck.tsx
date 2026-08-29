@@ -16,7 +16,7 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
-import { IconAlertTriangle, IconArrowRight, IconInfoCircle, IconPills, IconSearch, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowRight, IconInfoCircle, IconLink, IconPills, IconPlus, IconSearch, IconTrash } from '@tabler/icons-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useDrugs } from '../drugs/useDrugs';
@@ -35,8 +35,10 @@ export function InteractionsCheck() {
   const confirmDelete = useDeleteWithConfirm();
   const { drugs, isLoading: drugsLoading } = useDrugs();
   const [entered, setEntered] = useState<string[]>([]);
-  const [manageOpen, setManageOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [ruleSearch, setRuleSearch] = useState('');
+  // Рамка со списком правил: она же граница видимости для дозагрузки по прокрутке.
+  const [ruleBox, setRuleBox] = useState<HTMLDivElement | null>(null);
 
   /**
    * Восемьсот с лишним правил в одном списке нельзя ни пролистать, ни отрисовать целиком: поиск
@@ -50,7 +52,7 @@ export function InteractionsCheck() {
     );
   }, [interactions, ruleSearch]);
 
-  const rules = useIncrementalList(matchedRules, 40);
+  const rules = useIncrementalList(matchedRules, 40, { root: ruleBox });
 
   // A drug card links here with its МНН prefilled, so the doctor lands on the check already holding
   // the drug they were reading about and only has to add what else the patient takes.
@@ -98,21 +100,22 @@ export function InteractionsCheck() {
               </ThemeIcon>
               <Title order={4}>Препараты пациента</Title>
             </Group>
-            <Group gap="xs" wrap="wrap">
-              <Button variant="light" color="gray" size="xs" leftSection={<IconSettings size={14} />} onClick={() => setManageOpen(true)}>
-                Управление списком
-              </Button>
-            </Group>
+
           </Group>
 
           {isLoading || drugsLoading ? (
             <Skeleton h={36} radius="md" />
           ) : (
             <>
+              {/* Список не открывается по одному щелчку в поле: в справочнике полторы тысячи
+                  названий, и первые двадцать по алфавиту («Абаджио», «Авамис»…) не имеют никакого
+                  отношения к тому, что врач собирается набрать. Подсказка появляется, когда есть
+                  что подсказывать, — то есть с первой буквы. */}
               <TagsInput
                 placeholder="Название с упаковки или МНН — «Нурофен» тоже подойдёт…"
                 data={knownDrugNames}
                 limit={20}
+                openOnFocus={false}
                 value={entered}
                 onChange={setEntered}
                 clearable
@@ -188,23 +191,40 @@ export function InteractionsCheck() {
             ))}
           </Stack>
         )}
-      </Stack>
 
-      <Modal opened={manageOpen} onClose={() => setManageOpen(false)} title="Список взаимодействий" radius="lg" size="lg" centered>
-        <Stack gap="lg">
+        {/* Весь список правил живёт на странице, а не в окне «управление списком». Врач приходит
+            сюда и посмотреть, что вообще известно, — прятать тысячу правил за кнопкой значило бы
+            держать содержимое раздела за дверью, а на самой странице оставлять пустое место. */}
+        <Card withBorder padding="lg">
+          <Group justify="space-between" mb="md" wrap="wrap" gap="xs">
+            <Group gap={8}>
+              <ThemeIcon variant="light" color="brand" size={30} radius="md">
+                <IconLink size={16} />
+              </ThemeIcon>
+              <Title order={4}>Все взаимодействия</Title>
+            </Group>
+            <Button size="xs" leftSection={<IconPlus size={14} />} onClick={() => setAddOpen(true)}>
+              Добавить взаимодействие
+            </Button>
+          </Group>
+
           <TextInput
             placeholder="Препарат или механизм…"
             leftSection={<IconSearch size={16} />}
             value={ruleSearch}
             onChange={(e) => setRuleSearch(e.currentTarget.value)}
           />
-          <Text size="xs" c="dimmed">
+          <Text size="xs" c="dimmed" mt={6}>
             {ruleSearch.trim()
               ? `Найдено: ${matchedRules.length} из ${interactions.length}`
               : `Всего правил: ${interactions.length}`}
           </Text>
 
-          <Stack gap="xs" mah={320} style={{ overflowY: 'auto' }}>
+          {/* Рамка со своей прокруткой: тысяча правил, вытянутая в страницу, похоронила бы под
+              собой саму проверку. Дозагрузка следит за меткой **внутри этой рамки** — наблюдатель,
+              сравнивающий метку с окном, не увидел бы её никогда, потому что её обрезает край
+              рамки. Ровно на этом «загружается ещё…» и висело, ничего не загружая. */}
+          <Stack gap="xs" mt="sm" mah={420} style={{ overflowY: 'auto' }} ref={setRuleBox}>
             {matchedRules.length === 0 ? (
               <Text size="sm" c="dimmed">
                 {interactions.length === 0 ? 'Список пуст.' : 'Ничего не найдено.'}
@@ -237,14 +257,15 @@ export function InteractionsCheck() {
               </Text>
             )}
           </Stack>
+        </Card>
+      </Stack>
 
-          <Stack gap="sm">
-            <Text size="sm" fw={500}>
-              Добавить взаимодействие
-            </Text>
-            <InteractionForm innOptions={innOptions} onSubmit={addInteraction} />
-          </Stack>
-        </Stack>
+      <Modal opened={addOpen} onClose={() => setAddOpen(false)} title="Добавить взаимодействие" radius="lg" size="lg" centered>
+        <Text size="sm" c="dimmed" mb="md">
+          Указывайте МНН, а не торговое название: тогда правило сработает на любую упаковку из
+          справочника.
+        </Text>
+        <InteractionForm innOptions={innOptions} onSubmit={addInteraction} onSaved={() => setAddOpen(false)} />
       </Modal>
     </>
   );

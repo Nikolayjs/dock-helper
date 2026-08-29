@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Alert, Badge, Button, Card, Container, Divider, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
+import { Alert, Badge, Button, Card, Container, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
 import { IconAlertTriangle, IconEdit, IconPill, IconPlus, IconTestPipe, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -15,6 +15,7 @@ import { SEVERITY_COLOR, SEVERITY_LABELS } from '../features/interactions/types'
 import { useDrugInteractions } from '../features/interactions/useDrugInteractions';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { BackButton } from '../components/common/BackButton';
+import { ReadingSheet } from '../components/common/ReadingSheet';
 
 export function DrugViewPage() {
   const { id } = useParams();
@@ -78,7 +79,11 @@ export function DrugViewPage() {
           </Group>
         </Group>
 
-        <div>
+        {/* Карточка препарата — это монография: заголовок, подзаголовки, сплошной текст. Читается
+            она так же, как статья, и с обоями лежала прямо на фотографии. Снаружи остаются только
+            действия над карточкой и раздел взаимодействий: он про связи с другими препаратами, а не
+            про сам препарат, и живёт на своей поверхности. */}
+        <ReadingSheet>
           <Title order={2}>{drug.inn}</Title>
           <Group gap={6} mt={10} wrap="wrap">
             {drug.category && (
@@ -96,7 +101,6 @@ export function DrugViewPage() {
           <Text size="xs" c="dimmed" mt={8}>
             Обновлён {dayjs(drug.updatedAt).format('D MMMM YYYY')}
           </Text>
-        </div>
 
         {/* The card that used to wrap every field turned a monograph into a stack of boxes. An
             article reads as one document with headings, and so should this. */}
@@ -135,7 +139,7 @@ export function DrugViewPage() {
           </Section>
         ))}
 
-        <Divider mt="xs" />
+        </ReadingSheet>
 
         <InteractionsSection drug={drug} drugs={drugs} related={related} index={index} />
       </Stack>
@@ -145,7 +149,7 @@ export function DrugViewPage() {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div>
+    <div style={{ marginTop: 'var(--mantine-spacing-lg)' }}>
       <Title order={4} mb={8}>
         {title}
       </Title>
@@ -176,7 +180,7 @@ function InteractionsSection({
   );
 
   return (
-    <div>
+    <Card withBorder padding="lg">
       <Group justify="space-between" mb={10} wrap="wrap" gap="xs">
         <Group gap={8}>
           <IconAlertTriangle size={18} />
@@ -256,6 +260,6 @@ function InteractionsSection({
           onSaved={() => setAddOpen(false)}
         />
       </Modal>
-    </div>
+    </Card>
   );
 }
