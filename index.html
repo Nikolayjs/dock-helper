@@ -11,7 +11,34 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lexend:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
+    <!--
+      Заголовок и описание здесь — запасные: у публичных страниц их заменяет пререндер
+      (scripts/prerender.mjs) на собственные. Остаются они тем, что не пререндерится, — экрану
+      входа и приложению под /app, которое всё равно закрыто логином.
+    -->
     <title>MedAssist — ассистент врача</title>
+    <meta
+      name="description"
+      content="Рабочее место врача в браузере: пациенты и визиты, диспансерный учёт, печатные бланки с подписью, справочник препаратов, анализы с референсами и калькуляторы."
+    />
+    <link rel="canonical" href="https://medhelpmate.ru/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="MedAssist" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:url" content="https://medhelpmate.ru/" />
+    <meta property="og:title" content="MedAssist — ассистент врача" />
+    <meta
+      property="og:description"
+      content="Пациенты, диспансерный учёт и печатные формы в одном месте — без МИС и без бумаги."
+    />
+    <meta property="og:image" content="https://medhelpmate.ru/landing/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MedAssist — ассистент врача" />
+    <meta
+      name="twitter:description"
+      content="Пациенты, диспансерный учёт и печатные формы в одном месте — без МИС и без бумаги."
+    />
+    <meta name="twitter:image" content="https://medhelpmate.ru/landing/og.png" />
   </head>
   <body>
     <div id="root"></div>

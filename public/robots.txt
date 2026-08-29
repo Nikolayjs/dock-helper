@@ -1,0 +1,11 @@
+# Публичная часть индексируется, рабочее место врача — нет: за /app стоит логин, и всё, что
+# поисковик оттуда получит, — пустая оболочка. /login тоже незачем: это дверь, а не страница.
+User-agent: *
+Allow: /$
+Allow: /pricing
+Allow: /demo
+Allow: /legal/
+Disallow: /app/
+Disallow: /login
+
+Sitemap: https://medhelpmate.ru/sitemap.xml
