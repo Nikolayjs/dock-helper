@@ -20,23 +20,20 @@ const NARROW_VIEWPORT_BREAKPOINT = 1150;
  * it there made the opened drawer render icon-only instead of the full slide-out panel. */
 const MOBILE_DRAWER_BREAKPOINT = 768;
 
-function useIsNarrowViewport(): boolean {
-  const isInRange = (width: number) => width >= MOBILE_DRAWER_BREAKPOINT && width <= NARROW_VIEWPORT_BREAKPOINT;
-  const [isNarrow, setIsNarrow] = useState(
-    () => typeof window !== 'undefined' && isInRange(window.innerWidth),
+function useMedia(query: string): boolean {
+  const [matches, setMatches] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches,
   );
 
   useEffect(() => {
-    const mql = window.matchMedia(
-      `(min-width: ${MOBILE_DRAWER_BREAKPOINT}px) and (max-width: ${NARROW_VIEWPORT_BREAKPOINT}px)`,
-    );
-    const update = () => setIsNarrow(mql.matches);
+    const mql = window.matchMedia(query);
+    const update = () => setMatches(mql.matches);
     update();
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
-  }, []);
+  }, [query]);
 
-  return isNarrow;
+  return matches;
 }
 
 interface StoredSidebarWidth {
@@ -65,8 +62,21 @@ function writeStored(state: StoredSidebarWidth) {
 export function useSidebarWidth() {
   const [expandedWidth, setExpandedWidth] = useState(() => readStored().width);
   const [manualCollapsed, setCollapsed] = useState(() => readStored().collapsed);
-  const isNarrowViewport = useIsNarrowViewport();
-  const collapsed = isNarrowViewport || manualCollapsed;
+  const isNarrowViewport = useMedia(
+    `(min-width: ${MOBILE_DRAWER_BREAKPOINT}px) and (max-width: ${NARROW_VIEWPORT_BREAKPOINT}px)`,
+  );
+  const isMobileDrawer = useMedia(`(max-width: ${MOBILE_DRAWER_BREAKPOINT - 1}px)`);
+  /*
+   * Выдвижная панель никогда не бывает свёрнутой, и запомненный на десктопе выбор её не касается.
+   *
+   * Свёрнутый вид — это узкая полоса значков рядом с содержимым; у панели, которую вызывают
+   * бургером, содержимого рядом нет, а Mantine растягивает её на всю ширину экрана. Получался
+   * список из одних значков во весь экран — ровно то, на что и пожаловались. Раньше из-под
+   * автоматического сворачивания был выведен только диапазон планшета (`isNarrowViewport`
+   * начинается с `MOBILE_DRAWER_BREAKPOINT`), а сохранённый ручной выбор — нет, и он протекал
+   * с десктопа на телефон через `localStorage`.
+   */
+  const collapsed = !isMobileDrawer && (isNarrowViewport || manualCollapsed);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
@@ -122,6 +132,8 @@ export function useSidebarWidth() {
     [collapsed, expandedWidth],
   );
 
+  // На выдвижной панели ширину задаёт Mantine (100 % экрана), но подпираем её обычной шириной, а
+  // не свёрнутой: сохранённая с десктопа полоса в 76 px не должна быть видна нигде на телефоне.
   const width = collapsed ? SIDEBAR_COLLAPSED_WIDTH : expandedWidth;
 
   return { width, collapsed, startResize, toggleCollapsed };
