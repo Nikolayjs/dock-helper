@@ -149,20 +149,24 @@ function isoFromUtcDate(date: Date): string | null {
 }
 
 /**
- * How to read a two-digit year, which depends entirely on what the column means.
+ * Двузначный год — это год, который уже наступил.
  *
- * `birth`: nobody in the file was born in the future, so `60` is 1960 and `05` is 2005.
- * `past`: a date that has already happened but is usually recent — a registration date of `24` is
- * 2024, while `98` is 1998. Sharing one rule would date this year's registrations to 1924.
+ * Правило одно на все колонки реестра: прибавить 2000, а если вышло будущее — вычесть сто. И день
+ * рождения, и дата постановки на учёт — события прошлого, поэтому `30` — это 1930, `05` — 2005, а
+ * `26` в 2026 году — это и правда 2026.
+ *
+ * Прежний порог «больше тридцати — значит девятнадцатый век» давал пациенту 1930 года рождения дату
+ * **2030**, а 1929-му — 2029. Это ровно та когорта, из которой состоит диспансерная группа, и
+ * дальше эта дата уходит в расчёт возраста и в выбор референсных интервалов анализатора: пациент
+ * получал отрицательный возраст и чужие нормы. Порог, привязанный к числу, устаревает сам собой —
+ * этот привязан к сегодняшнему году.
  */
-type YearWindow = 'birth' | 'past';
-
-function expandTwoDigitYear(value: number, window: YearWindow): number {
-  if (window === 'birth') return value > 30 ? 1900 + value : 2000 + value;
-  return 2000 + value <= new Date().getFullYear() ? 2000 + value : 1900 + value;
+function expandTwoDigitYear(value: number): number {
+  const asRecent = 2000 + value;
+  return asRecent <= new Date().getFullYear() ? asRecent : asRecent - 100;
 }
 
-export function parseDateCell(cell: Cell, window: YearWindow = 'birth'): string | null {
+export function parseDateCell(cell: Cell): string | null {
   if (cell === null || cell === undefined || cell === '') return null;
   if (cell instanceof Date) return isoFromUtcDate(cell);
   // A date-formatted cell read as a plain number is a serial count of days from the Excel epoch.
@@ -174,7 +178,7 @@ export function parseDateCell(cell: Cell, window: YearWindow = 'birth'): string 
   const dmy = text.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$/);
   if (dmy) {
     const [, d, m, y] = dmy;
-    const year = y.length === 2 ? expandTwoDigitYear(Number(y), window) : Number(y);
+    const year = y.length === 2 ? expandTwoDigitYear(Number(y)) : Number(y);
     return isoFromParts(year, Number(m), Number(d));
   }
   const ymd = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
@@ -226,7 +230,7 @@ export function mapRows(rows: Cell[][], header: HeaderMatch): MappedRows {
       phone: cellText(row, columns.phone),
       diagnosis: cellText(row, columns.diagnosis),
       diagnosisCode: cellText(row, columns.diagnosisCode),
-      registeredDate: parseDateCell(row[columns.registeredDate ?? -1] ?? null, 'past'),
+      registeredDate: parseDateCell(row[columns.registeredDate ?? -1] ?? null),
       sourceRow: i + 1,
     });
   }
