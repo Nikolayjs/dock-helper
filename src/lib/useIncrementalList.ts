@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 /**
  * Отдаёт список порциями по мере прокрутки.
@@ -29,6 +30,20 @@ export function useIncrementalList<T>(items: readonly T[], step = 60, options: {
   useEffect(() => {
     setCount(step);
   }, [items, step]);
+
+  // Печать берёт то, что лежит в DOM, а лежит здесь ровно столько, докуда прокрутили. Реестр на
+  // две тысячи карт ушёл бы на бумагу первой сотней — и выглядел бы законченным документом, потому
+  // что обрыва на бумаге не видно. Поэтому перед печатью показываем весь набор.
+  //
+  // `flushSync` здесь обязателен: печать начинается сразу после обработчика, а обычная правка
+  // состояния к этому моменту ещё не дошла бы до разметки.
+  useEffect(() => {
+    const showAll = () => {
+      flushSync(() => setCount(items.length));
+    };
+    window.addEventListener('beforeprint', showAll);
+    return () => window.removeEventListener('beforeprint', showAll);
+  }, [items.length]);
 
   useEffect(() => {
     if (!sentinel || count >= items.length) return;

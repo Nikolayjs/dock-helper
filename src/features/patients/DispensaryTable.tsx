@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { ActionIcon, Badge, Group, Table, Text, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
 import { SortableTh } from '../../components/common/SortableTh';
+import { useIncrementalList } from '../../lib/useIncrementalList';
 import type { SortState, SortValue } from '../../lib/tableSort';
 import { REMOVAL_REASON_LABELS } from './dispensaryUtils';
 import type { DispensaryRecord, Patient } from './types';
@@ -89,6 +91,23 @@ export function dispensarySortValue(
 }
 
 export function DispensaryTable({ records, patientsById, sort, onSort, icdNames, onOpen, onEdit, onDelete }: DispensaryTableProps) {
+  // Код диагноза, его название и срок следующего осмотра считаются один раз на набор: в теле `.map`
+  // они пересчитывались при каждом рендере страницы, а участок — это тысячи карт.
+  const rows = useMemo(
+    () =>
+      records.map((record) => ({
+        record,
+        name: patientsById.get(record.patientId)?.fullName ?? 'Пациент не найден',
+        code: diagnosisCodeOf(record.diagnosis, record.diagnosisCode),
+        label: diagnosisLabel(record.diagnosis, record.diagnosisCode, icdNames) || 'Без диагноза',
+        nextVisitStatus:
+          record.status === 'active' && record.nextVisitDate ? getReminderStatus(record.nextVisitDate) : null,
+      })),
+    [records, patientsById, icdNames],
+  );
+  // Фильтрация и сортировка идут по всему набору — порционно только рисуется.
+  const { visible, hasMore, remaining, setSentinel } = useIncrementalList(rows);
+
   return (
     <Table.ScrollContainer minWidth={1060}>
       <Table highlightOnHover verticalSpacing="sm" fz="sm">
@@ -121,23 +140,17 @@ export function DispensaryTable({ records, patientsById, sort, onSort, icdNames,
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {records.map((record) => {
-            const code = diagnosisCodeOf(record.diagnosis, record.diagnosisCode);
-            const nextVisitStatus =
-              record.status === 'active' && record.nextVisitDate
-                ? getReminderStatus(record.nextVisitDate)
-                : null;
-
+          {visible.map(({ record, name, code, label, nextVisitStatus }) => {
             return (
               <Table.Tr key={record.id} style={{ cursor: 'pointer' }} onClick={() => onOpen(record)}>
                 <Table.Td>
                   <Text fw={600} size="sm" lineClamp={1}>
-                    {patientsById.get(record.patientId)?.fullName ?? 'Пациент не найден'}
+                    {name}
                   </Text>
                 </Table.Td>
                 <Table.Td>
                   <Text size="sm" lineClamp={1}>
-                    {diagnosisLabel(record.diagnosis, record.diagnosisCode, icdNames) || 'Без диагноза'}
+                    {label}
                   </Text>
                 </Table.Td>
                 <Table.Td>
@@ -200,6 +213,13 @@ export function DispensaryTable({ records, patientsById, sort, onSort, icdNames,
               </Table.Tr>
             );
           })}
+          {hasMore && (
+            <Table.Tr ref={setSentinel}>
+              <Table.Td colSpan={8} ta="center" c="dimmed" fz="xs" py="md">
+                Загружается ещё… осталось {remaining}
+              </Table.Td>
+            </Table.Tr>
+          )}
         </Table.Tbody>
       </Table>
     </Table.ScrollContainer>

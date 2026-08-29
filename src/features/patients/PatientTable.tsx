@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { ActionIcon, Badge, Group, Table, Text, Tooltip } from '@mantine/core';
 import { IconClockExclamation, IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
 import { SortableTh } from '../../components/common/SortableTh';
+import { useIncrementalList } from '../../lib/useIncrementalList';
 import type { SortState, SortValue } from '../../lib/tableSort';
 import type { Patient } from './types';
 import { calcAge, formatAge, getReminderStatus } from './utils';
@@ -87,6 +89,21 @@ export function patientSortValue(patient: Patient, key: PatientSortKey): SortVal
 }
 
 export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete }: PatientTableProps) {
+  // Возраст и срок напоминания считаются один раз на набор, а не на каждый рендер строки: в теле
+  // `.map` они пересчитывались при любом нажатии на странице, а картотека бывает на тысячи записей.
+  const rows = useMemo(
+    () =>
+      patients.map((patient) => ({
+        patient,
+        age: calcAge(patient.birthDate),
+        lastVisit: patient.visits[0],
+        reminderStatus: patient.reminderDate ? getReminderStatus(patient.reminderDate) : null,
+      })),
+    [patients],
+  );
+  // Фильтрация и сортировка идут по всему набору — порционно только рисуется.
+  const { visible, hasMore, remaining, setSentinel } = useIncrementalList(rows);
+
   return (
     // Below this the columns crush rather than wrap, so the table scrolls sideways on a phone.
     <Table.ScrollContainer minWidth={980}>
@@ -120,11 +137,7 @@ export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete 
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {patients.map((patient) => {
-            const age = calcAge(patient.birthDate);
-            const lastVisit = patient.visits[0];
-            const reminderStatus = patient.reminderDate ? getReminderStatus(patient.reminderDate) : null;
-
+          {visible.map(({ patient, age, lastVisit, reminderStatus }) => {
             return (
               <Table.Tr
                 key={patient.id}
@@ -201,6 +214,13 @@ export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete 
               </Table.Tr>
             );
           })}
+          {hasMore && (
+            <Table.Tr ref={setSentinel}>
+              <Table.Td colSpan={8} ta="center" c="dimmed" fz="xs" py="md">
+                Загружается ещё… осталось {remaining}
+              </Table.Td>
+            </Table.Tr>
+          )}
         </Table.Tbody>
       </Table>
     </Table.ScrollContainer>
