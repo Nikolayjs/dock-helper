@@ -13,9 +13,14 @@ import type { Icd10Row } from './types';
  * «уровень» занял бы место и потребовал бы читать его, тогда как отступ читается сам. Идёт она
  * всегда следом за своей рубрикой — при любой сортировке.
  *
- * **Стрелка раскрытия — отдельный столбец, а не сама строка.** Строка открывает карточку кода, и
- * это её основное действие; отдать щелчок раскрытию значило бы отобрать у списка то, ради чего его
- * открывают. Столбец объявлен `stopClick`: нажатие на стрелку до строки не доходит.
+ * **Щелчок по рубрике её раскрывает.** Список, внутри которого ещё есть данные, обязан
+ * раскрываться нажатием на себя — этого ждут, и попадание в значок 20 px пальцем задачей врача не
+ * является. Карточка кода открывается стрелкой справа, у неё же и живёт справка по кодированию.
+ * Конечный код раскрывать нечем, поэтому щелчок по нему сразу открывает карточку.
+ *
+ * Обе стрелки объявлены `stopClick` — нажатие на них до строки не доходит — и обе остаются
+ * кнопками: щелчок по `tr` с клавиатуры недостижим, и без них раздел нельзя было бы пройти
+ * табуляцией вовсе.
  */
 export type Icd10SortKey = 'code' | 'name' | 'chapter' | 'block' | 'children';
 
@@ -49,9 +54,11 @@ interface Icd10TableProps {
   onSort: (key: Icd10SortKey) => void;
   onOpen: (row: Icd10Row) => void;
   onToggle: (code: string) => void;
+  /** Щелчок по строке: рубрику с уточнениями раскрывает, всё прочее открывает. */
+  onRowClick: (row: Icd10Row) => void;
 }
 
-export function Icd10Table({ rows, sort, onSort, onOpen, onToggle }: Icd10TableProps) {
+export function Icd10Table({ rows, sort, onSort, onOpen, onToggle, onRowClick }: Icd10TableProps) {
   const columns: DataColumn<Icd10Row, Icd10SortKey>[] = [
     {
       // Место под стрелку занято всегда, даже у конечного кода: ширина столбца меряется по
@@ -154,6 +161,24 @@ export function Icd10Table({ rows, sort, onSort, onOpen, onToggle }: Icd10TableP
           </Text>
         ),
     },
+    {
+      // Открыть карточку. У рубрики с уточнениями это единственный путь к ней: щелчок по строке
+      // занят раскрытием. Столбец стоит у всех строк, а не только у раскрываемых: одно и то же
+      // действие обязано жить в одном и том же месте строки.
+      w: 48,
+      stopClick: true,
+      render: (row) => (
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="sm"
+          onClick={() => onOpen(row)}
+          aria-label={`Открыть карточку ${row.code}`}
+        >
+          <IconChevronRight size={16} />
+        </ActionIcon>
+      ),
+    },
   ];
 
   return (
@@ -163,7 +188,7 @@ export function Icd10Table({ rows, sort, onSort, onOpen, onToggle }: Icd10TableP
       rowKey={(row) => row.code}
       sort={sort}
       onSort={onSort}
-      onRowClick={onOpen}
+      onRowClick={onRowClick}
       minWidth={900}
     />
   );
