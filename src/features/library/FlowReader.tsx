@@ -3,9 +3,13 @@ import { ActionIcon, Group, Stack } from '@mantine/core';
 import { IconMinus, IconPlus } from '@tabler/icons-react';
 
 import './flowReader.css';
+import { SCROLL_ROOT_ID } from '../../components/layout/scrollRoot';
+import { ToolbarSlot } from './ReaderBar';
 import { READER_FONT_SCALE_MAX, READER_FONT_SCALE_MIN, getReaderFontScale, setReaderFontScale } from './readerPrefs';
 
 const BASE_FONT_SIZE = 16;
+/** Сколько кадров ждать, пока разметка книги уляжется и появится куда прокручивать. */
+const RESTORE_FRAMES = 60;
 
 interface FlowReaderProps {
   bodyHtml: string;
@@ -15,6 +19,8 @@ interface FlowReaderProps {
   /** Hides the font-size toolbar, for distraction-free reading on small screens. */
   immersive?: boolean;
   onProgressChange?: (fraction: number) => void;
+  /** Место в панели читалки под кнопки размера шрифта; без него они рисуются на месте. */
+  toolbarSlot?: HTMLElement | null;
 }
 
 /**
@@ -22,6 +28,17 @@ interface FlowReaderProps {
  * single stream that the window's width decides the shape of — so position is a scroll fraction
  * rather than a page number, and the only control that means anything is type size. PDF and DjVu
  * are the opposite (fixed pages, a zoom level) and have their own readers.
+ *
+ * **Прокручивается страница, а не рамка внутри неё, и это несущее решение.** Раньше текст лежал в
+ * коробке высотой 75 vh со своей прокруткой, и из этого следовало сразу три вещи, каждая
+ * неправильная: у книги была вторая полоса прокрутки вплотную к первой; шапка приложения не
+ * уезжала при чтении, потому что страница не двигалась вовсе, и кнопка «наверх» не появлялась по
+ * той же причине; а спрятать шапку принудительно было нельзя — коробка от этого не растёт, и над
+ * ней открылась бы полоса пустого фона (ровно та ошибка, что уже случилась с сайдбаром на
+ * десктопе). Книга — это длинный текст, и читаться он должен так же, как статья: страницей.
+ *
+ * Собственная прокрутка остаётся только в полноэкранном режиме: там страницы приложения нет,
+ * элемент читалки показывается браузером поверх всего, и прокручивать, кроме него, нечего.
  */
 export function FlowReader({
   bodyHtml,
@@ -29,41 +46,56 @@ export function FlowReader({
   initialProgress = 0,
   immersive,
   onProgressChange,
+  toolbarSlot,
 }: FlowReaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const restoredRef = useRef(false);
+  /** Доля прочитанного: по ней место в книге переносится при входе в полный экран и выходе. */
+  const fractionRef = useRef(initialProgress);
   const [fontScale, setFontScale] = useState(() => getReaderFontScale());
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || restoredRef.current) return;
-    restoredRef.current = true;
-    requestAnimationFrame(() => {
-      const max = el.scrollHeight - el.clientHeight;
-      if (max > 0) el.scrollTop = max * initialProgress;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bodyHtml]);
+  // Кто прокручивается: корень оболочки (обычный режим) или сама рамка (полный экран).
+  const scroller = () => (immersive ? containerRef.current : document.getElementById(SCROLL_ROOT_ID));
 
   useEffect(() => {
-    const el = containerRef.current;
+    let frames = 0;
+    let raf = 0;
+    // Пока книга не разложилась, прокручивать некуда: `scrollHeight` равен высоте окна, и
+    // восстановленное место оказалось бы нулём. Поэтому попытка повторяется по кадрам — картинки
+    // из Word доезжают до своего размера не в первом.
+    const restore = () => {
+      const el = scroller();
+      const max = el ? el.scrollHeight - el.clientHeight : 0;
+      if (el && max > 0) {
+        el.scrollTop = max * fractionRef.current;
+        return;
+      }
+      if (frames++ < RESTORE_FRAMES) raf = requestAnimationFrame(restore);
+    };
+    raf = requestAnimationFrame(restore);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bodyHtml, immersive]);
+
+  useEffect(() => {
+    const el = scroller();
     if (!el) return;
     let frame = 0;
     const handleScroll = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const max = el.scrollHeight - el.clientHeight;
-        const fraction = max > 0 ? el.scrollTop / max : 0;
+        const fraction = max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0;
+        fractionRef.current = fraction;
         onProgressChange?.(fraction);
       });
     };
-    el.addEventListener('scroll', handleScroll);
+    el.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       el.removeEventListener('scroll', handleScroll);
       cancelAnimationFrame(frame);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [immersive]);
 
   const adjustFontScale = (delta: number) => {
     setFontScale((prev) => {
@@ -79,21 +111,23 @@ export function FlowReader({
   return (
     <Stack align="center" gap="md" w="100%">
       {!immersive && (
-        <Group>
-          <ActionIcon variant="subtle" color="gray" onClick={() => adjustFontScale(-0.1)} title="Мельче">
-            <IconMinus size={16} />
-          </ActionIcon>
-          <ActionIcon variant="subtle" color="gray" onClick={() => adjustFontScale(0.1)} title="Крупнее">
-            <IconPlus size={16} />
-          </ActionIcon>
-        </Group>
+        <ToolbarSlot target={toolbarSlot}>
+          <Group gap="xs" wrap="nowrap">
+            <ActionIcon variant="subtle" color="gray" onClick={() => adjustFontScale(-0.1)} title="Мельче">
+              <IconMinus size={16} />
+            </ActionIcon>
+            <ActionIcon variant="subtle" color="gray" onClick={() => adjustFontScale(0.1)} title="Крупнее">
+              <IconPlus size={16} />
+            </ActionIcon>
+          </Group>
+        </ToolbarSlot>
       )}
       <div
         ref={containerRef}
         className={contentClassName ? `flow-reader ${contentClassName}` : 'flow-reader'}
         style={{
-          maxHeight: immersive ? '92vh' : '75vh',
-          overflowY: 'auto',
+          maxHeight: immersive ? '92vh' : undefined,
+          overflowY: immersive ? 'auto' : undefined,
           padding: '0 8px',
           width: '100%',
           fontSize: BASE_FONT_SIZE * fontScale,

@@ -184,6 +184,36 @@ body {
   background: var(--mantine-color-body);
 }
 
+/*
+ * Внутри модального окна полосы прокрутки не видно.
+ *
+ * Окно и так объявляет себя границей: рамка, тень, затемнённый фон. Полоса шириной десять пикселей
+ * с непрозрачным ползунком приклеивается к самому его краю и читается как часть оформления окна, а
+ * не как подсказка о том, что список длиннее. В списке разделов справочника — шестнадцать строк,
+ * и ползунок занимает половину высоты: он не столько сообщает о прокрутке, сколько делит окно
+ * пополам вертикальной чертой.
+ *
+ * Прокрутка при этом остаётся вся: `scrollbar-width: none` прячет полосу, а не отменяет её (это не
+ * `overflow: hidden`). Колесо, палец, клавиши и `scrollIntoView` работают как работали.
+ *
+ * Правило адресное: у страницы полоса остаётся — там она единственный указатель на то, сколько
+ * ещё осталось, и на карточках с длинными таблицами это важно.
+ */
+.mantine-Modal-content,
+.mantine-Modal-body,
+.mantine-Drawer-content,
+.mantine-Drawer-body {
+  scrollbar-width: none;
+}
+
+.mantine-Modal-content::-webkit-scrollbar,
+.mantine-Modal-body::-webkit-scrollbar,
+.mantine-Drawer-content::-webkit-scrollbar,
+.mantine-Drawer-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 .wikilink-missing {
   color: var(--mantine-color-red-6);
   border-bottom: 1px dashed var(--mantine-color-red-5);

@@ -9,6 +9,7 @@ import type { Book } from '../features/library/types';
 import { QUERY_KEY as LIBRARY_KEY, useBook } from '../features/library/useLibrary';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { BackButton } from '../components/common/BackButton';
+import { ReadingSheet } from '../components/common/ReadingSheet';
 
 const FORMAT_LABEL: Record<Book['format'], string> = { pdf: 'PDF', docx: 'DOCX', fb2: 'FB2', djvu: 'DjVu' };
 const FORMAT_ICON: Record<Book['format'], typeof IconBook2> = {
@@ -76,7 +77,11 @@ export function BookViewPage() {
           </Group>
         </Group>
 
-        <Group align="flex-start" gap="xl" wrap="wrap">
+        {/* Обложка, название и автор — то, ради чего страницу открывают, и на обоях они лежали
+            прямо на фотографии. Подложка та же, что под читаемым текстом: на телефоне она занимает
+            всю ширину экрана, иначе от неё осталась бы колонка в три четверти. */}
+        <ReadingSheet>
+          <Group align="flex-start" gap="xl" wrap="wrap">
           <div style={{ width: 220, flexShrink: 0 }}>
             {book.coverDataUrl ? (
               <Image src={book.coverDataUrl} radius="md" style={{ boxShadow: 'var(--mantine-shadow-md)' }} />
@@ -130,7 +135,8 @@ export function BookViewPage() {
               )}
             </Group>
           </Stack>
-        </Group>
+          </Group>
+        </ReadingSheet>
       </Stack>
 
       <BookEditModal book={book} opened={editing} onClose={() => setEditing(false)} onSave={(input) => updateMeta(book.id, input)} />

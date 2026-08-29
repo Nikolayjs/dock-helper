@@ -1,4 +1,4 @@
-import { Badge, Button, Card, Checkbox, Container, Group, Progress, Stack, Text, Title, Typography } from '@mantine/core';
+import { Badge, Button, Checkbox, Container, Group, Progress, Stack, Text, Title, Typography } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { QUERY_KEY as NOTES_KEY, useNotes } from './useNotes';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { BackButton } from '../../components/common/BackButton';
+import { ReadingSheet } from '../../components/common/ReadingSheet';
 import { labelForPath, readFrom } from '../../lib/backTarget';
 
 export function NoteViewPage() {
@@ -67,7 +68,11 @@ export function NoteViewPage() {
           </Group>
         </Group>
 
-        <div>
+        {/* Заметка — такой же читаемый текст, как статья, и с обоями он лежал прямо на
+            фотографии. Заголовок, дата и содержимое на одной подложке: снаружи остаются только
+            действия над заметкой, они относятся к странице, а не к тексту. Чек-лист своей карточки
+            больше не держит — она оказалась бы карточкой внутри карточки. */}
+        <ReadingSheet>
           <Title order={2}>{note.title}</Title>
           {note.pinnedDate && (
             <Badge variant="light" color={note.color} size="sm" mt={10}>
@@ -77,15 +82,13 @@ export function NoteViewPage() {
           <Text size="xs" c="dimmed" mt={8}>
             Обновлено {dayjs(note.updatedAt).format('D MMMM YYYY')}
           </Text>
-        </div>
 
-        {note.kind === 'note' ? (
-          <Typography>
-            <div dangerouslySetInnerHTML={{ __html: note.content }} />
-          </Typography>
-        ) : (
-          <Card withBorder padding="lg">
-            <Stack gap="md">
+          {note.kind === 'note' ? (
+            <Typography mt="lg">
+              <div dangerouslySetInnerHTML={{ __html: note.content }} />
+            </Typography>
+          ) : (
+            <Stack gap="md" mt="lg">
               {note.items.length > 0 && (
                 <Progress value={(doneCount / note.items.length) * 100} color={note.color} size={6} radius="xl" />
               )}
@@ -101,8 +104,8 @@ export function NoteViewPage() {
                 ))}
               </Stack>
             </Stack>
-          </Card>
-        )}
+          )}
+        </ReadingSheet>
       </Stack>
     </Container>
   );

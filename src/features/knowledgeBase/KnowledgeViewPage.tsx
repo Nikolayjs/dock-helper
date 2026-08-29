@@ -1,4 +1,4 @@
-import { Badge, Button, Container, Group, Loader, Stack, Text, Title, Typography } from '@mantine/core';
+import { Badge, Button, Container, Group, Loader, Space, Stack, Text, Title, Typography } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconDownload, IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -95,9 +95,19 @@ export function KnowledgeViewPage({ kind, basePath, notFoundText, backLabel, del
               ))}
             </Group>
           )}
-          <Text size="xs" c="dimmed" mt={8} mb="lg">
-            {doc.author} · {dayjs(doc.updatedAt).format('D MMMM YYYY')}
-          </Text>
+          {/* У клинической рекомендации подписи нет намеренно. Автор здесь — это тот, в чьём
+              рабочем пространстве лежит копия карточки, а дата — когда её последний раз тронула
+              синхронизация каталога: ни то, ни другое не говорит ничего о самой рекомендации.
+              Настоящая её дата — дата утверждения документа, и у нас её нет; поставить вместо неё
+              свою значило бы датировать клинический документ днём нашего деплоя. Куда идти за
+              формулировками, сказано в самой карточке, последним абзацем. */}
+          {kind === 'guideline' ? (
+            <Space h="lg" />
+          ) : (
+            <Text size="xs" c="dimmed" mt={8} mb="lg">
+              {doc.author} · {dayjs(doc.updatedAt).format('D MMMM YYYY')}
+            </Text>
+          )}
 
           {contentLoading || !full ? (
             <Group justify="center" py="xl">

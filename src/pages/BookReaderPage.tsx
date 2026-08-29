@@ -4,6 +4,7 @@ import { IconArrowsMaximize, IconArrowsMinimize } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
 
 import { DjvuReader } from '../features/library/DjvuReader';
+import { ReaderBar } from '../features/library/ReaderBar';
 import { FlowReader } from '../features/library/FlowReader';
 import { ReadingSheet } from '../components/common/ReadingSheet';
 import { decodeFb2Text, parseFb2 } from '../features/library/fb2';
@@ -11,6 +12,7 @@ import { PdfReader } from '../features/library/PdfReader';
 import { loadBookFile, useBook } from '../features/library/useLibrary';
 import { readDocx } from '../lib/docx/readDocx';
 import { BackButton } from '../components/common/BackButton';
+import { STICKY_TOP } from '../layouts/shellMetrics';
 
 const SAVE_DEBOUNCE_MS = 800;
 
@@ -23,6 +25,13 @@ export function BookReaderPage() {
   const [flowHtml, setFlowHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [immersive, setImmersive] = useState(false);
+  // Панель одна на все три формата, а кнопки у каждого свои — читалка кладёт их сюда порталом.
+  const [toolbarSlot, setToolbarSlot] = useState<HTMLDivElement | null>(null);
+  // Сколько прочитано — вместо полосы прокрутки: у потоковой читалки своей полосы больше нет
+  // вовсе (страница прокручивается целиком), а сказать, где мы в книге, всё равно нужно.
+  // Постраничные читалки этого не заполняют: у них номер страницы стоит в собственных кнопках,
+  // между стрелками «назад» и «вперёд», и второй такой же в той же панели был бы повтором.
+  const [positionLabel, setPositionLabel] = useState<string | null>(null);
 
   const progressRef = useRef<number | null>(null);
   const saveTimeoutRef = useRef<number | undefined>(undefined);
@@ -123,20 +132,33 @@ export function BookReaderPage() {
       gap="md"
       style={immersive ? { background: 'var(--mantine-color-body)', minHeight: '100vh', padding: 'var(--mantine-spacing-lg)' } : undefined}
     >
-      <Group justify="space-between" wrap="wrap" gap="sm">
-        <BackButton fallback={{ to: `/library/${book.id}`, label: 'Назад к книге' }} />
-        <Title order={4} lineClamp={1} style={{ maxWidth: 420, textAlign: 'center' }}>
-          {book.title}
-        </Title>
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          onClick={toggleFullscreen}
-          title={immersive ? 'Выйти из полноэкранного режима' : 'На весь экран'}
-        >
-          {immersive ? <IconArrowsMinimize size={18} /> : <IconArrowsMaximize size={18} />}
-        </ActionIcon>
-      </Group>
+      <ReaderBar slotRef={setToolbarSlot} top={immersive ? 0 : STICKY_TOP}>
+        <Group justify="space-between" wrap="nowrap" gap="sm">
+          <BackButton fallback={{ to: `/library/${book.id}`, label: 'Назад к книге' }} />
+          {/* На телефоне названия в панели нет намеренно. «Назад к книге», доля прочитанного и
+              полный экран занимают ширину целиком, и названию остаётся полтора слова: замер на
+              экране 390 дал «Ото…» — то есть строку, которая не называет ничего. Книгу только что
+              открыли, и что это за книга, читатель знает. */}
+          <Title order={5} lineClamp={1} visibleFrom="sm" style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
+            {book.title}
+          </Title>
+          <Group gap="xs" wrap="nowrap">
+            {positionLabel && (
+              <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                {positionLabel}
+              </Text>
+            )}
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              onClick={toggleFullscreen}
+              title={immersive ? 'Выйти из полноэкранного режима' : 'На весь экран'}
+            >
+              {immersive ? <IconArrowsMinimize size={18} /> : <IconArrowsMaximize size={18} />}
+            </ActionIcon>
+          </Group>
+        </Group>
+      </ReaderBar>
 
       {error && (
         <Center py={80}>
@@ -150,6 +172,7 @@ export function BookReaderPage() {
             data={pdfData}
             initialPage={book.progress?.location ?? 1}
             immersive={immersive}
+            toolbarSlot={toolbarSlot}
             onPageChange={(page) => handleProgress(page)}
           />
         ) : (
@@ -164,6 +187,7 @@ export function BookReaderPage() {
             data={djvuData}
             initialPage={book.progress?.location ?? 1}
             immersive={immersive}
+            toolbarSlot={toolbarSlot}
             onPageChange={(page) => handleProgress(page)}
           />
         ) : (
@@ -188,7 +212,11 @@ export function BookReaderPage() {
                 contentClassName={book.format === 'docx' ? 'docx-content' : 'fb2-content'}
                 initialProgress={book.progress?.location ?? 0}
                 immersive={immersive}
-                onProgressChange={(fraction) => handleProgress(fraction)}
+                toolbarSlot={toolbarSlot}
+                onProgressChange={(fraction) => {
+                  handleProgress(fraction);
+                  setPositionLabel(`Прочитано ${Math.round(fraction * 100)} %`);
+                }}
               />
             </ReadingSheet>
           </Container>

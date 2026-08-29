@@ -3,6 +3,7 @@ import { ActionIcon, Center, Group, Loader, Stack, Text, Tooltip } from '@mantin
 import { IconArrowAutofitWidth, IconChevronLeft, IconChevronRight, IconMinus, IconPlus } from '@tabler/icons-react';
 
 import { PageScroller } from './PageScroller';
+import { ToolbarSlot } from './ReaderBar';
 import { loadPdfDocument } from './pdfMeta';
 import { getPdfZoom, PDF_ZOOM_MAX, PDF_ZOOM_MIN, setPdfZoom } from './readerPrefs';
 import { useElementWidth, useReaderZoom } from './readerZoom';
@@ -13,6 +14,8 @@ interface PdfReaderProps {
   /** Hides the page-navigation and zoom toolbar, for distraction-free reading on small screens. */
   immersive?: boolean;
   onPageChange?: (page: number, pageCount: number) => void;
+  /** Место в панели читалки под её кнопки; без него они рисуются на месте, над рамкой. */
+  toolbarSlot?: HTMLElement | null;
 }
 
 type PdfDocumentProxy = Awaited<ReturnType<typeof loadPdfDocument>>;
@@ -91,7 +94,7 @@ function PdfPage({ doc, pageNumber, scale, estimatedSize, registerVisibility }: 
   );
 }
 
-export function PdfReader({ data, initialPage = 1, immersive, onPageChange }: PdfReaderProps) {
+export function PdfReader({ data, initialPage = 1, immersive, onPageChange, toolbarSlot }: PdfReaderProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [frame, setFrame] = useState<HTMLDivElement | null>(null);
   const docRef = useRef<PdfDocumentProxy | null>(null);
@@ -237,34 +240,36 @@ export function PdfReader({ data, initialPage = 1, immersive, onPageChange }: Pd
   return (
     <Stack align="center" gap="md" w="100%">
       {!immersive && (
-        <Group>
-          <ActionIcon variant="light" onClick={() => jumpToPage(currentPage - 1)} disabled={currentPage <= 1}>
-            <IconChevronLeft size={18} />
-          </ActionIcon>
-          <Text size="sm">
-            Стр. {currentPage} из {pageCount}
-          </Text>
-          <ActionIcon variant="light" onClick={() => jumpToPage(currentPage + 1)} disabled={currentPage >= pageCount}>
-            <IconChevronRight size={18} />
-          </ActionIcon>
-          <ActionIcon variant="subtle" color="gray" onClick={() => adjust(-0.2)} ml="md" aria-label="Мельче">
-            <IconMinus size={16} />
-          </ActionIcon>
-          <ActionIcon variant="subtle" color="gray" onClick={() => adjust(0.2)} aria-label="Крупнее">
-            <IconPlus size={16} />
-          </ActionIcon>
-          <Tooltip label="По ширине экрана" withArrow>
-            <ActionIcon
-              variant={isFit ? 'light' : 'subtle'}
-              color={isFit ? 'brand' : 'gray'}
-              onClick={fitWidth}
-              aria-label="По ширине экрана"
-              aria-pressed={isFit}
-            >
-              <IconArrowAutofitWidth size={16} />
+        <ToolbarSlot target={toolbarSlot}>
+          <Group>
+            <ActionIcon variant="light" onClick={() => jumpToPage(currentPage - 1)} disabled={currentPage <= 1}>
+              <IconChevronLeft size={18} />
             </ActionIcon>
-          </Tooltip>
-        </Group>
+            <Text size="sm">
+              Стр. {currentPage} из {pageCount}
+            </Text>
+            <ActionIcon variant="light" onClick={() => jumpToPage(currentPage + 1)} disabled={currentPage >= pageCount}>
+              <IconChevronRight size={18} />
+            </ActionIcon>
+            <ActionIcon variant="subtle" color="gray" onClick={() => adjust(-0.2)} ml="md" aria-label="Мельче">
+              <IconMinus size={16} />
+            </ActionIcon>
+            <ActionIcon variant="subtle" color="gray" onClick={() => adjust(0.2)} aria-label="Крупнее">
+              <IconPlus size={16} />
+            </ActionIcon>
+            <Tooltip label="По ширине экрана" withArrow>
+              <ActionIcon
+                variant={isFit ? 'light' : 'subtle'}
+                color={isFit ? 'brand' : 'gray'}
+                onClick={fitWidth}
+                aria-label="По ширине экрана"
+                aria-pressed={isFit}
+              >
+                <IconArrowAutofitWidth size={16} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </ToolbarSlot>
       )}
       <PageScroller frameRef={attachFrame} maxHeight={immersive ? '92vh' : '75vh'}>
         {scale !== null &&
