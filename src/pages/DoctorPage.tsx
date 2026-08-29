@@ -53,6 +53,7 @@ import { getClinicSettings, setClinicSettings, type ClinicSettings } from '../fe
 import { stripHtml } from '../features/notes/textPreview';
 import { useNotes } from '../features/notes/useNotes';
 import { getMembers, invite, type WorkspaceMember } from '../features/workspace/workspaceApi';
+import { isDemoSession } from '../features/demo/demoSession';
 import { resizeImageToDataUrl } from '../lib/imageResize';
 
 const AVATAR_MAX_DIMENSION = 256;
@@ -85,6 +86,8 @@ function getNoteExcerpt(note: { kind: string; content: string; items: { text: st
 }
 
 export function DoctorPage() {
+  // Гостевая сессия: часть настроек живёт на сервере, которого у демо нет.
+  const demo = isDemoSession();
   const { notes } = useNotes();
   const user = useAuth();
   const updateAuthUser = useUpdateAuthUser();
@@ -420,9 +423,12 @@ export function DoctorPage() {
               {user.username}
             </Text>
             <Group gap={8}>
-              <Button variant="light" color="gray" leftSection={<IconKey size={16} />} onClick={() => setPasswordModalOpen(true)}>
-                Сменить пароль
-              </Button>
+              {/* Пароля у гостя нет — менять нечего. */}
+              {!demo && (
+                <Button variant="light" color="gray" leftSection={<IconKey size={16} />} onClick={() => setPasswordModalOpen(true)}>
+                  Сменить пароль
+                </Button>
+              )}
               <Button variant="light" color="red" leftSection={<IconLogout size={16} />} onClick={logout}>
                 Выйти
               </Button>
@@ -461,23 +467,32 @@ export function DoctorPage() {
             ))}
           </Stack>
 
-          <Group align="flex-end" gap="sm">
-            <TextInput
-              label="Добавить врача по нику"
-              placeholder="username"
-              value={inviteUsername}
-              onChange={(e) => setInviteUsername(e.currentTarget.value)}
-              error={inviteError}
-              disabled={isInviting}
-              style={{ flex: 1 }}
-            />
-            <Button onClick={handleInvite} loading={isInviting} disabled={!inviteUsername.trim()}>
-              Добавить
-            </Button>
-          </Group>
-          <Text size="xs" c="dimmed" mt={6}>
-            Врач добавляется мгновенно, без подтверждения с его стороны.
-          </Text>
+          {demo ? (
+            <Text size="sm" c="dimmed">
+              В демо-режиме рабочее пространство одно и состоит из вас: приглашать некого, аккаунтов
+              здесь нет.
+            </Text>
+          ) : (
+            <>
+              <Group align="flex-end" gap="sm">
+                <TextInput
+                  label="Добавить врача по нику"
+                  placeholder="username"
+                  value={inviteUsername}
+                  onChange={(e) => setInviteUsername(e.currentTarget.value)}
+                  error={inviteError}
+                  disabled={isInviting}
+                  style={{ flex: 1 }}
+                />
+                <Button onClick={handleInvite} loading={isInviting} disabled={!inviteUsername.trim()}>
+                  Добавить
+                </Button>
+              </Group>
+              <Text size="xs" c="dimmed" mt={6}>
+                Врач добавляется мгновенно, без подтверждения с его стороны.
+              </Text>
+            </>
+          )}
         </Card>
 
         <Modal opened={passwordModalOpen} onClose={closePasswordModal} title="Сменить пароль" radius="lg" centered>

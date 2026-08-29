@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './apiConfig';
 import { backendErrorMessage } from '../features/newsFeed/backendError';
+import { isDemoSession } from '../features/demo/demoSession';
 import { getAuthToken, reportSessionExpired } from './tokenStore';
 
 /**
@@ -27,6 +28,20 @@ export async function request<T>(
   init?: RequestInit,
   { expectedUnauthorized = false }: { expectedUnauthorized?: boolean } = {},
 ): Promise<T> {
+  // Демо-режим подменяется здесь, и это единственное место на всё приложение: через `request`
+  // ходят и все репозитории, и два десятка отдельных вызовов вроде визитов пациента или отметки
+  // калькулятора избранным. Импорт динамический — выдуманная картотека не должна лежать в чанке,
+  // который скачивает каждый настоящий врач.
+  if (isDemoSession()) {
+    const { demoRequest } = await import('../features/demo/demoApi');
+    try {
+      return await demoRequest<T>(path, init);
+    } catch (error) {
+      // Наружу уходит та же ошибка, что и от сервера: вызывающий код не должен знать про демо.
+      throw new HttpRepositoryError(error instanceof Error ? error.message : 'В демо-режиме это действие недоступно.');
+    }
+  }
+
   const token = getAuthToken();
   let response: Response;
   try {

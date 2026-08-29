@@ -8,6 +8,7 @@ import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { ScrollToTopButton } from '../components/layout/ScrollToTopButton';
+import { DemoBanner } from '../features/demo/DemoBanner';
 import { SCROLL_ROOT_ID } from '../components/layout/scrollRoot';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Topbar } from '../components/layout/Topbar';
@@ -195,6 +196,11 @@ export function AppLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
+        {/* Полоса демо-режима стоит здесь, а не в шапке, намеренно: высота шапки (`HEADER_HEIGHT`)
+            держит на себе каждый прилипший элемент приложения, и лишние сорок пикселей в ней
+            сдвинули бы панели редакторов, рабочее место таблицы и кнопку «наверх». Внутри
+            содержимого полоса видна на каждой странице — переход прокручивает страницу к началу. */}
+        <DemoBanner />
         {/* Carries the bottom padding — see .content in the stylesheet for why it cannot sit on Main. */}
         <div className={classes.content}>
           <Outlet />

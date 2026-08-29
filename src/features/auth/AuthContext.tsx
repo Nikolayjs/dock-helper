@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { setSessionExpiredHandler } from '../../lib/tokenStore';
+import { DEMO_DOCTOR } from '../demo/demoDoctor';
+import { endDemoSession, isDemoSession } from '../demo/demoSession';
 import { loadClinicSettings } from '../patients/clinicSettings';
 import { me } from './authApi';
 import { clearStoredToken, readStoredToken, storeToken } from './session';
@@ -52,6 +54,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+
+    // Гостевая сессия: аккаунта нет и спрашивать сервер не о чем. Настройки клиники всё равно
+    // загружаются — их читают синхронно в рендере компоненты бланка, и порядок здесь тот же.
+    if (isDemoSession()) {
+      void loadClinicSettings().then(() => {
+        if (cancelled) return;
+        setUser(DEMO_DOCTOR);
+        setCheckingStoredToken(false);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const stored = readStoredToken();
     if (!stored) {
       setCheckingStoredToken(false);
@@ -88,6 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleLogout = () => {
+    // Из демо выходят на витрину, а не на форму входа: у гостя нет аккаунта, к которому возвращаться.
+    if (isDemoSession()) {
+      endDemoSession();
+      window.location.assign('/');
+      return;
+    }
     clearStoredToken();
     setUser(null);
     // The public site and the application are two routers; crossing between them is a page load.

@@ -9,6 +9,8 @@
 import { API_BASE_URL } from '../../lib/apiConfig';
 import { backendErrorMessage } from '../newsFeed/backendError';
 import { getAuthToken } from '../../lib/tokenStore';
+import { DEMO_CLINIC } from '../demo/demoDoctor';
+import { isDemoSession } from '../demo/demoSession';
 
 export interface ClinicSettings {
   specialty: string;
@@ -41,6 +43,11 @@ export function getClinicSettings(): ClinicSettings {
 }
 
 export async function loadClinicSettings(): Promise<ClinicSettings> {
+  // Шапка бланка в демо своя: печатная форма без клиники и лицензии не показывает ничего.
+  if (isDemoSession()) {
+    cache = DEMO_CLINIC;
+    return cache;
+  }
   const response = await fetch(`${API_BASE_URL}/clinic-settings`, { headers: authHeaders() });
   if (!response.ok) throw new Error(await backendErrorMessage(response, `Не удалось загрузить настройки клиники (${response.status}).`));
   cache = pick((await response.json()) as ClinicSettings);
@@ -48,6 +55,11 @@ export async function loadClinicSettings(): Promise<ClinicSettings> {
 }
 
 export async function setClinicSettings(settings: ClinicSettings): Promise<ClinicSettings> {
+  // В демо шапка правится в памяти вкладки: сохранять её некуда, а показать правку на бланке нужно.
+  if (isDemoSession()) {
+    cache = pick(settings);
+    return cache;
+  }
   const response = await fetch(`${API_BASE_URL}/clinic-settings`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },

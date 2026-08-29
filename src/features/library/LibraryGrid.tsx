@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, Card, FileButton, Group, SimpleGrid, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Button, Card, FileButton, Group, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
+import { isDemoSession } from '../demo/demoSession';
 import { IconBooks, IconPlus, IconSearch } from '@tabler/icons-react';
 
 import { BookCard } from './BookCard';
@@ -35,13 +36,23 @@ export function LibraryGrid({ books, isAdding, onAddFiles, onOpen, onEdit, onDel
           onChange={(e) => setSearch(e.currentTarget.value)}
           w={280}
         />
-        <FileButton onChange={onAddFiles} accept=".pdf,.docx,.fb2,.djvu,.djv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
-          {(props) => (
-            <Button {...props} leftSection={<IconPlus size={18} />} loading={isAdding}>
+        {/* Книги хранит сервер: в демо их некуда класть и неоткуда читать. Кнопка остаётся на
+            месте и объясняет почему — исчезнувшая кнопка выглядит как отсутствующая возможность. */}
+        {isDemoSession() ? (
+          <Tooltip label="В демо-режиме недоступно: файлы книг хранятся на сервере" withArrow>
+            <Button leftSection={<IconPlus size={18} />} disabled data-disabled>
               Добавить книгу
             </Button>
-          )}
-        </FileButton>
+          </Tooltip>
+        ) : (
+          <FileButton onChange={onAddFiles} accept=".pdf,.docx,.fb2,.djvu,.djv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
+            {(props) => (
+              <Button {...props} leftSection={<IconPlus size={18} />} loading={isAdding}>
+                Добавить книгу
+              </Button>
+            )}
+          </FileButton>
+        )}
       </Group>
 
       {sorted.length === 0 ? (

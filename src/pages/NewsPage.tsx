@@ -30,6 +30,7 @@ import { useNewsFeedItems } from '../features/newsFeed/useNewsFeedItems';
 import { useNewsArchiveSettings } from '../features/newsFeed/useNewsArchiveSettings';
 import { QUERY_KEY as NEWS_SOURCES_KEY, useNewsFeedSources } from '../features/newsFeed/useNewsFeedSources';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { isDemoSession } from '../features/demo/demoSession';
 
 const PAGE_SIZE = 12;
 
@@ -143,11 +144,28 @@ export function NewsPage() {
             <ActionIcon variant="light" color="gray" size="lg" radius="md" onClick={() => refetchAll()} aria-label="Обновить">
               {isLoading ? <Loader size={16} /> : <IconRefresh size={18} />}
             </ActionIcon>
-            <Button variant="light" color="gray" leftSection={<IconSettings size={16} />} onClick={() => setManageOpen(true)}>
+            <Button
+              variant="light"
+              color="gray"
+              leftSection={<IconSettings size={16} />}
+              onClick={() => setManageOpen(true)}
+              disabled={isDemoSession()}
+            >
               Источники
             </Button>
           </Group>
         </Group>
+
+        {/* Ленты читает сервер: он ходит за RSS и хранит архив. В демо его нет, и молчаливо пустая
+            страница выглядела бы как поломка, а не как граница демонстрации. */}
+        {isDemoSession() && (
+          <Alert color="orange" icon={<IconAlertTriangle size={18} />} title="Новости в демо не загружаются">
+            <Text size="sm">
+              За лентами ходит сервер и он же хранит архив. В демо-режиме сервера нет — раздел
+              показан, чтобы было видно, как он устроен.
+            </Text>
+          </Alert>
+        )}
 
         {/* Not an error: the feed is unreachable but its history is on screen, and saying so is
             what stops «сегодня ничего не вышло» from being read into an outage. */}

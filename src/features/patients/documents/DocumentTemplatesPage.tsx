@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { stripHtml } from '../../notes/textPreview';
 import { usePatients } from '../usePatients';
+import { isDemoSession } from '../../demo/demoSession';
 import type { DocumentTemplate } from './templateTypes';
 import { useDocumentTemplates } from './useDocumentTemplates';
 
@@ -75,13 +76,18 @@ export function DocumentTemplatesPage() {
           w={260}
         />
         <Group gap="sm">
-          <Button
-            variant="default"
-            leftSection={<IconPhotoScan size={18} />}
-            onClick={() => navigate('/documents/templates/scan')}
-          >
-            Бланк из снимка
-          </Button>
+          {/* Распознавание снимка — Tesseract на сервере, в демо его нет. */}
+          <Tooltip label="В демо-режиме недоступно: распознавание снимка выполняется на сервере" withArrow disabled={!isDemoSession()}>
+            <Button
+              variant="default"
+              leftSection={<IconPhotoScan size={18} />}
+              onClick={() => navigate('/documents/templates/scan')}
+              disabled={isDemoSession()}
+              data-disabled={isDemoSession() || undefined}
+            >
+              Бланк из снимка
+            </Button>
+          </Tooltip>
           <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/documents/templates/new')}>
             Создать бланк
           </Button>

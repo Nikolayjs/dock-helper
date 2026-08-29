@@ -2,6 +2,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 
 import { API_BASE_URL } from '../../lib/apiConfig';
+import { isDemoSession } from '../demo/demoSession';
 
 export interface Icd10Entry {
   code: string;
@@ -13,6 +14,12 @@ const LIMIT = 8;
 const MIN_QUERY_LENGTH = 2;
 
 async function fetchIcd10(query: string): Promise<Icd10Entry[]> {
+  // В демо сервера нет, а поиск диагноза — часть того, что показывают. Импорт динамический:
+  // список кодов не должен лежать в чанке, который скачивает каждый настоящий врач.
+  if (isDemoSession()) {
+    const { searchDemoIcd10 } = await import('../demo/demoIcd10');
+    return searchDemoIcd10(query, LIMIT);
+  }
   const url = `${API_BASE_URL}/icd10/search?q=${encodeURIComponent(query)}&limit=${LIMIT}`;
   const response = await fetch(url);
   if (!response.ok) return [];
