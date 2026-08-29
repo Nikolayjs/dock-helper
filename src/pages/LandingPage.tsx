@@ -1,29 +1,30 @@
-import { Button, Container, Group, Stack, Text, Title } from '@mantine/core';
-import { Link } from 'react-router-dom';
-
-import { APP_BASE } from '../lib/appBase';
+import { FaqSection } from '../features/landing/FaqSection';
+import { FeaturesSection } from '../features/landing/FeaturesSection';
+import { HeroSection } from '../features/landing/HeroSection';
+import { LandingFooter } from '../features/landing/LandingFooter';
+import { LandingHeader } from '../features/landing/LandingHeader';
+import { PricingSection } from '../features/landing/PricingSection';
+import { TrustSection } from '../features/landing/TrustSection';
 
 /**
- * Placeholder. The real landing — first screen, product sections, trust, pricing, FAQ — is step 2
- * of LANDING_TASK.md; this step only opens the address to it.
+ * The public home page.
+ *
+ * Assembled from sections rather than written as one file so that the pricing block can also be a
+ * page of its own (`/pricing`, which the prerender step needs as a separate address) without the
+ * two drifting apart.
  */
 export function LandingPage() {
   return (
-    <Container size="md" py={80}>
-      <Stack gap="lg">
-        <Title order={1}>MedAssist</Title>
-        <Text c="dimmed">
-          Пациенты, диспансерный учёт и печатные формы в одном месте — без МИС и без бумаги.
-        </Text>
-        <Group>
-          <Button component={Link} to="/login">
-            Войти
-          </Button>
-          <Button component="a" href={`${APP_BASE}/dashboard`} variant="light">
-            Перейти в приложение
-          </Button>
-        </Group>
-      </Stack>
-    </Container>
+    <>
+      <LandingHeader />
+      <main>
+        <HeroSection />
+        <FeaturesSection />
+        <TrustSection />
+        <PricingSection />
+        <FaqSection />
+      </main>
+      <LandingFooter />
+    </>
   );
 }

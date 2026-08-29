@@ -6,6 +6,7 @@ import { createBrowserRouter, createRoutesFromElements, Outlet, Route, RouterPro
 // form's inputs, and someone following a link straight to /login should not download the landing.
 const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
+const DemoPage = lazy(() => import('./pages/DemoPage').then((m) => ({ default: m.DemoPage })));
 const PricingPage = lazy(() => import('./pages/PricingPage').then((m) => ({ default: m.PricingPage })));
 const LegalPage = lazy(() => import('./pages/legal/LegalPage').then((m) => ({ default: m.LegalPage })));
 const PublicNotFoundPage = lazy(() => import('./pages/PublicNotFoundPage').then((m) => ({ default: m.PublicNotFoundPage })));
@@ -40,6 +41,7 @@ const router = createBrowserRouter(
     <Route element={<PublicRoot />}>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/demo" element={<DemoPage />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/legal/offer" element={<LegalPage kind="offer" />} />
       <Route path="/legal/privacy" element={<LegalPage kind="privacy" />} />

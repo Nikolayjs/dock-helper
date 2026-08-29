@@ -77,7 +77,9 @@ export function LoginPage() {
         </Link>
 
         <Card withBorder padding="lg" radius="lg">
-          <Title order={4} mb="md">
+          {/* Заголовок страницы — первого уровня, размером четвёртого: страница без `h1` для
+              экранного диктора начинается ниоткуда, а форма входа занимает её целиком. */}
+          <Title order={1} fz="h4" mb="md">
             {mode === 'login' ? 'Вход' : 'Регистрация'}
           </Title>
           <form onSubmit={handleSubmit}>
