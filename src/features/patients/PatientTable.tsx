@@ -1,23 +1,23 @@
 import { useMemo } from 'react';
-import { ActionIcon, Badge, Group, Table, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Text, Tooltip } from '@mantine/core';
 import { IconClockExclamation, IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
-import { SortableTh } from '../../components/common/SortableTh';
-import { useIncrementalList } from '../../lib/useIncrementalList';
+import { DataTable } from '../../components/common/DataTable';
+import type { DataColumn } from '../../components/common/DataTable';
 import type { SortState, SortValue } from '../../lib/tableSort';
-import type { Patient } from './types';
+import type { Patient, PatientVisit } from './types';
 import { calcAge, formatAge, getReminderStatus } from './utils';
 
 /**
- * The patient list, one row each.
+ * Список пациентов, по человеку на строку.
  *
- * Cards gave every patient the same large tile, so a practice with two hundred of them scrolled for
- * a name it could have read off a column. A row shows the same facts — who, when they were last
- * seen, what for — while keeping them aligned, which is what makes a list scannable at all.
+ * Карточки давали каждому пациенту одинаковую крупную плитку, и практика на две сотни человек
+ * прокручивалась ради фамилии, которую можно было прочитать в столбце. Строка показывает те же
+ * факты — кто, когда был, с чем, — но выровненными, а только это и делает список просматриваемым.
  *
- * The diagnosis shown is the last visit's. It is the one that identifies the patient in the doctor's
- * memory («тот с отитом»), and the full history is one click away in the card.
+ * Диагноз показывается последний: он и опознаёт пациента в памяти врача («тот, с отитом»), а вся
+ * история — в одном нажатии, в карточке.
  */
 
 export type PatientSortKey = 'name' | 'sex' | 'age' | 'lastVisit' | 'diagnosis' | 'visits' | 'reminder';
@@ -52,8 +52,10 @@ const SEX_LABEL: Record<'male' | 'female', string> = {
   female: 'Ж',
 };
 
+const DASH = '—';
+
 function visitsLabel(count: number): string {
-  if (count === 0) return '—';
+  if (count === 0) return DASH;
   const lastTwo = count % 100;
   const last = count % 10;
   if (lastTwo >= 11 && lastTwo <= 14) return `${count} визитов`;
@@ -63,11 +65,11 @@ function visitsLabel(count: number): string {
 }
 
 /**
- * What each column sorts by.
+ * По чему сортируется каждый столбец.
  *
- * Dates stay as their ISO strings — `2026-05-01` orders correctly as text, and parsing every row on
- * every comparison would be work for nothing. Age and the visit count are real numbers, so they
- * order 2 before 10 rather than after it.
+ * Даты остаются строками ISO — `2026-05-01` упорядочивается как текст верно, а разбирать каждую
+ * строку на каждое сравнение значило бы работать впустую. Возраст и число визитов — настоящие
+ * числа, поэтому 2 идёт перед 10, а не после.
  */
 export function patientSortValue(patient: Patient, key: PatientSortKey): SortValue {
   switch (key) {
@@ -88,10 +90,18 @@ export function patientSortValue(patient: Patient, key: PatientSortKey): SortVal
   }
 }
 
+/** Строка со всем, что нужно при отрисовке: возраст и срок считаются один раз на набор. */
+interface PatientRow {
+  patient: Patient;
+  age: number | null;
+  lastVisit: PatientVisit | undefined;
+  reminderStatus: 'overdue' | 'today' | 'upcoming' | null;
+}
+
 export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete }: PatientTableProps) {
   // Возраст и срок напоминания считаются один раз на набор, а не на каждый рендер строки: в теле
   // `.map` они пересчитывались при любом нажатии на странице, а картотека бывает на тысячи записей.
-  const rows = useMemo(
+  const rows = useMemo<PatientRow[]>(
     () =>
       patients.map((patient) => ({
         patient,
@@ -101,128 +111,115 @@ export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete 
       })),
     [patients],
   );
-  // Фильтрация и сортировка идут по всему набору — порционно только рисуется.
-  const { visible, hasMore, remaining, setSentinel } = useIncrementalList(rows);
+
+  const columns: DataColumn<PatientRow, PatientSortKey>[] = [
+    {
+      key: 'name',
+      // Ради имени список и читают; без нижней границы оно теряет ширину в пользу столбцов с
+      // жёсткой шириной и обрезается до «Харина…».
+      miw: 220,
+      header: 'ФИО',
+      render: ({ patient }) => (
+        <>
+          <Text fw={600} size="sm" lineClamp={1}>
+            {patient.fullName}
+          </Text>
+          {patient.phone && (
+            <Text size="xs" c="dimmed">
+              {patient.phone}
+            </Text>
+          )}
+        </>
+      ),
+    },
+    { key: 'sex', header: 'Пол', w: 72, render: ({ patient }) => (patient.sex ? SEX_LABEL[patient.sex] : DASH) },
+    { key: 'age', header: 'Возраст', w: 112, render: ({ age }) => (age !== null ? formatAge(age) : DASH) },
+    {
+      key: 'lastVisit',
+      header: 'Последний визит',
+      w: 148,
+      render: ({ lastVisit }) =>
+        lastVisit ? (
+          dayjs(lastVisit.date).format('DD.MM.YYYY')
+        ) : (
+          <Text size="sm" c="dimmed">
+            {DASH}
+          </Text>
+        ),
+    },
+    {
+      key: 'diagnosis',
+      header: 'Диагноз',
+      miw: 200,
+      // У пациента без визитов прочерк стоит и здесь, и в «Последнем визите», и в «Визитах»:
+      // расписать это словами значило бы перенести строку на две ради нуля пользы.
+      render: ({ lastVisit }) => (
+        <Text size="sm" lineClamp={1} c={lastVisit ? undefined : 'dimmed'}>
+          {lastVisit ? lastVisit.diagnosis || 'Без диагноза' : DASH}
+        </Text>
+      ),
+    },
+    {
+      key: 'visits',
+      header: 'Визитов',
+      w: 124,
+      render: ({ patient }) => (
+        <Text size="sm" c={patient.visits.length === 0 ? 'dimmed' : undefined}>
+          {visitsLabel(patient.visits.length)}
+        </Text>
+      ),
+    },
+    {
+      key: 'reminder',
+      header: 'Напоминание',
+      w: 166,
+      render: ({ patient, reminderStatus }) =>
+        reminderStatus && patient.reminderDate ? (
+          <Badge
+            variant="light"
+            color={REMINDER_COLOR[reminderStatus]}
+            size="sm"
+            tt="none"
+            leftSection={<IconClockExclamation size={12} />}
+          >
+            {reminderStatus === 'overdue' ? 'Просрочено' : dayjs(patient.reminderDate).format('D MMMM')}
+          </Badge>
+        ) : (
+          <Text size="sm" c="dimmed">
+            {DASH}
+          </Text>
+        ),
+    },
+    {
+      w: 80,
+      // Строка сама открывает пациента, поэтому кнопки не должны заодно открывать его же.
+      stopClick: true,
+      render: ({ patient }) => (
+        <Group gap={2} wrap="nowrap" justify="flex-end">
+          <Tooltip label="Изменить" withArrow>
+            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(patient)}>
+              <IconEdit size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Удалить" withArrow>
+            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(patient)}>
+              <IconTrash size={16} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+    },
+  ];
 
   return (
-    // Below this the columns crush rather than wrap, so the table scrolls sideways on a phone.
-    <Table.ScrollContainer minWidth={980}>
-      <Table highlightOnHover verticalSpacing="sm" fz="sm">
-        <Table.Thead>
-          <Table.Tr>
-            {/* The name is what the list is read for; without a floor it loses width to the
-                fixed columns and truncates to «Харина…». */}
-            <SortableTh column="name" sort={sort} onSort={onSort} miw={220}>
-              ФИО
-            </SortableTh>
-            <SortableTh column="sex" sort={sort} onSort={onSort} w={72}>
-              Пол
-            </SortableTh>
-            <SortableTh column="age" sort={sort} onSort={onSort} w={112}>
-              Возраст
-            </SortableTh>
-            <SortableTh column="lastVisit" sort={sort} onSort={onSort} w={148}>
-              Последний визит
-            </SortableTh>
-            <SortableTh column="diagnosis" sort={sort} onSort={onSort} miw={200}>
-              Диагноз
-            </SortableTh>
-            <SortableTh column="visits" sort={sort} onSort={onSort} w={124}>
-              Визитов
-            </SortableTh>
-            <SortableTh column="reminder" sort={sort} onSort={onSort} w={166}>
-              Напоминание
-            </SortableTh>
-            <Table.Th w={80} />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {visible.map(({ patient, age, lastVisit, reminderStatus }) => {
-            return (
-              <Table.Tr
-                key={patient.id}
-                style={{ cursor: 'pointer' }}
-                onClick={() => onOpen(patient)}
-              >
-                <Table.Td>
-                  <Text fw={600} size="sm" lineClamp={1}>
-                    {patient.fullName}
-                  </Text>
-                  {patient.phone && (
-                    <Text size="xs" c="dimmed">
-                      {patient.phone}
-                    </Text>
-                  )}
-                </Table.Td>
-                <Table.Td>{patient.sex ? SEX_LABEL[patient.sex] : '—'}</Table.Td>
-                <Table.Td>{age !== null ? formatAge(age) : '—'}</Table.Td>
-                <Table.Td>
-                  {lastVisit ? (
-                    dayjs(lastVisit.date).format('DD.MM.YYYY')
-                  ) : (
-                    <Text size="sm" c="dimmed">
-                      —
-                    </Text>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  {/* A patient with no visits shows a dash here, in «Последний визит» and in
-                      «Визитов» alike; spelling it out wraps the row to two lines for no gain. */}
-                  <Text size="sm" lineClamp={1} c={lastVisit ? undefined : 'dimmed'}>
-                    {lastVisit ? lastVisit.diagnosis || 'Без диагноза' : '—'}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c={patient.visits.length === 0 ? 'dimmed' : undefined}>
-                    {visitsLabel(patient.visits.length)}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  {reminderStatus && patient.reminderDate ? (
-                    <Badge
-                      variant="light"
-                      color={REMINDER_COLOR[reminderStatus]}
-                      size="sm"
-                      tt="none"
-                      leftSection={<IconClockExclamation size={12} />}
-                    >
-                      {reminderStatus === 'overdue'
-                        ? 'Просрочено'
-                        : dayjs(patient.reminderDate).format('D MMMM')}
-                    </Badge>
-                  ) : (
-                    <Text size="sm" c="dimmed">
-                      —
-                    </Text>
-                  )}
-                </Table.Td>
-                {/* The row itself opens the patient, so the buttons must not also trigger it. */}
-                <Table.Td onClick={(e) => e.stopPropagation()}>
-                  <Group gap={2} wrap="nowrap" justify="flex-end">
-                    <Tooltip label="Изменить" withArrow>
-                      <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(patient)}>
-                        <IconEdit size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Удалить" withArrow>
-                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(patient)}>
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            );
-          })}
-          {hasMore && (
-            <Table.Tr ref={setSentinel}>
-              <Table.Td colSpan={8} ta="center" c="dimmed" fz="xs" py="md">
-                Загружается ещё… осталось {remaining}
-              </Table.Td>
-            </Table.Tr>
-          )}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <DataTable
+      rows={rows}
+      columns={columns}
+      rowKey={({ patient }) => patient.id}
+      sort={sort}
+      onSort={onSort}
+      onRowClick={({ patient }) => onOpen(patient)}
+      minWidth={980}
+    />
   );
 }

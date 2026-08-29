@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { ActionIcon, Badge, Group, Table, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Text, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
-import { SortableTh } from '../../components/common/SortableTh';
-import { useIncrementalList } from '../../lib/useIncrementalList';
+import { DataTable } from '../../components/common/DataTable';
+import type { DataColumn } from '../../components/common/DataTable';
 import type { SortState, SortValue } from '../../lib/tableSort';
 import { REMOVAL_REASON_LABELS } from './dispensaryUtils';
 import type { DispensaryRecord, Patient } from './types';
@@ -12,14 +12,13 @@ import { diagnosisCodeOf, diagnosisLabel } from './useIcd10Names';
 import { getReminderStatus } from './utils';
 
 /**
- * The dispensary register, one row per card of account.
+ * Реестр диспансерного учёта, по карте на строку.
  *
- * The columns are the ones a register is actually read for — who, with what, since when, and when
- * they are due — and the due date is the one the list is sorted by, so it earns a column rather
- * than a line of small print.
+ * Столбцы — те, ради которых реестр и читают: кто, с чем, с какого числа и когда явка. Дата явки
+ * заслуживает столбца, а не строчки мелким шрифтом: именно по ней список и сортируют.
  *
- * Diagnoses imported from a spreadsheet are often a bare ICD code and nothing else, so the code is
- * resolved to a disease name the same way the statistics tables do it.
+ * Диагнозы, перенесённые из таблицы, часто состоят из одного кода МКБ, поэтому код разворачивается
+ * в название болезни так же, как в таблицах статистики.
  */
 
 export type DispensarySortKey =
@@ -46,7 +45,7 @@ interface DispensaryTableProps {
   patientsById: Map<string, Patient>;
   sort: SortState<DispensarySortKey>;
   onSort: (key: DispensarySortKey) => void;
-  /** Resolved on the page, because sorting by diagnosis needs the same names the rows show. */
+  /** Разрешаются на странице: сортировка по диагнозу обязана использовать те же названия, что видно в строках. */
   icdNames: Record<string, string>;
   onOpen: (record: DispensaryRecord) => void;
   onEdit: (record: DispensaryRecord) => void;
@@ -59,12 +58,15 @@ const NEXT_VISIT_COLOR: Record<'overdue' | 'today' | 'upcoming', string> = {
   upcoming: 'teal',
 };
 
+const DASH = '—';
+
 /**
- * What each column sorts by.
+ * По чему сортируется каждый столбец.
  *
- * The diagnosis sorts by the name shown, not the stored text: a register imported as bare ICD codes
- * would otherwise sort by code under a column reading disease names. Removed cards have no next
- * visit, so they sink to the bottom of that column instead of pretending one is due.
+ * Диагноз сортируется по показанному названию, а не по хранимому тексту: реестр, перенесённый
+ * голыми кодами МКБ, иначе упорядочивался бы по коду под столбцом с названиями болезней. У снятых
+ * карт следующего осмотра нет, поэтому в этом столбце они опускаются вниз, а не притворяются, что
+ * явка назначена.
  */
 export function dispensarySortValue(
   record: DispensaryRecord,
@@ -90,10 +92,19 @@ export function dispensarySortValue(
   }
 }
 
+/** Строка со всем, что нужно при отрисовке: код, название и срок считаются один раз на набор. */
+interface DispensaryRow {
+  record: DispensaryRecord;
+  name: string;
+  code: string | undefined;
+  label: string;
+  nextVisitStatus: 'overdue' | 'today' | 'upcoming' | null;
+}
+
 export function DispensaryTable({ records, patientsById, sort, onSort, icdNames, onOpen, onEdit, onDelete }: DispensaryTableProps) {
   // Код диагноза, его название и срок следующего осмотра считаются один раз на набор: в теле `.map`
   // они пересчитывались при каждом рендере страницы, а участок — это тысячи карт.
-  const rows = useMemo(
+  const rows = useMemo<DispensaryRow[]>(
     () =>
       records.map((record) => ({
         record,
@@ -105,123 +116,124 @@ export function DispensaryTable({ records, patientsById, sort, onSort, icdNames,
       })),
     [records, patientsById, icdNames],
   );
-  // Фильтрация и сортировка идут по всему набору — порционно только рисуется.
-  const { visible, hasMore, remaining, setSentinel } = useIncrementalList(rows);
+
+  const columns: DataColumn<DispensaryRow, DispensarySortKey>[] = [
+    {
+      key: 'name',
+      // Ради имени реестр и читают; без нижней границы оно теряет ширину в пользу столбцов с
+      // жёсткой шириной и обрезается до «Харина…».
+      miw: 220,
+      header: 'ФИО',
+      render: ({ name }) => (
+        <Text fw={600} size="sm" lineClamp={1}>
+          {name}
+        </Text>
+      ),
+    },
+    {
+      key: 'diagnosis',
+      header: 'Диагноз',
+      miw: 220,
+      render: ({ label }) => (
+        <Text size="sm" lineClamp={1}>
+          {label}
+        </Text>
+      ),
+    },
+    {
+      key: 'code',
+      header: 'Код МКБ',
+      w: 112,
+      render: ({ code }) =>
+        code ?? (
+          <Text size="sm" c="dimmed">
+            {DASH}
+          </Text>
+        ),
+    },
+    {
+      key: 'registered',
+      header: 'На учёте с',
+      w: 132,
+      render: ({ record }) => dayjs(record.registeredDate).format('DD.MM.YYYY'),
+    },
+    {
+      key: 'nextVisit',
+      header: 'Следующий осмотр',
+      w: 172,
+      render: ({ record, nextVisitStatus }) =>
+        record.status === 'removed' ? (
+          <Text size="sm" c="dimmed">
+            {DASH}
+          </Text>
+        ) : record.nextVisitDate ? (
+          <Badge variant="light" color={NEXT_VISIT_COLOR[nextVisitStatus ?? 'upcoming']} size="sm" tt="none">
+            {nextVisitStatus === 'overdue'
+              ? `Просрочен с ${dayjs(record.nextVisitDate).format('DD.MM.YYYY')}`
+              : dayjs(record.nextVisitDate).format('DD.MM.YYYY')}
+          </Badge>
+        ) : (
+          <Text size="sm" c="dimmed">
+            Не назначен
+          </Text>
+        ),
+    },
+    {
+      key: 'observations',
+      header: 'Осмотров',
+      w: 116,
+      render: ({ record }) => (
+        <Text size="sm" c={record.observations.length === 0 ? 'dimmed' : undefined}>
+          {record.observations.length === 0 ? DASH : record.observations.length}
+        </Text>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Статус',
+      w: 170,
+      render: ({ record }) =>
+        record.status === 'removed' ? (
+          <Badge variant="light" color="gray" size="sm" tt="none">
+            Снят
+            {record.removedReason ? `: ${REMOVAL_REASON_LABELS[record.removedReason]}` : ''}
+          </Badge>
+        ) : (
+          <Badge variant="light" color="teal" size="sm" tt="none">
+            На учёте
+          </Badge>
+        ),
+    },
+    {
+      w: 80,
+      // Строка сама открывает карту, поэтому кнопки не должны заодно открывать её же.
+      stopClick: true,
+      render: ({ record }) => (
+        <Group gap={2} wrap="nowrap" justify="flex-end">
+          <Tooltip label="Изменить" withArrow>
+            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(record)}>
+              <IconEdit size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Удалить" withArrow>
+            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(record)}>
+              <IconTrash size={16} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+    },
+  ];
 
   return (
-    <Table.ScrollContainer minWidth={1060}>
-      <Table highlightOnHover verticalSpacing="sm" fz="sm">
-        <Table.Thead>
-          <Table.Tr>
-            {/* The name is what the register is read for; without a floor it loses width to the
-                fixed columns and truncates to «Харина…». */}
-            <SortableTh column="name" sort={sort} onSort={onSort} miw={220}>
-              ФИО
-            </SortableTh>
-            <SortableTh column="diagnosis" sort={sort} onSort={onSort} miw={220}>
-              Диагноз
-            </SortableTh>
-            <SortableTh column="code" sort={sort} onSort={onSort} w={112}>
-              Код МКБ
-            </SortableTh>
-            <SortableTh column="registered" sort={sort} onSort={onSort} w={132}>
-              На учёте с
-            </SortableTh>
-            <SortableTh column="nextVisit" sort={sort} onSort={onSort} w={172}>
-              Следующий осмотр
-            </SortableTh>
-            <SortableTh column="observations" sort={sort} onSort={onSort} w={116}>
-              Осмотров
-            </SortableTh>
-            <SortableTh column="status" sort={sort} onSort={onSort} w={170}>
-              Статус
-            </SortableTh>
-            <Table.Th w={80} />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {visible.map(({ record, name, code, label, nextVisitStatus }) => {
-            return (
-              <Table.Tr key={record.id} style={{ cursor: 'pointer' }} onClick={() => onOpen(record)}>
-                <Table.Td>
-                  <Text fw={600} size="sm" lineClamp={1}>
-                    {name}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" lineClamp={1}>
-                    {label}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  {code ?? (
-                    <Text size="sm" c="dimmed">
-                      —
-                    </Text>
-                  )}
-                </Table.Td>
-                <Table.Td>{dayjs(record.registeredDate).format('DD.MM.YYYY')}</Table.Td>
-                <Table.Td>
-                  {record.status === 'removed' ? (
-                    <Text size="sm" c="dimmed">
-                      —
-                    </Text>
-                  ) : record.nextVisitDate ? (
-                    <Badge variant="light" color={NEXT_VISIT_COLOR[nextVisitStatus ?? 'upcoming']} size="sm" tt="none">
-                      {nextVisitStatus === 'overdue'
-                        ? `Просрочен с ${dayjs(record.nextVisitDate).format('DD.MM.YYYY')}`
-                        : dayjs(record.nextVisitDate).format('DD.MM.YYYY')}
-                    </Badge>
-                  ) : (
-                    <Text size="sm" c="dimmed">
-                      Не назначен
-                    </Text>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c={record.observations.length === 0 ? 'dimmed' : undefined}>
-                    {record.observations.length === 0 ? '—' : record.observations.length}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  {record.status === 'removed' ? (
-                    <Badge variant="light" color="gray" size="sm" tt="none">
-                      Снят
-                      {record.removedReason ? `: ${REMOVAL_REASON_LABELS[record.removedReason]}` : ''}
-                    </Badge>
-                  ) : (
-                    <Badge variant="light" color="teal" size="sm" tt="none">
-                      На учёте
-                    </Badge>
-                  )}
-                </Table.Td>
-                {/* The row itself opens the card, so the buttons must not also trigger it. */}
-                <Table.Td onClick={(e) => e.stopPropagation()}>
-                  <Group gap={2} wrap="nowrap" justify="flex-end">
-                    <Tooltip label="Изменить" withArrow>
-                      <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(record)}>
-                        <IconEdit size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Удалить" withArrow>
-                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(record)}>
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            );
-          })}
-          {hasMore && (
-            <Table.Tr ref={setSentinel}>
-              <Table.Td colSpan={8} ta="center" c="dimmed" fz="xs" py="md">
-                Загружается ещё… осталось {remaining}
-              </Table.Td>
-            </Table.Tr>
-          )}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <DataTable
+      rows={rows}
+      columns={columns}
+      rowKey={({ record }) => record.id}
+      sort={sort}
+      onSort={onSort}
+      onRowClick={({ record }) => onOpen(record)}
+      minWidth={1060}
+    />
   );
 }

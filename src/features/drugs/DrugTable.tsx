@@ -1,21 +1,20 @@
-import { ActionIcon, Badge, Group, Table, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconEdit, IconTrash } from '@tabler/icons-react';
 
-import { SortableTh } from '../../components/common/SortableTh';
-import { useIncrementalList } from '../../lib/useIncrementalList';
+import { DataTable } from '../../components/common/DataTable';
+import type { DataColumn } from '../../components/common/DataTable';
 import type { SortState, SortValue } from '../../lib/tableSort';
 import type { DrugSummary } from './types';
 
 /**
- * The formulary, one drug per row.
+ * Формуляр, по препарату на строку.
  *
- * Trade names sit under the МНН rather than in a column of their own: they are what the patient
- * says and the reason to look a drug up at all, but «Нурофен, Ибуфен, Миг» sorts by nothing useful
- * and a column of them would be mostly empty space.
+ * Торговые названия стоят под МНН, а не отдельным столбцом: их называет пациент и ради них
+ * справочник и открывают, но «Нурофен, Ибуфен, Миг» не сортируется ни по чему полезному, а столбец
+ * из них был бы наполовину пустым.
  *
- * The interaction count earns a column because it is the one number a doctor scans the list for —
- * which of these needs care — and in a grid of cards it was a badge that could not be compared
- * between two drugs sitting in different columns.
+ * Число взаимодействий столбец заслуживает: это единственная цифра, ради которой список
+ * просматривают глазами — у кого из них есть о чём подумать.
  */
 
 export type DrugSortKey = 'inn' | 'brands' | 'category' | 'pharmGroup' | 'atc' | 'interactions';
@@ -31,7 +30,7 @@ export const DRUG_SORT_KEYS: readonly DrugSortKey[] = [
 
 interface DrugTableProps {
   drugs: DrugSummary[];
-  /** Normalised МНН → how many rules mention it. */
+  /** Нормализованное МНН → сколько правил его упоминают. */
   interactionCounts: Map<string, number>;
   normalizeInn: (inn: string) => string;
   sort: SortState<DrugSortKey>;
@@ -51,8 +50,8 @@ export function drugSortValue(
     case 'inn':
       return drug.inn;
     case 'brands':
-      // The count, not the text: sorting by «Нурофен» would order the list by whichever trade name
-      // happened to be typed first.
+      // Количество, а не текст: сортировка по «Нурофену» упорядочила бы список по тому торговому
+      // названию, которое случайно набрали первым.
       return drug.brandNames.length || null;
     case 'category':
       return drug.category.trim() || null;
@@ -65,6 +64,15 @@ export function drugSortValue(
   }
 }
 
+/** Прочерк вместо пустоты: пустая ячейка читается как «ещё не посмотрели», прочерк — как «нет». */
+function dashed(value: string) {
+  return (
+    <Text size="sm" lineClamp={1} c={value.trim() ? undefined : 'dimmed'}>
+      {value.trim() || '—'}
+    </Text>
+  );
+}
+
 export function DrugTable({
   drugs,
   interactionCounts,
@@ -75,115 +83,83 @@ export function DrugTable({
   onEdit,
   onDelete,
 }: DrugTableProps) {
-  // Фильтрация и сортировка идут по всему набору — порционно только рисуется.
-  const { visible, hasMore, remaining, setSentinel } = useIncrementalList(drugs);
+  const columns: DataColumn<DrugSummary, DrugSortKey>[] = [
+    {
+      key: 'inn',
+      header: 'МНН',
+      miw: 260,
+      render: (drug) => (
+        <>
+          <Text fw={600} size="sm" lineClamp={1}>
+            {drug.inn}
+          </Text>
+          {drug.brandNames.length > 0 && (
+            <Text size="xs" c="dimmed" lineClamp={1}>
+              {drug.brandNames.join(', ')}
+            </Text>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'brands',
+      header: 'Названий',
+      w: 112,
+      render: (drug) => (
+        <Text size="sm" c={drug.brandNames.length === 0 ? 'dimmed' : undefined}>
+          {drug.brandNames.length || '—'}
+        </Text>
+      ),
+    },
+    { key: 'category', header: 'Раздел', miw: 230, render: (drug) => dashed(drug.category) },
+    { key: 'pharmGroup', header: 'Фармгруппа', miw: 200, render: (drug) => dashed(drug.pharmGroup) },
+    { key: 'atc', header: 'ATC', w: 104, render: (drug) => dashed(drug.atcCode) },
+    {
+      key: 'interactions',
+      header: 'Взаимодействий',
+      w: 152,
+      render: (drug) => {
+        const count = interactionCounts.get(normalizeInn(drug.inn)) ?? 0;
+        return count > 0 ? (
+          <Badge size="sm" variant="light" color="orange" tt="none" leftSection={<IconAlertTriangle size={12} />}>
+            {count}
+          </Badge>
+        ) : (
+          <Text size="sm" c="dimmed">
+            {'—'}
+          </Text>
+        );
+      },
+    },
+    {
+      w: 80,
+      stopClick: true,
+      render: (drug) => (
+        <Group gap={2} wrap="nowrap" justify="flex-end">
+          <Tooltip label="Изменить" withArrow>
+            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(drug)}>
+              <IconEdit size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Удалить" withArrow>
+            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(drug)}>
+              <IconTrash size={16} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+    },
+  ];
 
   return (
-    <Table.ScrollContainer minWidth={1100}>
-      <Table highlightOnHover verticalSpacing="sm" fz="sm">
-        <Table.Thead>
-          <Table.Tr>
-            <SortableTh column="inn" sort={sort} onSort={onSort} miw={260}>
-              МНН
-            </SortableTh>
-            <SortableTh column="brands" sort={sort} onSort={onSort} w={112}>
-              Названий
-            </SortableTh>
-            <SortableTh column="category" sort={sort} onSort={onSort} miw={230}>
-              Раздел
-            </SortableTh>
-            <SortableTh column="pharmGroup" sort={sort} onSort={onSort} miw={200}>
-              Фармгруппа
-            </SortableTh>
-            <SortableTh column="atc" sort={sort} onSort={onSort} w={104}>
-              ATC
-            </SortableTh>
-            <SortableTh column="interactions" sort={sort} onSort={onSort} w={152}>
-              Взаимодействий
-            </SortableTh>
-            <Table.Th w={80} />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {visible.map((drug) => {
-            const interactionCount = interactionCounts.get(normalizeInn(drug.inn)) ?? 0;
-
-            return (
-              <Table.Tr key={drug.id} style={{ cursor: 'pointer' }} onClick={() => onOpen(drug)}>
-                <Table.Td>
-                  <Text fw={600} size="sm" lineClamp={1}>
-                    {drug.inn}
-                  </Text>
-                  {drug.brandNames.length > 0 && (
-                    <Text size="xs" c="dimmed" lineClamp={1}>
-                      {drug.brandNames.join(', ')}
-                    </Text>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c={drug.brandNames.length === 0 ? 'dimmed' : undefined}>
-                    {drug.brandNames.length || '—'}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" lineClamp={1} c={drug.category.trim() ? undefined : 'dimmed'}>
-                    {drug.category.trim() || '—'}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" lineClamp={1} c={drug.pharmGroup.trim() ? undefined : 'dimmed'}>
-                    {drug.pharmGroup.trim() || '—'}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c={drug.atcCode.trim() ? undefined : 'dimmed'}>
-                    {drug.atcCode.trim() || '—'}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  {interactionCount > 0 ? (
-                    <Badge
-                      size="sm"
-                      variant="light"
-                      color="orange"
-                      tt="none"
-                      leftSection={<IconAlertTriangle size={12} />}
-                    >
-                      {interactionCount}
-                    </Badge>
-                  ) : (
-                    <Text size="sm" c="dimmed">
-                      —
-                    </Text>
-                  )}
-                </Table.Td>
-                {/* The row itself opens the drug, so the buttons must not also trigger it. */}
-                <Table.Td onClick={(e) => e.stopPropagation()}>
-                  <Group gap={2} wrap="nowrap" justify="flex-end">
-                    <Tooltip label="Изменить" withArrow>
-                      <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(drug)}>
-                        <IconEdit size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Удалить" withArrow>
-                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(drug)}>
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            );
-          })}
-          {hasMore && (
-            <Table.Tr ref={setSentinel}>
-              <Table.Td colSpan={7} ta="center" c="dimmed" fz="xs" py="md">
-                Загружается ещё… осталось {remaining}
-              </Table.Td>
-            </Table.Tr>
-          )}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <DataTable
+      rows={drugs}
+      columns={columns}
+      rowKey={(drug) => drug.id}
+      sort={sort}
+      onSort={onSort}
+      onRowClick={onOpen}
+      minWidth={1100}
+    />
   );
 }
