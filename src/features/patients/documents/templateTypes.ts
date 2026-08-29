@@ -1,5 +1,7 @@
 import dayjs from 'dayjs';
 
+import { calcAge, formatAge } from '../utils';
+
 import type { ClinicSettings } from '../clinicSettings';
 import { REFERRAL_CATEGORY_LABELS } from '../referralUtils';
 import type { Patient, PatientVisit } from '../types';
@@ -88,6 +90,44 @@ export const PLACEHOLDERS: PlaceholderDef[] = [
   { token: '{{clinicAddress}}', label: 'Адрес клиники', resolve: (ctx) => ctx.clinicSettings.clinicAddress || EMPTY },
   { token: '{{licenseNumber}}', label: 'Номер лицензии', resolve: (ctx) => ctx.clinicSettings.licenseNumber || EMPTY },
   { token: '{{issueDate}}', label: 'Дата выдачи (сегодня)', resolve: () => dayjs().format('D MMMM YYYY') },
+
+  // ── Добавлено позже: то, ради чего справку чаще всего дописывают руками ────────────────────────
+  {
+    token: '{{patientAge}}',
+    label: 'Возраст пациента',
+    // Возраст на день выдачи, а не на день визита: справка датируется сегодняшним числом, и «45 лет»
+    // в ней должно означать сегодняшние сорок пять.
+    resolve: (ctx) => {
+      const age = calcAge(ctx.patient.birthDate);
+      return age === null ? EMPTY : formatAge(age);
+    },
+  },
+  {
+    token: '{{patientSex}}',
+    label: 'Пол пациента',
+    resolve: (ctx) => (ctx.patient.sex === 'male' ? 'мужской' : ctx.patient.sex === 'female' ? 'женский' : EMPTY),
+  },
+  { token: '{{patientPhone}}', label: 'Телефон пациента', resolve: (ctx) => ctx.patient.phone || EMPTY },
+  {
+    token: '{{diagnosisCode}}',
+    label: 'Код диагноза (МКБ-10)',
+    // Отдельно от `{{diagnosis}}`: в бланке под код бывает своя графа, а в ней название лишнее.
+    resolve: (ctx) => ctx.visit.diagnosisCode || EMPTY,
+  },
+  { token: '{{visitNote}}', label: 'Заметка к визиту', resolve: (ctx) => ctx.visit.note || EMPTY },
+  {
+    token: '{{documentNumber}}',
+    label: 'Номер документа',
+    /**
+     * Номер собирается из даты и хвоста идентификатора визита, а не из счётчика.
+     *
+     * Счётчик пришлось бы хранить на сервере и раздавать по одному на рабочее пространство —
+     * иначе два врача в один день выдали бы справки с одним номером. А главное, номер обязан быть
+     * **тем же самым** при повторной печати той же справки: врач печатает второй экземпляр, и
+     * номер, изменившийся между двумя листами, делает их двумя разными документами.
+     */
+    resolve: (ctx) => `${dayjs(ctx.visit.date).format('YYYYMMDD')}-${ctx.visit.id.slice(-4).toUpperCase()}`,
+  },
 ];
 
 /**

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  PLACEHOLDERS,
   SAMPLE_PATIENT,
   SAMPLE_VISIT,
   substitutePlaceholdersHtml,
@@ -70,5 +71,42 @@ describe('подстановка в текст', () => {
     const template = '{{patientName}} / {{doctorName}} / {{clinicName}}';
     const text = substitutePlaceholdersText(template, context());
     expect(text).not.toContain('{{');
+  });
+});
+
+describe('подстановки, добавленные позже', () => {
+  it('возраст, пол и телефон', () => {
+    const ctx = {
+      ...context(),
+      patient: { ...SAMPLE_PATIENT, birthDate: '1980-01-01', sex: 'female' as const, phone: '+7 900 000-00-00' },
+    };
+    expect(substitutePlaceholdersText('{{patientAge}}', ctx)).toMatch(/\d+ (год|года|лет)/);
+    expect(substitutePlaceholdersText('{{patientSex}}', ctx)).toBe('женский');
+    expect(substitutePlaceholdersText('{{patientPhone}}', ctx)).toBe('+7 900 000-00-00');
+  });
+
+  it('код диагноза отдельно от названия', () => {
+    expect(substitutePlaceholdersText('{{diagnosisCode}}', context())).toBe('J20');
+    expect(substitutePlaceholdersText('{{diagnosis}}', context())).toContain('Острый бронхит');
+  });
+
+  it('номер документа один и тот же при повторной печати', () => {
+    // Номер, меняющийся между двумя экземплярами одной справки, делает их разными документами.
+    const ctx = { ...context(), visit: { ...SAMPLE_VISIT, id: 'abcd1234', date: '2026-08-20' } };
+    const first = substitutePlaceholdersText('{{documentNumber}}', ctx);
+    expect(first).toBe('20260820-1234');
+    expect(substitutePlaceholdersText('{{documentNumber}}', ctx)).toBe(first);
+  });
+
+  it('незаполненное поле даёт прочерк, а не пустоту', () => {
+    const ctx = { ...context(), patient: { ...SAMPLE_PATIENT, birthDate: null, sex: null, phone: '' } };
+    expect(substitutePlaceholdersText('{{patientAge}}/{{patientSex}}/{{patientPhone}}', ctx)).toBe('—/—/—');
+  });
+
+  it('все подстановки объявлены с непустой подписью — их видит врач в конструкторе', () => {
+    for (const placeholder of PLACEHOLDERS) {
+      expect(placeholder.label.trim().length).toBeGreaterThan(0);
+      expect(placeholder.token).toMatch(/^\{\{[a-zA-Z]+\}\}$/);
+    }
   });
 });

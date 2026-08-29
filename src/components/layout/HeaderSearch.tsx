@@ -12,10 +12,11 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconArticle, IconBook2, IconCalculator, IconNotes, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
+import { IconArticle, IconBook2, IconCalculator, IconNotes, IconPill, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useCalculators } from '../../features/calculators/useCalculators';
+import { useDrugSearch } from '../../features/drugs/useDrugSearch';
 import { useDocuments } from '../../features/knowledgeBase/useDocuments';
 import { useNotes } from '../../features/notes/useNotes';
 import { stripHtml } from '../../features/notes/textPreview';
@@ -49,10 +50,12 @@ export function HeaderSearch() {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [debouncedQuery] = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
+  // Препараты ищет сервер: их полторы тысячи, а строка поиска стоит на каждой странице.
+  const { drugs, isFetching: drugsFetching } = useDrugSearch(query, MAX_RESULTS_PER_GROUP);
 
   const trimmedQuery = query.trim();
   const trimmedDebouncedQuery = debouncedQuery.trim();
-  const isSearching = trimmedQuery.length > 0 && trimmedDebouncedQuery !== trimmedQuery;
+  const isSearching = trimmedQuery.length > 0 && (trimmedDebouncedQuery !== trimmedQuery || drugsFetching);
   const opened = focused && trimmedQuery.length > 0;
 
   const groupedResults = useMemo(() => {
@@ -118,6 +121,18 @@ export function HeaderSearch() {
           })),
       },
       {
+        group: 'Препараты',
+        items: drugs.map((drug) => ({
+          id: drug.id,
+          title: drug.inn,
+          // Торговые названия — то, по чему препарат и ищут: пациент называет именно их.
+          description: drug.brandNames.join(', ') || drug.pharmGroup,
+          path: `/drugs/${drug.id}`,
+          icon: IconPill,
+          group: 'Препараты',
+        })),
+      },
+      {
         group: 'Пациенты',
         items: patients
           .filter((patient) => matches(q, patient.fullName, patient.phone, ...patient.visits.map((v) => v.diagnosis)))
@@ -134,7 +149,7 @@ export function HeaderSearch() {
     ];
 
     return groups.filter((group) => group.items.length > 0);
-  }, [trimmedDebouncedQuery, calculators, guidelines, articles, notes, patients]);
+  }, [trimmedDebouncedQuery, calculators, guidelines, articles, notes, patients, drugs]);
 
   const totalResults = groupedResults.reduce((sum, group) => sum + group.items.length, 0);
 

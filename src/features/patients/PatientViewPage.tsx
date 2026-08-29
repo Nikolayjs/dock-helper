@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActionIcon, Avatar, Badge, Button, Card, Container, Group, Menu, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconClipboardHeart, IconClockExclamation, IconEdit, IconFileText, IconPlus, IconPrinter, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconClipboardHeart, IconClockExclamation, IconEdit, IconFileText, IconFlask2, IconPlus, IconPrinter, IconSettings, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -143,12 +143,24 @@ export function PatientViewPage() {
                 </Group>
               </div>
             </Group>
-            {reminderStatus && patient.reminderDate && (
-              <Badge variant="light" color={REMINDER_COLOR[reminderStatus]} size="lg" leftSection={<IconClockExclamation size={14} />}>
-                {reminderStatus === 'overdue' ? 'Напоминание просрочено' : `Напоминание: ${dayjs(patient.reminderDate).format('D MMMM YYYY')}`}
-                {patient.reminderNote ? ` — ${patient.reminderNote}` : ''}
-              </Badge>
-            )}
+            <Group gap="sm" align="center" wrap="wrap">
+              {reminderStatus && patient.reminderDate && (
+                <Badge variant="light" color={REMINDER_COLOR[reminderStatus]} size="lg" leftSection={<IconClockExclamation size={14} />}>
+                  {reminderStatus === 'overdue' ? 'Напоминание просрочено' : `Напоминание: ${dayjs(patient.reminderDate).format('D MMMM YYYY')}`}
+                  {patient.reminderNote ? ` — ${patient.reminderNote}` : ''}
+                </Badge>
+              )}
+              {/* Пол и возраст уезжают в анализатор адресом: без них возрастные нормы не работают,
+                  а набирать их руками на каждый анализ — та самая помеха, из-за которой не набирают. */}
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconFlask2 size={14} />}
+                onClick={() => navigate(`/analyzer?patientId=${patient.id}`, { state: { from: `/patients/${patient.id}` } })}
+              >
+                Интерпретировать анализы
+              </Button>
+            </Group>
           </Group>
         </Card>
 

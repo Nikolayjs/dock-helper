@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Tabs, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconEdit, IconEraser, IconFileUpload, IconPlus } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { analyzeTest } from '../features/analyzer/analyzerEngine';
+import { usePatients } from '../features/patients/usePatients';
+import { calcAge } from '../features/patients/utils';
 import { AnalyzerResults } from '../features/analyzer/AnalyzerResults';
 import { toLabTestDefinition } from '../features/analyzer/customTypes';
 import { LabFileImportModal } from '../features/analyzer/import/LabFileImportModal';
@@ -19,9 +21,33 @@ export function AnalyzerPage() {
   const { customTests, isLoading, updateTest } = useCustomAnalyzers();
   const allTests = useMemo(() => customTests.map(toLabTestDefinition), [customTests]);
 
+  const [searchParams] = useSearchParams();
+  const { patients } = usePatients();
+  const patientId = searchParams.get('patientId');
+  const patient = patientId ? patients.find((p) => p.id === patientId) : undefined;
+
   const [testId, setTestId] = useState<string | undefined>(undefined);
   const [sex, setSex] = useState<Sex>('male');
   const [age, setAge] = useState<number | undefined>(undefined);
+
+  /**
+   * Пол и возраст заполняются из карточки пациента — один раз, и дальше поля обычные.
+   *
+   * Без этого возрастные полосы норм не работали на практике: возраст надо было набирать руками, а
+   * незаполненный означает взрослого. Поля остаются редактируемыми: анализ бывает принесён за
+   * ребёнка, которого в картотеке нет, и подставленное значение не должно становиться приговором.
+   *
+   * Отметка `filledFor` держит id того пациента, для которого уже подставили: иначе правка возраста
+   * откатывалась бы обратно на каждый рендер.
+   */
+  const filledFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!patient || filledFor.current === patient.id) return;
+    filledFor.current = patient.id;
+    if (patient.sex) setSex(patient.sex);
+    const patientAge = calcAge(patient.birthDate);
+    if (patientAge !== null) setAge(patientAge);
+  }, [patient]);
   const [valuesByTest, setValuesByTest] = useState<Record<string, Record<string, number | undefined>>>({});
   const [importOpen, setImportOpen] = useState(false);
 

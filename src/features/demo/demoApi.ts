@@ -131,6 +131,22 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     return docs.map(({ content: _content, ...rest }) => rest) as T;
   }
 
+  // ── Поиск препарата для строки в шапке ───────────────────────────────────────────────────────
+  // Своя ветка обязательна: без неё `/drugs/search` разобрался бы как карточка с id «search» и
+  // отдал бы «запись не найдена» — то есть поиск в демо молча ничего не находил бы.
+  if (pathname === '/drugs/search' && method === 'GET') {
+    const term = decodeURIComponent(new URLSearchParams(query).get('q') ?? '').trim().toLowerCase();
+    if (term.length < 2) return [] as T;
+    const limit = Number(new URLSearchParams(query).get('limit') ?? 8) || 8;
+    return collection('/drugs')
+      .filter((drug) => {
+        const inn = String(drug.inn ?? '').toLowerCase();
+        const brands = (drug.brandNames as string[] | undefined) ?? [];
+        return inn.includes(term) || brands.some((name) => name.toLowerCase().includes(term));
+      })
+      .slice(0, limit) as T;
+  }
+
   // ── Визиты пациента ──────────────────────────────────────────────────────────────────────────
   if (segments[0] === 'patients' && segments[2] === 'visits') {
     const patient = byId(collection('/patients'), seg(1));
