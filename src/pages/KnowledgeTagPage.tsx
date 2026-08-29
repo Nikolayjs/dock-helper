@@ -4,7 +4,7 @@ import { IconArrowLeft, IconTag } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { KnowledgeGrid } from '../features/knowledgeBase/KnowledgeGrid';
-import type { KnowledgeDocument } from '../features/knowledgeBase/types';
+import type { KnowledgeDocumentSummary } from '../features/knowledgeBase/types';
 import { QUERY_KEY as KNOWLEDGE_KEY, useAllDocuments } from '../features/knowledgeBase/useDocuments';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
@@ -17,15 +17,15 @@ export function KnowledgeTagPage() {
 
   const tagged = useMemo(() => documents.filter((doc) => doc.tags.includes(tag)), [documents, tag]);
 
-  const handleOpen = (doc: KnowledgeDocument) => {
+  const handleOpen = (doc: KnowledgeDocumentSummary) => {
     navigate(doc.kind === 'guideline' ? `/guidelines/${doc.id}` : `/articles/${doc.id}`);
   };
 
-  const handleEdit = (doc: KnowledgeDocument) => {
+  const handleEdit = (doc: KnowledgeDocumentSummary) => {
     navigate(doc.kind === 'guideline' ? `/guidelines/${doc.id}/edit` : `/articles/${doc.id}/edit`);
   };
 
-  const handleDelete = (doc: KnowledgeDocument) =>
+  const handleDelete = (doc: KnowledgeDocumentSummary) =>
     confirmDelete({
       what: doc.kind === 'guideline' ? 'рекомендацию' : 'статью',
       name: doc.title,

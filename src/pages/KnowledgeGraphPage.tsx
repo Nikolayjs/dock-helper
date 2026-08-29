@@ -6,10 +6,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GraphView } from '../features/knowledgeBase/GraphView';
 import { buildKnowledgeGraph } from '../features/knowledgeBase/knowledgeGraph';
 import type { GraphNode } from '../features/knowledgeBase/knowledgeGraph';
-import { useAllDocuments } from '../features/knowledgeBase/useDocuments';
+import { useAllDocumentsWithContent } from '../features/knowledgeBase/useDocuments';
 
 export function KnowledgeGraphPage() {
-  const { documents } = useAllDocuments();
+  // Рёбра строятся по ссылкам `[[Название]]` внутри документов, поэтому здесь — единственное
+  // место, где список запрашивается вместе с текстами.
+  const { documents } = useAllDocumentsWithContent();
   const navigate = useNavigate();
 
   const { nodes, edges } = useMemo(() => buildKnowledgeGraph(documents), [documents]);

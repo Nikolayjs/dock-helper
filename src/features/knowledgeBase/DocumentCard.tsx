@@ -2,10 +2,10 @@ import { ActionIcon, Badge, Card, Group, Text, ThemeIcon } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
-import type { KnowledgeDocument } from './types';
+import type { KnowledgeDocumentSummary } from './types';
 
 interface DocumentCardProps {
-  doc: KnowledgeDocument;
+  doc: KnowledgeDocumentSummary;
   icon: typeof IconEdit;
   onOpen: () => void;
   onEdit: () => void;

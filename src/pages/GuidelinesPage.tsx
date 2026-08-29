@@ -2,7 +2,7 @@ import { Container } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 
 import { GuidelinesCatalog } from '../features/knowledgeBase/GuidelinesCatalog';
-import type { KnowledgeDocument } from '../features/knowledgeBase/types';
+import type { KnowledgeDocumentSummary } from '../features/knowledgeBase/types';
 import { QUERY_KEY as KNOWLEDGE_KEY, useDocuments } from '../features/knowledgeBase/useDocuments';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
@@ -11,7 +11,7 @@ export function GuidelinesPage() {
   const confirmDelete = useDeleteWithConfirm();
   const navigate = useNavigate();
 
-  const handleDelete = (doc: KnowledgeDocument) =>
+  const handleDelete = (doc: KnowledgeDocumentSummary) =>
     confirmDelete({
       what: 'рекомендацию',
       name: doc.title,

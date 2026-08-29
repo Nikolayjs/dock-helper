@@ -11,7 +11,7 @@ import {
 } from '@tabler/icons-react';
 
 import { SCROLL_ROOT_ID } from '../../components/layout/scrollRoot';
-import { HEADER_HEIGHT } from '../../layouts/shellMetrics';
+import { HEADER_HEIGHT, STICKY_TOP } from '../../layouts/shellMetrics';
 import { columnLetter, FIRST_DATA_ROW, HEADER_ROW, parseRef } from '../../lib/sheet/cellRef';
 import { cellAddress, evaluateGrid, isFormula } from '../../lib/sheet/formula';
 import { completeFunction, formulaHint } from '../../lib/sheet/formulaHint';
@@ -644,7 +644,7 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
       {/* Панель и строка формул прилипают под шапкой приложения — как панель редактора Word. При
           точно подобранной высоте рабочего места они и так не успевают уйти под шапку; прилипание
           страхует от ошибки замера в несколько пикселей. */}
-      <div className={classes.stickyTop} style={{ top: HEADER_HEIGHT }}>
+      <div className={classes.stickyTop} style={{ top: STICKY_TOP }}>
         {header}
         <SheetToolbar
           formats={value.formats ?? undefined}

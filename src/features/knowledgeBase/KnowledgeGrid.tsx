@@ -4,19 +4,19 @@ import { IconAffiliate, IconPlus, IconSearch } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 
 import { DocumentCard } from './DocumentCard';
-import type { KnowledgeDocument } from './types';
+import type { KnowledgeDocumentSummary } from './types';
 
 interface KnowledgeGridProps {
-  documents: KnowledgeDocument[];
+  documents: KnowledgeDocumentSummary[];
   icon: typeof IconPlus;
   addLabel?: string;
   emptyTitle: string;
   emptyText: string;
   searchPlaceholder: string;
   onAdd?: () => void;
-  onOpen: (doc: KnowledgeDocument) => void;
-  onEdit: (doc: KnowledgeDocument) => void;
-  onDelete: (doc: KnowledgeDocument) => void;
+  onOpen: (doc: KnowledgeDocumentSummary) => void;
+  onEdit: (doc: KnowledgeDocumentSummary) => void;
+  onDelete: (doc: KnowledgeDocumentSummary) => void;
   onTagClick?: (tag: string) => void;
   showGraphLink?: boolean;
 }

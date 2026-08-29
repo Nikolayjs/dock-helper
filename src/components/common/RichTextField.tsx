@@ -12,7 +12,7 @@ import { EditorBubbleMenu } from './EditorBubbleMenu';
 import { ImageBubbleMenu } from './ImageBubbleMenu';
 import { RUSSIAN_EDITOR_LABELS } from './editorLabels';
 import { FONT_FAMILIES, FONT_SIZES, fileToDataUrl } from './useRichTextEditor';
-import { HEADER_HEIGHT } from '../../layouts/shellMetrics';
+import { STICKY_TOP } from '../../layouts/shellMetrics';
 
 /** Русское склонение счётчика: «1 слово», «2 слова», «5 слов». */
 function plural(count: number, one: string, few: string, many: string): string {
@@ -185,7 +185,7 @@ export function RichTextField({
       <RichTextEditor editor={editor} labels={RUSSIAN_EDITOR_LABELS}>
         <EditorBubbleMenu editor={editor} />
         <ImageBubbleMenu editor={editor} />
-        <RichTextEditor.Toolbar sticky stickyOffset={HEADER_HEIGHT}>
+        <RichTextEditor.Toolbar sticky stickyOffset={STICKY_TOP}>
           <RichTextEditor.ControlsGroup>
             <RichTextEditor.Undo />
             <RichTextEditor.Redo />

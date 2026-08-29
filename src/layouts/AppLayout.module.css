@@ -100,6 +100,25 @@
 
 .header {
   border-bottom: 1px solid var(--mantine-color-default-border);
+  transition: transform 220ms ease;
+}
+
+/*
+ * Шапка уезжает вверх при прокрутке вниз.
+ *
+ * `translateY`, а не `display: none`: коробка остаётся на месте, поэтому сетка оболочки не
+ * пересчитывается, а сама шапка возвращается плавно. Всё, что прилипает под ней, следует за
+ * переменной `--app-sticky-top` (см. `shellMetrics.ts`) — иначе над панелью редактора открывалась
+ * бы полоса проезжающего текста.
+ */
+.headerHidden {
+  transform: translateY(-100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header {
+    transition: none;
+  }
 }
 
 .navbar {

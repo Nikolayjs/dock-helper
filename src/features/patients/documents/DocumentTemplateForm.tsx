@@ -15,7 +15,7 @@ import type { DocumentTemplateInput } from './useDocumentTemplates';
 import { EditorBubbleMenu } from '../../../components/common/EditorBubbleMenu';
 import { FormActions } from '../../../components/common/FormActions';
 import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../../components/common/unsavedChanges';
-import { HEADER_HEIGHT } from '../../../layouts/shellMetrics';
+import { STICKY_TOP } from '../../../layouts/shellMetrics';
 
 interface DocumentTemplateFormProps {
   initialTemplate?: DocumentTemplate;
@@ -71,7 +71,7 @@ export function DocumentTemplateForm({ initialTemplate, onSubmit, onCancel, onDe
           </Text>
           <RichTextEditor editor={editor}>
           <EditorBubbleMenu editor={editor} />
-            <RichTextEditor.Toolbar sticky stickyOffset={HEADER_HEIGHT}>
+            <RichTextEditor.Toolbar sticky stickyOffset={STICKY_TOP}>
               <RichTextEditor.ControlsGroup>
                 <RichTextEditor.Bold />
                 <RichTextEditor.Italic />

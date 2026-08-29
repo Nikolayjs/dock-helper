@@ -1,4 +1,4 @@
-import { Badge, Button, Container, Group, Stack, Text, Title, Typography } from '@mantine/core';
+import { Badge, Button, Container, Group, Loader, Stack, Text, Title, Typography } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconDownload, IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -7,9 +7,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import './editorContent.css';
 import { downloadDocx } from '../../lib/docx/downloadDocx';
 import type { KnowledgeKind } from './types';
-import { useAllDocuments, useDocuments } from './useDocuments';
+import { useAllDocuments, useDocuments, useKnowledgeDocument } from './useDocuments';
 import { renderWikiLinks } from './wikiLinks';
 import { BackButton } from '../../components/common/BackButton';
+import { ReadingSheet } from '../../components/common/ReadingSheet';
 
 interface KnowledgeViewPageProps {
   kind: KnowledgeKind;
@@ -24,7 +25,10 @@ export function KnowledgeViewPage({ kind, basePath, notFoundText, backLabel, del
   const navigate = useNavigate();
   const { documents, deleteDocument } = useDocuments(kind);
   const { documents: allDocuments } = useAllDocuments();
+  // Список приходит без текстов, поэтому шапка (название, теги, дата) берётся из него и рисуется
+  // сразу, а тело документа дочитывается отдельным запросом — страница не мигает пустотой.
   const doc = documents.find((d) => d.id === id);
+  const { document: full, isLoading: contentLoading } = useKnowledgeDocument(doc?.id);
 
   if (!doc) {
     return (
@@ -59,7 +63,8 @@ export function KnowledgeViewPage({ kind, basePath, notFoundText, backLabel, del
               leftSection={<IconDownload size={16} />}
               /* The stored HTML, not the rendered one: wiki links resolve to routes of this app,
                  which mean nothing in a file someone opens in Word. */
-              onClick={() => void downloadDocx({ title: doc.title, author: doc.author, html: doc.content })}
+              onClick={() => full && void downloadDocx({ title: doc.title, author: doc.author, html: full.content })}
+              disabled={!full}
             >
               Скачать .docx
             </Button>
@@ -69,7 +74,10 @@ export function KnowledgeViewPage({ kind, basePath, notFoundText, backLabel, del
           </Group>
         </Group>
 
-        <div>
+        {/* Название, теги и дата — часть документа, поэтому лежат на той же подложке, что и текст:
+            иначе заголовок оставался бы на обоях, то есть ровно там, где его хуже всего видно.
+            Снаружи остаются только действия над документом — они относятся к странице, не к тексту. */}
+        <ReadingSheet>
           <Title order={2}>{doc.title}</Title>
           {doc.tags.length > 0 && (
             <Group gap={6} mt={10}>
@@ -87,24 +95,30 @@ export function KnowledgeViewPage({ kind, basePath, notFoundText, backLabel, del
               ))}
             </Group>
           )}
-          <Text size="xs" c="dimmed" mt={8}>
+          <Text size="xs" c="dimmed" mt={8} mb="lg">
             {doc.author} · {dayjs(doc.updatedAt).format('D MMMM YYYY')}
           </Text>
-        </div>
 
-        <Typography>
-          <div
-            dangerouslySetInnerHTML={{ __html: renderWikiLinks(doc.content, allDocuments) }}
-            onClick={(e) => {
-              const link = (e.target as HTMLElement).closest('[data-doc-link]');
-              const href = link?.getAttribute('href');
-              if (href) {
-                e.preventDefault();
-                navigate(href);
-              }
-            }}
-          />
-        </Typography>
+          {contentLoading || !full ? (
+            <Group justify="center" py="xl">
+              <Loader size="sm" />
+            </Group>
+          ) : (
+            <Typography>
+              <div
+                dangerouslySetInnerHTML={{ __html: renderWikiLinks(full.content, allDocuments) }}
+                onClick={(e) => {
+                  const link = (e.target as HTMLElement).closest('[data-doc-link]');
+                  const href = link?.getAttribute('href');
+                  if (href) {
+                    e.preventDefault();
+                    navigate(href);
+                  }
+                }}
+              />
+            </Typography>
+          )}
+        </ReadingSheet>
       </Stack>
     </Container>
   );

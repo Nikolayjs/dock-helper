@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
+import type { CSSProperties } from 'react';
 import { AppShell } from '@mantine/core';
 
 import { HEADER_HEIGHT } from './shellMetrics';
+import { useScrollDirection } from '../components/layout/useScrollDirection';
 import { useDisclosure } from '@mantine/hooks';
 import { Outlet, useLocation } from 'react-router-dom';
 
@@ -131,6 +133,13 @@ export function AppLayout() {
   const meta = getPageMeta(location.pathname);
   const title = typeof meta.title === 'function' ? meta.title(location.pathname) : meta.title;
   const { width, collapsed, startResize, toggleCollapsed } = useSidebarWidth();
+  /*
+   * Шапка прячется при прокрутке вниз и возвращается при прокрутке вверх — на длинном тексте она
+   * занимает первую строку экрана и ничего не даёт. Пока открыта выдвижная панель, шапка остаётся:
+   * в ней живёт бургер, которым панель закрывают, и убирать его из-под пальца нельзя.
+   */
+  const { visible: headerVisible } = useScrollDirection();
+  const showHeader = headerVisible || opened;
 
   useEffect(() => {
     document.getElementById(SCROLL_ROOT_ID)?.scrollTo(0, 0);
@@ -158,7 +167,14 @@ export function AppLayout() {
       header={{ height: HEADER_HEIGHT }}
       navbar={{ width, breakpoint: 'sm', collapsed: { mobile: !opened } }}
       padding="lg"
-      classNames={{ root: classes.root, main: classes.main, header: classes.header, navbar: classes.navbar }}
+      classNames={{
+        root: classes.root,
+        main: classes.main,
+        header: showHeader ? classes.header : `${classes.header} ${classes.headerHidden}`,
+        navbar: classes.navbar,
+      }}
+      // Липкие панели страниц прилипают к этой переменной, а не к числу: см. `STICKY_TOP`.
+      style={{ '--app-sticky-top': showHeader ? `${HEADER_HEIGHT}px` : '0px' } as CSSProperties}
     >
       <ReminderWatcher />
       <ScrollToTopButton />

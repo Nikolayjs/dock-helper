@@ -1,5 +1,5 @@
 import { stripHtml } from '../notes/textPreview';
-import type { KnowledgeDocument } from './types';
+import type { KnowledgeDocumentSummary } from './types';
 
 const WIKILINK_RE = /\[\[([^\]]+)\]\]/g;
 
@@ -18,12 +18,12 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function basePathForKind(kind: KnowledgeDocument['kind']): string {
+function basePathForKind(kind: KnowledgeDocumentSummary['kind']): string {
   return kind === 'guideline' ? '/guidelines' : '/articles';
 }
 
 /** Replaces `[[Title]]` occurrences in HTML content with clickable links to the matching document. */
-export function renderWikiLinks(html: string, allDocuments: KnowledgeDocument[]): string {
+export function renderWikiLinks(html: string, allDocuments: KnowledgeDocumentSummary[]): string {
   const byTitle = new Map(allDocuments.map((doc) => [doc.title.trim().toLowerCase(), doc]));
   return html.replace(WIKILINK_RE, (full, rawTitle: string) => {
     const title = rawTitle.trim();

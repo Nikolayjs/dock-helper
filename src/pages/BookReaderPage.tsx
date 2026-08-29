@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { DjvuReader } from '../features/library/DjvuReader';
 import { FlowReader } from '../features/library/FlowReader';
+import { ReadingSheet } from '../components/common/ReadingSheet';
 import { decodeFb2Text, parseFb2 } from '../features/library/fb2';
 import { PdfReader } from '../features/library/PdfReader';
 import { loadBookFile, useBook } from '../features/library/useLibrary';
@@ -180,13 +181,16 @@ export function BookReaderPage() {
       {!error && (book.format === 'fb2' || book.format === 'docx') &&
         (flowHtml !== null ? (
           <Container size="md" px={0} w="100%" miw={0}>
-            <FlowReader
-              bodyHtml={flowHtml}
-              contentClassName={book.format === 'docx' ? 'docx-content' : 'fb2-content'}
-              initialProgress={book.progress?.location ?? 0}
-              immersive={immersive}
-              onProgressChange={(fraction) => handleProgress(fraction)}
-            />
+            {/* Книга читается подряд — ей подложка нужна ровно так же, как статье. */}
+            <ReadingSheet>
+              <FlowReader
+                bodyHtml={flowHtml}
+                contentClassName={book.format === 'docx' ? 'docx-content' : 'fb2-content'}
+                initialProgress={book.progress?.location ?? 0}
+                immersive={immersive}
+                onProgressChange={(fraction) => handleProgress(fraction)}
+              />
+            </ReadingSheet>
           </Container>
         ) : (
           <Center py={100}>

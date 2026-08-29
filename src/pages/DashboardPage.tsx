@@ -61,7 +61,7 @@ import { usePlanner } from '../features/planner/usePlanner';
 import { getUpcomingReminders as getUpcomingCalendarReminders } from '../features/reminders/selectors';
 import { useReminders } from '../features/reminders/useReminders';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
-import { HEADER_HEIGHT } from '../layouts/shellMetrics';
+import { STICKY_TOP } from '../layouts/shellMetrics';
 
 /** Через столько месяцев без визита пациент считается выпавшим из наблюдения. */
 const LAPSED_MONTHS = 12;
@@ -206,7 +206,7 @@ export function DashboardPage() {
           wrap="wrap"
           gap="sm"
           className={editing ? `${gridClasses.toolbar} ${gridClasses.toolbarEditing}` : gridClasses.toolbar}
-          style={{ top: HEADER_HEIGHT }}
+          style={{ top: STICKY_TOP }}
         >
           <div style={{ flex: '1 1 320px', minWidth: 0 }}>
             {editing && (

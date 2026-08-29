@@ -1,4 +1,5 @@
 import { Badge, Button, Container, Group, Stack, Text, Title, Typography } from '@mantine/core';
+import { ReadingSheet } from '../../components/common/ReadingSheet';
 import { notifications } from '@mantine/notifications';
 import { IconDownload, IconEdit, IconTrash, IconUser } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -87,7 +88,10 @@ export function DocumentViewPage() {
           </Group>
         </Group>
 
-        <div>
+        {/* Название, теги и дата — часть документа, поэтому лежат на той же подложке, что и текст:
+            иначе заголовок оставался бы на обоях, то есть ровно там, где его хуже всего видно.
+            Снаружи остаются только действия над документом — они относятся к странице, не к тексту. */}
+        <ReadingSheet>
           <Group gap="xs" mb={6}>
             <Badge variant="light" color={doc.kind === 'sheet' ? 'teal' : 'brand'} size="sm">
               {KIND_LABEL[doc.kind]}
@@ -128,18 +132,18 @@ export function DocumentViewPage() {
               ))}
             </Group>
           )}
-          <Text size="xs" c="dimmed" mt={8}>
+          <Text size="xs" c="dimmed" mt={8} mb="lg">
             Изменён {dayjs(doc.updatedAt).format('D MMMM YYYY')}
           </Text>
-        </div>
 
-        {doc.kind === 'sheet' ? (
-          <SheetTable sheet={doc.sheet} />
-        ) : (
-          <Typography>
-            <div dangerouslySetInnerHTML={{ __html: doc.content }} />
-          </Typography>
-        )}
+          {doc.kind === 'sheet' ? (
+            <SheetTable sheet={doc.sheet} />
+          ) : (
+            <Typography>
+              <div dangerouslySetInnerHTML={{ __html: doc.content }} />
+            </Typography>
+          )}
+        </ReadingSheet>
       </Stack>
     </Container>
   );

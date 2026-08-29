@@ -20,7 +20,7 @@ import { SortableTh } from '../../components/common/SortableTh';
 import { useIncrementalList } from '../../lib/useIncrementalList';
 import { sortRows, useTableSort } from '../../lib/tableSort';
 import type { SortValue } from '../../lib/tableSort';
-import type { KnowledgeDocument } from './types';
+import type { KnowledgeDocumentSummary } from './types';
 
 /**
  * Справочник клинических рекомендаций — списком, а не сеткой карточек.
@@ -39,12 +39,12 @@ import type { KnowledgeDocument } from './types';
 const ALL_SECTIONS = '__all__';
 const NO_SECTION = 'Без раздела';
 
-const sectionOf = (doc: KnowledgeDocument) => doc.tags[0]?.trim() || NO_SECTION;
+const sectionOf = (doc: KnowledgeDocumentSummary) => doc.tags[0]?.trim() || NO_SECTION;
 
 type GuidelineSortKey = 'title' | 'section' | 'tags' | 'updated';
 const SORT_KEYS: readonly GuidelineSortKey[] = ['title', 'section', 'tags', 'updated'];
 
-function sortValue(doc: KnowledgeDocument, key: GuidelineSortKey): SortValue {
+function sortValue(doc: KnowledgeDocumentSummary, key: GuidelineSortKey): SortValue {
   switch (key) {
     case 'title':
       return doc.title;
@@ -59,11 +59,11 @@ function sortValue(doc: KnowledgeDocument, key: GuidelineSortKey): SortValue {
 }
 
 interface GuidelinesCatalogProps {
-  documents: KnowledgeDocument[];
+  documents: KnowledgeDocumentSummary[];
   onAdd: () => void;
-  onOpen: (doc: KnowledgeDocument) => void;
-  onEdit: (doc: KnowledgeDocument) => void;
-  onDelete: (doc: KnowledgeDocument) => void;
+  onOpen: (doc: KnowledgeDocumentSummary) => void;
+  onEdit: (doc: KnowledgeDocumentSummary) => void;
+  onDelete: (doc: KnowledgeDocumentSummary) => void;
   onTagClick: (tag: string) => void;
 }
 
@@ -182,12 +182,12 @@ function GuidelineTable({
   onDelete,
   onTagClick,
 }: {
-  documents: KnowledgeDocument[];
+  documents: KnowledgeDocumentSummary[];
   sort: ReturnType<typeof useTableSort<GuidelineSortKey>>['sort'];
   onSort: (key: GuidelineSortKey) => void;
-  onOpen: (doc: KnowledgeDocument) => void;
-  onEdit: (doc: KnowledgeDocument) => void;
-  onDelete: (doc: KnowledgeDocument) => void;
+  onOpen: (doc: KnowledgeDocumentSummary) => void;
+  onEdit: (doc: KnowledgeDocumentSummary) => void;
+  onDelete: (doc: KnowledgeDocumentSummary) => void;
   onTagClick: (tag: string) => void;
 }) {
   // Фильтрация и сортировка идут по всему набору — порционно только рисуется.
@@ -284,8 +284,8 @@ function GuidelineList({
   documents,
   onOpen,
 }: {
-  documents: KnowledgeDocument[];
-  onOpen: (doc: KnowledgeDocument) => void;
+  documents: KnowledgeDocumentSummary[];
+  onOpen: (doc: KnowledgeDocumentSummary) => void;
 }) {
   const { visible, hasMore, remaining, setSentinel } = useIncrementalList(documents);
 
