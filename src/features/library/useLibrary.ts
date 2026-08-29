@@ -1,7 +1,6 @@
-import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
-import { createHttpRepository } from '../../lib/httpRepository';
+import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
 import { decodeFb2Text, parseFb2 } from './fb2';
 import { fetchBookFile, updateBookProgress, uploadBook } from './libraryApi';
 import { readDocx } from '../../lib/docx/readDocx';
@@ -10,7 +9,7 @@ import type { Book, BookFormat, BookMetaInput } from './types';
 
 /** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
 export const QUERY_KEY = ['library-books'];
-const repo = createHttpRepository<Book, never, BookMetaInput>('/library');
+const resource = createCrudResource<Book, never, BookMetaInput>('/library', QUERY_KEY);
 
 function detectFormat(fileName: string): BookFormat | null {
   const ext = fileName.split('.').pop()?.toLowerCase();
@@ -83,10 +82,11 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
 }
 
 export function useLibrary() {
-  const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+  const { items: books, isLoading, error, refetch, invalidate, update, remove, replaceInCache } =
+    useCrudResource(resource);
 
+  // Загрузка книги остаётся своей мутацией: кнопке нужен `isPending`, а разбор файла идёт на
+  // фронте и до отправки может честно отказать — по расширению и по сигнатуре `.doc`.
   const addBookMutation = useMutation({
     mutationFn: async (file: File) => {
       if (file.name.split('.').pop()?.toLowerCase() === 'doc') throw new Error(LEGACY_DOC_MESSAGE);
@@ -99,31 +99,22 @@ export function useLibrary() {
     onSuccess: invalidate,
   });
 
-  const updateMetaMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: BookMetaInput }) => repo.update(id, input),
-    onSuccess: invalidate,
-  });
-
+  // Место в книге сохраняется на каждой прокрутке: перезагружать ради него весь список нельзя.
   const updateProgressMutation = useMutation({
     mutationFn: ({ id, location }: { id: string; location: number }) => updateBookProgress(id, location),
-    onSuccess: (updated) => {
-      queryClient.setQueryData<Book[]>(QUERY_KEY, (prev) => prev?.map((b) => (b.id === updated.id ? updated : b)) ?? prev);
-    },
-  });
-
-  const deleteBookMutation = useMutation({
-    mutationFn: (id: string) => repo.remove(id),
-    onSuccess: invalidate,
+    onSuccess: replaceInCache,
   });
 
   return {
-    books: useMemo(() => query.data ?? [], [query.data]),
-    isLoading: query.isLoading,
+    books,
+    isLoading,
+    error,
+    refetch,
     addBook: addBookMutation.mutateAsync,
     isAdding: addBookMutation.isPending,
-    updateMeta: (id: string, input: BookMetaInput) => updateMetaMutation.mutateAsync({ id, input }),
+    updateMeta: update,
     updateProgress: (id: string, location: number) => updateProgressMutation.mutateAsync({ id, location }),
-    deleteBook: deleteBookMutation.mutateAsync,
+    deleteBook: remove,
   };
 }
 

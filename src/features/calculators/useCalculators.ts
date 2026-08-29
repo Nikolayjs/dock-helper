@@ -1,15 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
-import { createHttpRepository, request } from '../../lib/httpRepository';
+import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
+import { request } from '../../lib/httpRepository';
 import type { CalculatorDefinition } from './types';
 
-/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+/** Кэш, которым владеет этот хук. Экспортируется, чтобы удаление могло спрятать строку на время отмены. */
 export const QUERY_KEY = ['calculators'];
 
 /** Звёздочка не относится к содержимому калькулятора и потому не входит в его создание/правку. */
 export type CreateCalculatorPayload = Omit<CalculatorDefinition, 'id' | 'createdAt' | 'favourite'>;
 
-const repo = createHttpRepository<CalculatorDefinition, CreateCalculatorPayload>('/calculators');
+const resource = createCrudResource<CalculatorDefinition, CreateCalculatorPayload>('/calculators', QUERY_KEY);
 
 function toPayload(definition: CalculatorDefinition): CreateCalculatorPayload {
   const { id: _id, createdAt: _createdAt, favourite: _favourite, ...payload } = definition;
@@ -24,43 +25,22 @@ function setFavourite(id: string, favourite: boolean): Promise<CalculatorDefinit
 }
 
 export function useCalculators() {
-  const queryClient = useQueryClient();
-  const { data: calculators = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-
-  const addCalculatorMutation = useMutation({
-    mutationFn: (definition: CalculatorDefinition) => repo.create(toPayload(definition)),
-    onSuccess: invalidate,
-  });
-
-  const updateCalculatorMutation = useMutation({
-    mutationFn: (definition: CalculatorDefinition) => repo.update(definition.id, toPayload(definition)),
-    onSuccess: invalidate,
-  });
+  const { items, isLoading, error, refetch, create, update, remove, replaceInCache } = useCrudResource(resource);
 
   const favouriteMutation = useMutation({
     mutationFn: ({ id, favourite }: { id: string; favourite: boolean }) => setFavourite(id, favourite),
     // Звёздочку жмут на списке из тридцати карточек — ждать перезагрузку списка ради галочки незачем.
-    onSuccess: (updated) => {
-      queryClient.setQueryData<CalculatorDefinition[]>(QUERY_KEY, (prev) =>
-        prev?.map((item) => (item.id === updated.id ? updated : item)) ?? prev,
-      );
-    },
-  });
-
-  const deleteCalculatorMutation = useMutation({
-    mutationFn: (id: string) => repo.remove(id),
-    onSuccess: invalidate,
+    onSuccess: replaceInCache,
   });
 
   return {
-    calculators,
+    calculators: items,
     isLoading,
     error,
     refetch,
-    addCalculator: addCalculatorMutation.mutateAsync,
-    updateCalculator: updateCalculatorMutation.mutateAsync,
-    deleteCalculator: deleteCalculatorMutation.mutateAsync,
+    addCalculator: (definition: CalculatorDefinition) => create(toPayload(definition)),
+    updateCalculator: (definition: CalculatorDefinition) => update(definition.id, toPayload(definition)),
+    deleteCalculator: remove,
     toggleFavourite: (definition: CalculatorDefinition) =>
       favouriteMutation.mutateAsync({ id: definition.id, favourite: !definition.favourite }),
   };

@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createHttpRepository } from '../../lib/httpRepository';
+import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
 import { QUERY_KEY as DRUGS_QUERY_KEY } from './useDrugs';
 
 export interface DrugCategory {
@@ -14,7 +13,12 @@ export interface DrugCategory {
 
 export const QUERY_KEY = ['drug-categories'];
 
-const repo = createHttpRepository<DrugCategory, { name: string; position?: number }>('/drug-categories');
+// Переименование раздела меняет поле `category` у препаратов — список на экране уже устарел.
+const resource = createCrudResource<DrugCategory, { name: string; position?: number }>(
+  '/drug-categories',
+  QUERY_KEY,
+  { alsoInvalidate: [DRUGS_QUERY_KEY] },
+);
 
 /**
  * Разделы справочника препаратов.
@@ -26,48 +30,24 @@ const repo = createHttpRepository<DrugCategory, { name: string; position?: numbe
  * — поэтому после него список препаратов тоже нужно перечитать.
  */
 export function useDrugCategories() {
-  const queryClient = useQueryClient();
-  const { data: rows = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { items, isLoading, error, refetch, create, update, remove } = useCrudResource(resource);
 
-  const names = useMemo(
-    () => [...rows].sort((a, b) => a.position - b.position).map((c) => c.name),
-    [rows],
-  );
-
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-    // Переименование раздела меняет поле category у препаратов — список на экране уже устарел.
-    queryClient.invalidateQueries({ queryKey: DRUGS_QUERY_KEY });
-  };
-
-  const addMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const trimmed = name.trim();
-      if (!trimmed) return '';
-      const created = await repo.create({ name: trimmed });
-      return created.name;
-    },
-    onSuccess: invalidate,
-  });
-
-  const renameMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => repo.update(id, { name: name.trim() }),
-    onSuccess: invalidate,
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: (id: string) => repo.remove(id),
-    onSuccess: invalidate,
-  });
+  const sorted = useMemo(() => [...items].sort((a, b) => a.position - b.position), [items]);
+  const names = useMemo(() => sorted.map((c) => c.name), [sorted]);
 
   return {
-    categories: [...rows].sort((a, b) => a.position - b.position),
+    categories: sorted,
     names,
     isLoading,
     error,
     refetch,
-    addCategory: addMutation.mutateAsync,
-    renameCategory: renameMutation.mutateAsync,
-    removeCategory: removeMutation.mutateAsync,
+    addCategory: async (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return '';
+      const created = await create({ name: trimmed });
+      return created.name;
+    },
+    renameCategory: ({ id, name }: { id: string; name: string }) => update(id, { name: name.trim() }),
+    removeCategory: remove,
   };
 }

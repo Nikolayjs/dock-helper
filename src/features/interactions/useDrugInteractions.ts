@@ -1,36 +1,22 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
-import { createHttpRepository } from '../../lib/httpRepository';
+import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
 import type { DrugInteraction } from './types';
 
-/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+/** Кэш, которым владеет этот хук. Экспортируется, чтобы удаление могло спрятать строку на время отмены. */
 export const QUERY_KEY = ['drug-interactions'];
 
 export type DrugInteractionInput = Pick<DrugInteraction, 'drugA' | 'drugB' | 'severity' | 'mechanism' | 'recommendation'>;
 
-const repo = createHttpRepository<DrugInteraction, DrugInteractionInput>('/drug-interactions');
+const resource = createCrudResource<DrugInteraction, DrugInteractionInput>('/drug-interactions', QUERY_KEY);
 
 export function useDrugInteractions() {
-  const queryClient = useQueryClient();
-  const { data: interactions = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-
-  const addInteractionMutation = useMutation({
-    mutationFn: (input: DrugInteractionInput) => repo.create(input),
-    onSuccess: invalidate,
-  });
-
-  const deleteInteractionMutation = useMutation({
-    mutationFn: (id: string) => repo.remove(id),
-    onSuccess: invalidate,
-  });
+  const { items, isLoading, error, refetch, create, remove } = useCrudResource(resource);
 
   return {
-    interactions,
+    interactions: items,
     isLoading,
     error,
     refetch,
-    addInteraction: addInteractionMutation.mutateAsync,
-    deleteInteraction: deleteInteractionMutation.mutateAsync,
+    addInteraction: create,
+    deleteInteraction: remove,
   };
 }

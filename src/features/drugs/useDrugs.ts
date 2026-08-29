@@ -1,12 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
-import { createHttpRepository, request } from '../../lib/httpRepository';
+import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
+import { request } from '../../lib/httpRepository';
 import type { Drug, DrugInput, DrugSummary } from './types';
 
-/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+/** Кэш, которым владеет этот хук. Экспортируется, чтобы удаление могло спрятать строку на время отмены. */
 export const QUERY_KEY = ['drugs'];
 
-const repo = createHttpRepository<DrugSummary, DrugInput>('/drugs');
+// Правка карточки меняет и её отдельный кэш, а не только строку в списке: без этого врач сразу
+// после сохранения видел бы в карточке старый текст.
+const resource = createCrudResource<DrugSummary, DrugInput>('/drugs', QUERY_KEY, { alsoInvalidate: [['drug']] });
 
 /**
  * Список препаратов — без длинных текстовых полей.
@@ -17,29 +20,16 @@ const repo = createHttpRepository<DrugSummary, DrugInput>('/drugs');
  * 128 КБ против 21 КБ в gzip, и она растёт вместе со справочником.
  */
 export function useDrugs() {
-  const queryClient = useQueryClient();
-  const { data: drugs = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-    // Правка карточки меняет и её отдельный кэш, а не только строку в списке.
-    queryClient.invalidateQueries({ queryKey: ['drug'] });
-  };
-
-  const createMutation = useMutation({ mutationFn: (input: DrugInput) => repo.create(input), onSuccess: invalidate });
-  const updateMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: Partial<DrugInput> }) => repo.update(id, input),
-    onSuccess: invalidate,
-  });
-  const deleteMutation = useMutation({ mutationFn: (id: string) => repo.remove(id), onSuccess: invalidate });
+  const { items, isLoading, error, refetch, create, update, remove } = useCrudResource(resource);
 
   return {
-    drugs,
+    drugs: items,
     isLoading,
     error,
     refetch,
-    createDrug: createMutation.mutateAsync,
-    updateDrug: updateMutation.mutateAsync,
-    deleteDrug: deleteMutation.mutateAsync,
+    createDrug: create,
+    updateDrug: update,
+    deleteDrug: remove,
   };
 }
 

@@ -1,65 +1,42 @@
 import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
-import { createHttpRepository, request } from '../../lib/httpRepository';
+import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
+import { request } from '../../lib/httpRepository';
 import type { KnowledgeDocument, KnowledgeDocumentSummary, KnowledgeKind } from './types';
 
-/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+/** Кэш, которым владеет этот хук. Экспортируется, чтобы удаление могло спрятать строку на время отмены. */
 export const QUERY_KEY = ['knowledge-documents'];
 
 export type DocumentInput = Pick<KnowledgeDocument, 'kind' | 'title' | 'summary' | 'content' | 'tags' | 'author'>;
 
-const repo = createHttpRepository<KnowledgeDocumentSummary, DocumentInput>('/knowledge-documents');
-
-function useKnowledgeQuery() {
-  return useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
-}
-
-function useKnowledgeMutations() {
-  const queryClient = useQueryClient();
-  // Правка документа меняет и список, и его собственный кеш: список отдаётся без текста, поэтому
-  // один `invalidate` на оба ключа — иначе страница просмотра показывала бы старое тело.
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-    void queryClient.invalidateQueries({ queryKey: ['knowledge-document'] });
-  };
-
-  const addDocumentMutation = useMutation({
-    mutationFn: (input: DocumentInput) => repo.create(input),
-    onSuccess: invalidate,
-  });
-
-  const updateDocumentMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: DocumentInput }) => repo.update(id, input),
-    onSuccess: invalidate,
-  });
-
-  const deleteDocumentMutation = useMutation({
-    mutationFn: (id: string) => repo.remove(id),
-    onSuccess: invalidate,
-  });
-
-  return {
-    addDocument: addDocumentMutation.mutateAsync,
-    updateDocument: (id: string, input: DocumentInput) => updateDocumentMutation.mutateAsync({ id, input }),
-    deleteDocument: deleteDocumentMutation.mutateAsync,
-  };
-}
+// Правка документа меняет и список, и его собственный кэш: список отдаётся без текста, поэтому без
+// второго ключа страница просмотра показывала бы старое тело.
+const resource = createCrudResource<KnowledgeDocumentSummary, DocumentInput>(
+  '/knowledge-documents',
+  QUERY_KEY,
+  { alsoInvalidate: [['knowledge-document']] },
+);
 
 export function useDocuments(kind: KnowledgeKind) {
-  const query = useKnowledgeQuery();
-  const mutations = useKnowledgeMutations();
-  const documents = useMemo(() => (query.data ?? []).filter((doc) => doc.kind === kind), [query.data, kind]);
+  const { items, isLoading, error, refetch, create, update, remove } = useCrudResource(resource);
+  const documents = useMemo(() => items.filter((doc) => doc.kind === kind), [items, kind]);
 
-  return { documents, isLoading: query.isLoading, ...mutations };
+  return {
+    documents,
+    isLoading,
+    error,
+    refetch,
+    addDocument: create,
+    updateDocument: update,
+    deleteDocument: remove,
+  };
 }
 
-/** Same storage as {@link useDocuments}, but unfiltered — for views that span both guidelines and articles. */
+/** То же хранилище, что у {@link useDocuments}, но без отбора — для страниц, где рекомендации и статьи вместе. */
 export function useAllDocuments() {
-  const query = useKnowledgeQuery();
-  const { deleteDocument } = useKnowledgeMutations();
-
-  return { documents: query.data ?? [], isLoading: query.isLoading, deleteDocument };
+  const { items, isLoading, error, refetch, remove } = useCrudResource(resource);
+  return { documents: items, isLoading, error, refetch, deleteDocument: remove };
 }
 
 /**
@@ -83,7 +60,7 @@ export function useKnowledgeDocument(id: string | undefined) {
  * Все документы вместе с текстами — только для графа связей.
  *
  * Рёбра графа строятся по ссылкам `[[Название]]` внутри документов, а значит текст ему нужен.
- * Отдельный ключ кеша, чтобы тяжёлый ответ не подменял собой лёгкий список на остальных страницах.
+ * Отдельный ключ кэша, чтобы тяжёлый ответ не подменял собой лёгкий список на остальных страницах.
  */
 export function useAllDocumentsWithContent() {
   const query = useQuery({

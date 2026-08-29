@@ -1,39 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
-import { createHttpRepository } from '../../lib/httpRepository';
+import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
 import type { BackendLabTest, CreateLabTestPayload } from './customTypes';
 
-/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+/** Кэш, которым владеет этот хук. Экспортируется, чтобы удаление могло спрятать строку на время отмены. */
 export const QUERY_KEY = ['lab-tests'];
-const repo = createHttpRepository<BackendLabTest, CreateLabTestPayload>('/custom-lab-tests');
+
+const resource = createCrudResource<BackendLabTest, CreateLabTestPayload>('/custom-lab-tests', QUERY_KEY);
 
 export function useCustomAnalyzers() {
-  const queryClient = useQueryClient();
-  const { data: customTests = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-
-  const addTestMutation = useMutation({
-    mutationFn: (payload: CreateLabTestPayload) => repo.create(payload),
-    onSuccess: invalidate,
-  });
-
-  const updateTestMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: CreateLabTestPayload }) => repo.update(id, payload),
-    onSuccess: invalidate,
-  });
-
-  const deleteTestMutation = useMutation({
-    mutationFn: (id: string) => repo.remove(id),
-    onSuccess: invalidate,
-  });
+  const { items, isLoading, error, refetch, create, update, remove } = useCrudResource(resource);
 
   return {
-    customTests,
+    customTests: items,
     isLoading,
     error,
     refetch,
-    addTest: addTestMutation.mutateAsync,
-    updateTest: (id: string, payload: CreateLabTestPayload) => updateTestMutation.mutateAsync({ id, payload }),
-    deleteTest: deleteTestMutation.mutateAsync,
+    addTest: create,
+    updateTest: update,
+    deleteTest: remove,
   };
 }

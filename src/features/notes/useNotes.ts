@@ -1,52 +1,30 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
-import { createHttpRepository, request } from '../../lib/httpRepository';
+import { createCrudResource, useCrudResource, useInvalidatingMutation } from '../../lib/createCrudResource';
+import { request } from '../../lib/httpRepository';
 import type { Note } from './types';
 
-/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+/** Кэш, которым владеет этот хук. Экспортируется, чтобы удаление могло спрятать строку на время отмены. */
 export const QUERY_KEY = ['notes'];
 
 export type NoteInput = Pick<Note, 'kind' | 'title' | 'content' | 'items' | 'pinnedDate' | 'color'>;
 
-const repo = createHttpRepository<Note, NoteInput>('/notes');
+const resource = createCrudResource<Note, NoteInput>('/notes', QUERY_KEY);
 
+/** Переключение пункта чек-листа — своя ручка на сервере: она правит один пункт, а не всю заметку. */
 function toggleTodoItem(noteId: string, itemId: string): Promise<Note> {
   return request<Note>(`/notes/${noteId}/items/${itemId}/toggle`, { method: 'PATCH' });
 }
 
 export function useNotes() {
-  const queryClient = useQueryClient();
-  const { data: notes = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-
-  const addNoteMutation = useMutation({
-    mutationFn: (input: NoteInput) => repo.create(input),
-    onSuccess: invalidate,
-  });
-
-  const updateNoteMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: NoteInput }) => repo.update(id, input),
-    onSuccess: invalidate,
-  });
-
-  const deleteNoteMutation = useMutation({
-    mutationFn: (id: string) => repo.remove(id),
-    onSuccess: invalidate,
-  });
-
-  const toggleTodoItemMutation = useMutation({
-    mutationFn: ({ noteId, itemId }: { noteId: string; itemId: string }) => toggleTodoItem(noteId, itemId),
-    onSuccess: invalidate,
-  });
+  const { items: notes, isLoading, error, refetch, invalidate, create, update, remove } = useCrudResource(resource);
 
   return {
     notes,
     isLoading,
     error,
     refetch,
-    addNote: addNoteMutation.mutateAsync,
-    updateNote: (id: string, input: NoteInput) => updateNoteMutation.mutateAsync({ id, input }),
-    deleteNote: deleteNoteMutation.mutateAsync,
-    toggleTodoItem: (noteId: string, itemId: string) => toggleTodoItemMutation.mutateAsync({ noteId, itemId }),
+    addNote: create,
+    updateNote: update,
+    deleteNote: remove,
+    toggleTodoItem: useInvalidatingMutation(invalidate, toggleTodoItem),
   };
 }

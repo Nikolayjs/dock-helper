@@ -1,14 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
-import { createHttpRepository } from '../../lib/httpRepository';
+import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
 import type { Questionnaire } from './types';
 
-/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+/** Кэш, которым владеет этот хук. Экспортируется, чтобы удаление могло спрятать строку на время отмены. */
 export const QUERY_KEY = ['diagnostic-questionnaires'];
 
 export type QuestionnairePayload = Omit<Questionnaire, 'id' | 'createdAt' | 'updatedAt'>;
 
-const repo = createHttpRepository<Questionnaire, QuestionnairePayload>('/questionnaires');
+const resource = createCrudResource<Questionnaire, QuestionnairePayload>('/questionnaires', QUERY_KEY);
 
 function toPayload(questionnaire: Questionnaire): QuestionnairePayload {
   const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...payload } = questionnaire;
@@ -25,32 +23,15 @@ export function slugifyQuestionnaireId(title: string): string {
 }
 
 export function useQuestionnaires() {
-  const queryClient = useQueryClient();
-  const { data: questionnaires = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-
-  const addQuestionnaireMutation = useMutation({
-    mutationFn: (q: Questionnaire) => repo.create(toPayload(q)),
-    onSuccess: invalidate,
-  });
-
-  const updateQuestionnaireMutation = useMutation({
-    mutationFn: (q: Questionnaire) => repo.update(q.id, toPayload(q)),
-    onSuccess: invalidate,
-  });
-
-  const deleteQuestionnaireMutation = useMutation({
-    mutationFn: (id: string) => repo.remove(id),
-    onSuccess: invalidate,
-  });
+  const { items, isLoading, error, refetch, create, update, remove } = useCrudResource(resource);
 
   return {
-    questionnaires,
+    questionnaires: items,
     isLoading,
     error,
     refetch,
-    addQuestionnaire: addQuestionnaireMutation.mutateAsync,
-    updateQuestionnaire: updateQuestionnaireMutation.mutateAsync,
-    deleteQuestionnaire: deleteQuestionnaireMutation.mutateAsync,
+    addQuestionnaire: (q: Questionnaire) => create(toPayload(q)),
+    updateQuestionnaire: (q: Questionnaire) => update(q.id, toPayload(q)),
+    deleteQuestionnaire: remove,
   };
 }

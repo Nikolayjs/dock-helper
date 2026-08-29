@@ -1,13 +1,12 @@
 import { useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createHttpRepository } from '../../lib/httpRepository';
+import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
 import { DEFAULT_NEWS_SOURCES } from './types';
 import type { NewsFeedSource } from './types';
 
 /** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
 export const QUERY_KEY = ['news-feed-sources'];
-const repo = createHttpRepository<NewsFeedSource, { url: string; title: string }>('/news-feed-sources');
+const resource = createCrudResource<NewsFeedSource, { url: string; title: string }>('/news-feed-sources', QUERY_KEY);
 
 /**
  * The backend doesn't seed default sources (unlike knowledge base/calculators/analyzer), and its
@@ -37,19 +36,17 @@ let seeding: Promise<void> | null = null;
 async function seedDefaultSources(current: NewsFeedSource[]): Promise<void> {
   const existingUrls = new Set(current.map((s) => s.url));
   for (const source of DEFAULT_NEWS_SOURCES) {
-    if (!existingUrls.has(source.url)) await repo.create({ url: source.url, title: source.title });
+    if (!existingUrls.has(source.url)) await resource.repo.create({ url: source.url, title: source.title });
   }
 }
 
 export function useNewsFeedSources() {
-  const queryClient = useQueryClient();
-  const { data, isLoading, isSuccess } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
-  const sources = data ?? [];
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+  const { items: sources, isLoading, isSuccess, error, refetch, invalidate, create, update, remove } =
+    useCrudResource(resource);
 
   useEffect(() => {
-    if (!isSuccess || !data || seeding || localStorage.getItem(MIGRATION_FLAG_KEY)) return;
-    seeding = seedDefaultSources(data)
+    if (!isSuccess || seeding || localStorage.getItem(MIGRATION_FLAG_KEY)) return;
+    seeding = seedDefaultSources(sources)
       .then(() => {
         localStorage.setItem(MIGRATION_FLAG_KEY, '1');
         invalidate();
@@ -58,28 +55,15 @@ export function useNewsFeedSources() {
         seeding = null;
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuccess, data]);
-
-  const addSourceMutation = useMutation({
-    mutationFn: (input: { url: string; title: string }) => repo.create({ url: input.url.trim(), title: input.title.trim() }),
-    onSuccess: invalidate,
-  });
-
-  const renameSourceMutation = useMutation({
-    mutationFn: ({ id, title }: { id: string; title: string }) => repo.update(id, { title }),
-    onSuccess: invalidate,
-  });
-
-  const removeSourceMutation = useMutation({
-    mutationFn: (id: string) => repo.remove(id),
-    onSuccess: invalidate,
-  });
+  }, [isSuccess, sources]);
 
   return {
     sources,
     isLoading,
-    addSource: addSourceMutation.mutateAsync,
-    renameSource: (id: string, title: string) => renameSourceMutation.mutateAsync({ id, title }),
-    removeSource: removeSourceMutation.mutateAsync,
+    error,
+    refetch,
+    addSource: (input: { url: string; title: string }) => create({ url: input.url.trim(), title: input.title.trim() }),
+    renameSource: (id: string, title: string) => update(id, { title }),
+    removeSource: remove,
   };
 }

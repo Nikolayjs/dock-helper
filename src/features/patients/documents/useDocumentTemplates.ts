@@ -1,47 +1,28 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
-import { createHttpRepository } from '../../../lib/httpRepository';
+import { createCrudResource, useCrudResource } from '../../../lib/createCrudResource';
 import type { DocumentTemplate } from './templateTypes';
 
-/** The cache this hook owns. Exported so a deletion can hide a row from it while its undo window is open. */
+/** Кэш, которым владеет этот хук. Экспортируется, чтобы удаление могло спрятать строку на время отмены. */
 export const QUERY_KEY = ['document-templates'];
 
 /**
- * `kind` and `layout` are optional so that the Tiptap form keeps posting exactly what it always
- * did — the column defaults to 'flow' server-side, and an omitted layout stays null.
+ * `kind` и `layout` необязательны, чтобы форма на Tiptap слала ровно то же, что и раньше: колонка
+ * по умолчанию `flow` на стороне сервера, а пропущенный `layout` остаётся пустым.
  */
 export type DocumentTemplateInput = Pick<DocumentTemplate, 'title' | 'bodyHtml'> &
   Partial<Pick<DocumentTemplate, 'kind' | 'layout'>>;
 
-const repo = createHttpRepository<DocumentTemplate, DocumentTemplateInput>('/document-templates');
+const resource = createCrudResource<DocumentTemplate, DocumentTemplateInput>('/document-templates', QUERY_KEY);
 
 export function useDocumentTemplates() {
-  const queryClient = useQueryClient();
-  const { data: templates = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-
-  const addTemplateMutation = useMutation({
-    mutationFn: (input: DocumentTemplateInput) => repo.create(input),
-    onSuccess: invalidate,
-  });
-
-  const updateTemplateMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: DocumentTemplateInput }) => repo.update(id, input),
-    onSuccess: invalidate,
-  });
-
-  const deleteTemplateMutation = useMutation({
-    mutationFn: (id: string) => repo.remove(id),
-    onSuccess: invalidate,
-  });
+  const { items, isLoading, error, refetch, create, update, remove } = useCrudResource(resource);
 
   return {
-    templates,
+    templates: items,
     isLoading,
     error,
     refetch,
-    addTemplate: addTemplateMutation.mutateAsync,
-    updateTemplate: (id: string, input: DocumentTemplateInput) => updateTemplateMutation.mutateAsync({ id, input }),
-    deleteTemplate: deleteTemplateMutation.mutateAsync,
+    addTemplate: create,
+    updateTemplate: update,
+    deleteTemplate: remove,
   };
 }

@@ -75,7 +75,7 @@ export function DrugEditorPage() {
       atcCode: form.atcCode.trim().toUpperCase(),
     };
     if (id) {
-      await updateDrug({ id, input: payload });
+      await updateDrug(id, payload);
       notifications.show({ message: 'Препарат обновлён', color: 'teal' });
       navigate(`/drugs/${id}`);
     } else {
