@@ -10,12 +10,14 @@ interface ReaderBarProps {
   slotRef: (element: HTMLDivElement | null) => void;
   /** К чему прилипать. В полноэкранном режиме шапки приложения нет, и это ноль. */
   top: string | number;
+  /** Убрана ли панель за верхний край: листают вниз — читают, и панель не нужна. */
+  hidden?: boolean;
 }
 
 /** Панель читалки. Почему она есть и почему прилипшая — в `ReaderBar.module.css`. */
-export function ReaderBar({ children, slotRef, top }: ReaderBarProps) {
+export function ReaderBar({ children, slotRef, top, hidden }: ReaderBarProps) {
   return (
-    <div className={classes.bar} style={{ top }}>
+    <div className={hidden ? `${classes.bar} ${classes.hidden}` : classes.bar} style={{ top }} aria-hidden={hidden}>
       {children}
       <div className={classes.slot} ref={slotRef} />
     </div>

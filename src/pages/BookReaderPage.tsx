@@ -13,6 +13,7 @@ import { loadBookFile, useBook } from '../features/library/useLibrary';
 import { readDocx } from '../lib/docx/readDocx';
 import { BackButton } from '../components/common/BackButton';
 import { STICKY_TOP } from '../layouts/shellMetrics';
+import { useScrollDirection } from '../components/layout/useScrollDirection';
 
 const SAVE_DEBOUNCE_MS = 800;
 
@@ -25,6 +26,10 @@ export function BookReaderPage() {
   const [flowHtml, setFlowHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [immersive, setImmersive] = useState(false);
+  // Панель уезжает по тому же правилу, что шапка приложения: вниз — читают, вверх — понадобилась.
+  // В полноэкранном режиме страница не прокручивается вовсе, и убирать панель нечему и незачем:
+  // выход из него — кнопка на ней же.
+  const { visible: chromeVisible } = useScrollDirection();
   // Панель одна на все три формата, а кнопки у каждого свои — читалка кладёт их сюда порталом.
   const [toolbarSlot, setToolbarSlot] = useState<HTMLDivElement | null>(null);
   // Сколько прочитано — вместо полосы прокрутки: у потоковой читалки своей полосы больше нет
@@ -132,7 +137,7 @@ export function BookReaderPage() {
       gap="md"
       style={immersive ? { background: 'var(--mantine-color-body)', minHeight: '100vh', padding: 'var(--mantine-spacing-lg)' } : undefined}
     >
-      <ReaderBar slotRef={setToolbarSlot} top={immersive ? 0 : STICKY_TOP}>
+      <ReaderBar slotRef={setToolbarSlot} top={immersive ? 0 : STICKY_TOP} hidden={!immersive && !chromeVisible}>
         <Group justify="space-between" wrap="nowrap" gap="sm">
           <BackButton fallback={{ to: `/library/${book.id}`, label: 'Назад к книге' }} />
           {/* На телефоне названия в панели нет намеренно. «Назад к книге», доля прочитанного и
