@@ -36,6 +36,8 @@ const rule = (id: string, drugA: string, drugB: string): DrugInteraction => ({
   severity: 'major',
   mechanism: 'механизм',
   recommendation: 'рекомендация',
+  createdAt: '',
+  updatedAt: '',
 });
 
 const RULES: DrugInteraction[] = [
