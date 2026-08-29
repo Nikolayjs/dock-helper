@@ -63,7 +63,7 @@ function tokenize(source: string): Token[] {
   let i = 0;
 
   while (i < source.length) {
-    const ch = source[i];
+    const ch = source.charAt(i);
 
     if (/\s/.test(ch)) {
       i += 1;
@@ -73,8 +73,8 @@ function tokenize(source: string): Token[] {
     if (/[0-9.]/.test(ch)) {
       let j = i;
       let sawDot = false;
-      while (j < source.length && /[0-9.]/.test(source[j])) {
-        if (source[j] === '.') {
+      while (j < source.length && /[0-9.]/.test(source.charAt(j))) {
+        if (source.charAt(j) === '.') {
           if (sawDot) throw new FormulaError(`Неверное число рядом с позицией ${j + 1}`);
           sawDot = true;
         }
@@ -89,7 +89,7 @@ function tokenize(source: string): Token[] {
 
     if (/[a-zA-Zа-яА-Я_]/.test(ch)) {
       let j = i;
-      while (j < source.length && /[a-zA-Zа-яА-Я0-9_]/.test(source[j])) j += 1;
+      while (j < source.length && /[a-zA-Zа-яА-Я0-9_]/.test(source.charAt(j))) j += 1;
       tokens.push({ type: 'ident', value: source.slice(i, j) });
       i = j;
       continue;
@@ -279,8 +279,12 @@ function evaluateNode(node: AstNode, variables: Record<string, number>): number 
     case 'num':
       return node.value;
     case 'var': {
-      if (node.name in variables) return variables[node.name];
-      if (node.name in CONSTANTS) return CONSTANTS[node.name];
+      // Проверяется само значение, а не наличие ключа: поле формы, дошедшее сюда как `undefined`,
+      // при проверке через `in` возвращалось бы наружу числом, которого нет.
+      const value = variables[node.name];
+      if (value !== undefined) return value;
+      const constant = CONSTANTS[node.name];
+      if (constant !== undefined) return constant;
       throw new FormulaError(`Неизвестная переменная «${node.name}»`);
     }
     case 'unary':

@@ -89,9 +89,9 @@ export function wordHighlight(color: string): string {
 export function hexColor(raw: string): string | undefined {
   const value = raw.trim().toLowerCase();
   const hex = /^#([0-9a-f]{6})$/.exec(value);
-  if (hex) return hex[1].toUpperCase();
+  if (hex?.[1]) return hex[1].toUpperCase();
   const short = /^#([0-9a-f]{3})$/.exec(value);
-  if (short) return short[1].split('').map((c) => c + c).join('').toUpperCase();
+  if (short?.[1]) return short[1].split('').map((c) => c + c).join('').toUpperCase();
   const rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(value);
   if (rgb) {
     return [rgb[1], rgb[2], rgb[3]]
@@ -219,10 +219,10 @@ function textRun(text: string, marks: Marks): string {
 function decodeDataUrl(src: string): { bytes: Uint8Array; extension: string } | null {
   const match = /^data:([^;,]+);base64,(.*)$/s.exec(src);
   if (!match) return null;
-  const extension = MIME_EXTENSION[match[1].toLowerCase()];
+  const extension = MIME_EXTENSION[(match[1] ?? '').toLowerCase()];
   if (!extension) return null;
   try {
-    const binary = atob(match[2]);
+    const binary = atob(match[2] ?? '');
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
     return { bytes, extension };
@@ -316,7 +316,8 @@ function collectRuns(builder: DocxBuilder, node: Node, marks: Marks, out: string
   const style = (el as HTMLElement).style;
   if (style?.color) next.color = hexColor(style.color) ?? next.color;
   if (style?.fontSize) next.halfPoints = halfPointsFrom(style.fontSize) ?? next.halfPoints;
-  if (style?.fontFamily) next.fontFamily = style.fontFamily.split(',')[0].replace(/['"]/g, '').trim() || next.fontFamily;
+  // Первая гарнитура списка — та, которой набран текст; остальные Word и так считает запасными.
+  if (style?.fontFamily) next.fontFamily = (style.fontFamily.split(',')[0] ?? '').replace(/['"]/g, '').trim() || next.fontFamily;
 
   if (tag === 'a') {
     const href = el.getAttribute('href');

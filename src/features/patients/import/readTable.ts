@@ -23,7 +23,10 @@ const MAX_ROWS = 5000;
 function detectDelimiter(line: string): string {
   // Russian Excel writes CSV with semicolons, because the comma is the decimal separator.
   const counts = [';', ',', '\t'].map((d) => ({ d, n: line.split(d).length }));
-  return counts.sort((a, b) => b.n - a.n)[0].n > 1 ? counts.sort((a, b) => b.n - a.n)[0].d : ';';
+  const best = counts.reduce((winner, candidate) => (candidate.n > winner.n ? candidate : winner));
+  // Ни один разделитель не встретился — строка из одного столбца. Точка с запятой честнее
+  // запятой: русский Excel пишет CSV именно так.
+  return best.n > 1 ? best.d : ';';
 }
 
 /** RFC-4180-ish: quoted fields may contain the delimiter, newlines and doubled quotes. */

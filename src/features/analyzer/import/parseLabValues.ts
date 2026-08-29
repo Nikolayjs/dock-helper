@@ -100,13 +100,15 @@ const UNIT_PREFIXES = new Set(['в', 'кл', 'ед']);
 /** Skips the previous-result column to reach the unit, but stops at the first token that is neither. */
 function findUnit(tokens: string[], from: number): string | undefined {
   for (let i = from; i < Math.min(tokens.length, from + UNIT_SCAN_WINDOW); i++) {
-    if (STANDALONE_NUMBER.test(tokens[i]) || DATE_LIKE.test(tokens[i])) continue;
-    if (!looksLikeUnit(tokens[i]) || looksTruncated(tokens[i])) return undefined;
+    const token = tokens[i];
+    if (token === undefined) return undefined;
+    if (STANDALONE_NUMBER.test(token) || DATE_LIKE.test(token)) continue;
+    if (!looksLikeUnit(token) || looksTruncated(token)) return undefined;
 
-    if (UNIT_PREFIXES.has(tokens[i].toLowerCase())) {
+    if (UNIT_PREFIXES.has(token.toLowerCase())) {
       const next = tokens[i + 1];
       if (!next || !looksLikeUnit(next) || looksTruncated(next)) return undefined;
-      return `${tokens[i]} ${next}`;
+      return `${token} ${next}`;
     }
     return tokens[i];
   }
@@ -126,8 +128,9 @@ export function parseLabValues(lines: string[]): ParsedAnalyte[] {
         GRADED_RESULT.test(token),
     );
     if (valueIndex <= 0) continue;
+    const valueToken = tokens[valueIndex] ?? '';
     // A graded positive names no number the file can be trusted to scale; the row stops here.
-    if (GRADED_RESULT.test(tokens[valueIndex])) continue;
+    if (GRADED_RESULT.test(valueToken)) continue;
 
     const name = tokens
       .slice(0, valueIndex)
@@ -142,10 +145,10 @@ export function parseLabValues(lines: string[]): ParsedAnalyte[] {
     // interpretation note. Latin is left alone: `pH` and `hs-CRP` are real names.
     if (/^[а-яё]/.test(name)) continue;
 
-    const isNegative = NEGATIVE_RESULT.test(tokens[valueIndex]);
+    const isNegative = NEGATIVE_RESULT.test(valueToken);
     const value = isNegative
       ? 0
-      : Number(tokens[valueIndex].replace(/^[<>≤≥]/, '').replace(/[*↑↓]+$/, '').replace(',', '.'));
+      : Number(valueToken.replace(/^[<>≤≥]/, '').replace(/[*↑↓]+$/, '').replace(',', '.'));
     if (!Number.isFinite(value) || Math.abs(value) > IMPLAUSIBLE_VALUE) continue;
 
     analytes.push({ name, value, unit: findUnit(tokens, valueIndex + 1), line });

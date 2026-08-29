@@ -102,7 +102,7 @@ function variants(text: string): string[] {
   if (withoutBrackets) seeds.add(withoutBrackets);
 
   for (const match of text.matchAll(/[([{](.*?)[)\]}]/g)) {
-    const inner = normalize(match[1]);
+    const inner = normalize(match[1] ?? '');
     if (inner) seeds.add(inner);
   }
 
@@ -133,15 +133,17 @@ function editDistance(a: string, b: string): number {
   for (let i = 1; i <= a.length; i++) {
     const current = [i];
     for (let j = 1; j <= b.length; j++) {
+      // Обе строки заполнены до нужной длины на предыдущем круге — обращения в границах по
+      // построению, и `?? 0` здесь читается как «этого не бывает», а не меняет расчёт.
       current[j] = Math.min(
-        previous[j] + 1,
-        current[j - 1] + 1,
-        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+        (previous[j] ?? 0) + 1,
+        (current[j - 1] ?? 0) + 1,
+        (previous[j - 1] ?? 0) + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1),
       );
     }
     previous = current;
   }
-  return previous[b.length];
+  return previous[b.length] ?? 0;
 }
 
 function similarity(a: string, b: string): number {

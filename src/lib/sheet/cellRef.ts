@@ -50,7 +50,7 @@ export function parseRef(text: string): CellRef | null {
   const match = /^(\$?)([A-Za-z]{1,3})(\$?)(\d{1,7})$/.exec(text);
   if (!match) return null;
   return {
-    col: columnIndex(match[2]),
+    col: columnIndex(match[2] ?? ''),
     row: Number(match[4]),
     colAbsolute: match[1] === '$',
     rowAbsolute: match[3] === '$',
@@ -121,7 +121,7 @@ export function shiftFormula(formula: string, deltaRow: number, deltaColumn: num
  * открывающей скобке, а продолжение слова — по букве или цифре.
  */
 function isPartOfName(formula: string, start: number, length: number): boolean {
-  const before = start > 0 ? formula[start - 1] : '';
+  const before = start > 0 ? formula.charAt(start - 1) : '';
   const after = formula[start + length] ?? '';
   return /[A-Za-zА-Яа-яЁё0-9_.]/.test(before) || after === '(' || /[A-Za-zА-Яа-яЁё_]/.test(after);
 }

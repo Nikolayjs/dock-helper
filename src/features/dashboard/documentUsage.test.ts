@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { rankTemplates, readUsage, recordTemplateUse, STORAGE_KEY } from './documentUsage';

@@ -17,7 +17,7 @@ export function formatKey(row: number, column: number): string {
 }
 
 export function parseFormatKey(key: string): { row: number; column: number } {
-  const [row, column] = key.split(':').map(Number);
+  const [row = NaN, column = NaN] = key.split(':').map(Number);
   return { row, column };
 }
 
@@ -104,7 +104,9 @@ export function commonFormat<K extends keyof CellFormat>(
 ): CellFormat[K] | undefined {
   const cells = rangeCells(range);
   if (cells.length === 0) return undefined;
-  const first = getFormat(formats, cells[0].row, cells[0].column)[property];
+  const [head] = cells;
+  if (!head) return undefined;
+  const first = getFormat(formats, head.row, head.column)[property];
   return cells.every((cell) => getFormat(formats, cell.row, cell.column)[property] === first) ? first : undefined;
 }
 

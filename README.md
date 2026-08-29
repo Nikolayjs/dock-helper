@@ -1,32 +1,66 @@
-# React + TypeScript + Vite
+# MedAssist — рабочее место врача
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Фронтенд приложения для амбулаторного приёма: картотека пациентов и их визитов, диспансерный учёт,
+печатные бланки и документы врача, справочник препаратов с проверкой взаимодействий, анализатор
+лабораторных показателей, калькуляторы, база знаний, планер, библиотека с читалками PDF/DjVu/FB2/Word.
 
-Currently, two official plugins are available:
+Работает на `https://medhelpmate.ru`. **В приложении лежат настоящие записи пациентов** — при любой
+правке это главное соображение, а не производительность и не красота кода.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Два репозитория, одна сборка
 
-## React Compiler
+- `dock-helper` (этот) — фронтенд.
+- `dock-helper-api` — бэкенд (NestJS + SQLite). Он же **собирает этот репозиторий внутри своего
+  Docker-образа** и раздаёт готовую сборку.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Из этого следует правило, которое стоит дороже всего: **изменение фронтенда должно быть запушено
+раньше, чем деплоится бэкенд**, иначе сборка возьмёт предыдущий коммит и деплой отрапортует об
+успехе. Обе ветки — `master`, не `main`. Обе пушатся и на GitHub, и на зеркало GitVerse: сервер
+клонирует с GitVerse, потому что GitHub из России отдаёт `git clone` с обрывами.
 
-## Expanding the Oxlint configuration
+## Запуск
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm ci
+npm run dev            # http://localhost:5173
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Нужен работающий `dock-helper-api` — по умолчанию на `http://localhost:3000/api`.
+
+## Переменные окружения
+
+Одна: `VITE_API_BASE_URL` (см. `src/lib/apiConfig.ts`). Значение по умолчанию — локальный бэкенд;
+образец лежит в `.env.example`. В проде фронт и API живут на одном домене, и значение задаётся при
+сборке образа.
+
+## Команды
+
+| | |
+|---|---|
+| `npm run dev` | сервер разработки |
+| `npm run lint` | oxlint |
+| `npm run test` | vitest |
+| `npm run test:coverage` | то же с покрытием и порогами |
+| `npm run build` | типы, сборка, пререндер публичных страниц |
+| `npm run preview` | посмотреть собранное |
+
+`npm run build` — это `tsc -b`, сборка клиента, сборка SSR-точки и `scripts/prerender.mjs`, который
+запекает пять публичных адресов в HTML. Скрипт проверяет, что разметка вышла непустой: молчаливо
+пустой пререндер — ровно та поломка, ради которой он и заводился.
+
+## Как устроено
+
+Приложение врача живёт под `/app` и смонтировано отдельным роутером (`src/AppRoot.tsx`); лендинг,
+тарифы, вход и юридические страницы — на корне (`src/PublicRoot.tsx`). Какой роутер поднять,
+решается один раз при старте по адресу (`src/main.tsx`). У публичной части свой набор стилей
+Mantine и свой базовый CSS: она обязана открываться быстро.
+
+Есть демо-режим — гостевая сессия целиком на вымышленных данных, без аккаунта и без сервера. Подмена
+стоит в `request()` из `src/lib/httpRepository.ts`.
+
+## Что читать перед правкой
+
+`CLAUDE.md` в корне этого репозитория и в `dock-helper-api` — там записано, **почему** сделано так, а
+не иначе, и какие ловушки уже сработали: порядок подключения стилей Mantine, поведение обоев,
+прокрутка читалок, форматы Word и Excel, санитайзер чужой разметки, общие каркасы списка и таблицы.
+Каждый абзац там стоил замера или сломанного экрана.

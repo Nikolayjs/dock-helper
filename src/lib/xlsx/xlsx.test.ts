@@ -1,3 +1,7 @@
+// @vitest-environment node
+//
+// Окружение по умолчанию — jsdom, но здесь нужен именно Node: `read-excel-file/node` под
+// jsdom получает `Blob` там, где ждёт путь или буфер, и падает на первом же чтении.
 import { describe, expect, it } from 'vitest';
 import { unzipSync, strFromU8 } from 'fflate';
 import readXlsxFile from 'read-excel-file/node';

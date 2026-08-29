@@ -104,8 +104,11 @@ const BACKEND_ONLY = ['/document-templates/recognize', '/workspace/invite', '/au
 
 export async function demoRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? 'GET').toUpperCase();
-  const [pathname, query = ''] = path.split('?');
+  const [pathname = '', query = ''] = path.split('?');
+  // Отрезок адреса, которого нет, — это пустая строка: дальше она честно не найдёт запись и
+  // отдаст «запись не найдена», а не уронит демо на `undefined`.
   const segments = pathname.split('/').filter(Boolean);
+  const seg = (index: number) => segments[index] ?? '';
   const payload = body(init);
 
   if (BACKEND_ONLY.some((prefix) => pathname.startsWith(prefix))) {
@@ -123,14 +126,14 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
   // ── База знаний: список без текстов, полный текст — по id или по ?full=1 ──────────────────────
   if (segments[0] === 'knowledge-documents' && method === 'GET') {
     const docs = listOf('/knowledge-documents');
-    if (segments[1]) return byId(docs, segments[1]) as T;
+    if (seg(1)) return byId(docs, seg(1)) as T;
     if (query.includes('full=1')) return docs as T;
     return docs.map(({ content: _content, ...rest }) => rest) as T;
   }
 
   // ── Визиты пациента ──────────────────────────────────────────────────────────────────────────
   if (segments[0] === 'patients' && segments[2] === 'visits') {
-    const patient = byId(collection('/patients'), segments[1]);
+    const patient = byId(collection('/patients'), seg(1));
     const visits = (patient.visits ??= []) as Row[];
     if (method === 'POST') {
       const created = { ...payload, id: newId(), createdAt: now() };
@@ -139,7 +142,7 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
       save();
       return created as T;
     }
-    const visitId = segments[3];
+    const visitId = seg(3);
     if (method === 'PATCH') {
       const target = byId(visits, visitId);
       Object.assign(target, payload);
@@ -173,8 +176,8 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
   }
 
   // ── Диспансерный учёт: наблюдения, снятие и возврат ──────────────────────────────────────────
-  if (segments[0] === 'dispensary' && segments[1]) {
-    const record = byId(collection('/dispensary'), segments[1]);
+  if (segments[0] === 'dispensary' && seg(1)) {
+    const record = byId(collection('/dispensary'), seg(1));
 
     if (segments[2] === 'observations') {
       const observations = (record.observations ??= []) as Row[];
@@ -185,7 +188,7 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
         save();
         return created as T;
       }
-      const observationId = segments[3];
+      const observationId = seg(3);
       if (method === 'PATCH') {
         const target = byId(observations, observationId);
         Object.assign(target, payload);
@@ -217,8 +220,8 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
 
   // ── Чек-лист заметки ─────────────────────────────────────────────────────────────────────────
   if (segments[0] === 'notes' && segments[2] === 'items' && segments[4] === 'toggle' && method === 'PATCH') {
-    const note = byId(collection('/notes'), segments[1]);
-    const item = byId((note.items ?? []) as Row[], segments[3]);
+    const note = byId(collection('/notes'), seg(1));
+    const item = byId((note.items ?? []) as Row[], seg(3));
     item.done = !item.done;
     note.updatedAt = now();
     save();
@@ -227,7 +230,7 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
 
   // ── Звёздочка калькулятора ───────────────────────────────────────────────────────────────────
   if (segments[0] === 'calculators' && segments[2] === 'favourite' && method === 'PATCH') {
-    const calculator = byId(collection('/calculators'), segments[1]);
+    const calculator = byId(collection('/calculators'), seg(1));
     calculator.favourite = payload.favourite ?? !calculator.favourite;
     save();
     return calculator as T;
@@ -249,17 +252,17 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
   if (segments[0] === 'news-feed-sources' && segments[2] === 'items') return { items: [] } as T;
 
   // ── Всё остальное — обычный список с обычным CRUD ────────────────────────────────────────────
-  const name = `/${segments[0]}`;
+  const name = `/${seg(0)}`;
   if (!(name in load())) {
     if (method === 'GET') return [] as T;
     throw new DemoUnavailableError('В демо-режиме этот раздел недоступен.');
   }
 
-  if (method === 'GET') return (segments[1] ? byId(collection(name), segments[1]) : listOf(name)) as T;
+  if (method === 'GET') return (seg(1) ? byId(collection(name), seg(1)) : listOf(name)) as T;
   if (method === 'POST') return createIn(name, payload) as T;
-  if (method === 'PATCH' || method === 'PUT') return updateIn(name, segments[1], payload) as T;
+  if (method === 'PATCH' || method === 'PUT') return updateIn(name, seg(1), payload) as T;
   if (method === 'DELETE') {
-    removeIn(name, segments[1]);
+    removeIn(name, seg(1));
     return undefined as T;
   }
 

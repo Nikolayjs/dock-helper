@@ -1,0 +1,35 @@
+# Самая дешёвая страховка от белой страницы в проде.
+#
+# `update.sh` бэкенда собирает фронт вслепую: он клонирует ветку и запускает сборку внутри образа,
+# и до health-check ошибка типа или сорвавшийся тест не видны никак. Здесь они видны на push.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci`, а не `install`: сборка обязана повторять package-lock, а не разрешать его заново.
+      - run: npm ci
+
+      - run: npm run lint
+
+      # Движки и разборщики проверяются строже остального: см. tsconfig.strict.json.
+      - run: npm run typecheck:strict
+
+      - run: npm run test:coverage
+
+      # Сборка включает `tsc -b`, пререндер публичных страниц и проверку, что разметка вышла
+      # непустой, — то есть ловит и молчаливо пустой пререндер.
+      - run: npm run build

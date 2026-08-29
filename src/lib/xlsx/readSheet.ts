@@ -68,9 +68,10 @@ export function cellsToStrings(cells: Cell[][]): SheetGrid {
     .filter((entry) => Array.isArray(entry.row) && !isBlank(entry.row))
     .slice(0, MAX_IMPORT_ROWS + 1);
 
-  if (kept.length === 0) return { columns: [], rows: [], sourceRows: [] };
+  const [first] = kept;
+  if (!first) return { columns: [], rows: [], sourceRows: [] };
 
-  const header = kept[0].row.slice(0, MAX_IMPORT_COLUMNS);
+  const header = first.row.slice(0, MAX_IMPORT_COLUMNS);
   // Пустая ячейка шапки остаётся пустой: столбец назван буквой, а придуманное имя врачу пришлось бы
   // стирать перед тем, как написать своё.
   const columns = header.map((cell) => display(cell).trim());
@@ -95,7 +96,8 @@ function applyFormulas(grid: SheetGrid, formulas: Map<string, string>): SheetGri
   if (formulas.size === 0) return grid;
 
   const rows = grid.rows.map((row, index) => {
-    const sourceRow = grid.sourceRows[index];
+    // Номер строки в исходном файле известен для каждой строки сетки — они строятся вместе.
+    const sourceRow = grid.sourceRows[index] ?? index + FIRST_DATA_ROW;
     const targetRow = index + FIRST_DATA_ROW;
     const delta = targetRow - sourceRow;
 

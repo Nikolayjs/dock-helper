@@ -27,7 +27,7 @@ const FORMULA_PATTERN = /<f\b([^>]*)(?:\/>|>([\s\S]*?)<\/f>)/;
 
 function attribute(tag: string, name: string): string | null {
   const match = new RegExp(`\\b${name}="([^"]*)"`).exec(tag);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 function unescapeXml(value: string): string {
@@ -92,14 +92,16 @@ export function readFormulasFromXlsx(bytes: Uint8Array): FormulaMap {
   const path = firstSheetPath(files);
   if (!path) return result;
 
-  const xml = strFromU8(files[path]);
+  const sheetBytes = files[path];
+  if (!sheetBytes) return result;
+  const xml = strFromU8(sheetBytes);
   const shared = new Map<string, SharedMaster>();
 
   CELL_PATTERN.lastIndex = 0;
   for (let cell = CELL_PATTERN.exec(xml); cell !== null; cell = CELL_PATTERN.exec(xml)) {
-    const column = columnIndex(cell[1]);
+    const column = columnIndex(cell[1] ?? '');
     const row = Number(cell[2]);
-    const formula = FORMULA_PATTERN.exec(cell[3]);
+    const formula = FORMULA_PATTERN.exec(cell[3] ?? '');
     if (!formula) continue;
 
     const attributes = formula[1] ?? '';

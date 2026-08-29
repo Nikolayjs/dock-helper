@@ -166,7 +166,7 @@ function columnWidths(input: XlsxInput, grid: string[][]): number[] {
 
     let longest = column.length;
     for (let row = 1; row < grid.length; row++) {
-      const raw = grid[row][index] ?? '';
+      const raw = grid[row]?.[index] ?? '';
       longest = Math.max(longest, isFormula(raw) ? displayLength(grid, row + 1, index) : raw.length);
     }
     return Math.min(60, Math.max(8, longest + 2));

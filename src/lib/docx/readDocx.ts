@@ -28,7 +28,7 @@ const SAFE_URL = /^(https?:|mailto:|tel:|ftp:|#|\/|\.\.?\/)/i;
 function textOf(xml: string, tag: string): string {
   const match = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`).exec(xml);
   if (!match) return '';
-  return match[1]
+  return (match[1] ?? '')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
@@ -94,12 +94,12 @@ const COSMETIC_ELEMENTS = [
 
 function isNoise(message: string): boolean {
   const ignored = /^An unrecognised element was ignored:\s*(\S+)/.exec(message);
-  return ignored != null && COSMETIC_ELEMENTS.includes(ignored[1]);
+  return ignored != null && COSMETIC_ELEMENTS.includes(ignored[1] ?? '');
 }
 
 function firstImage(html: string): string | null {
   const match = /<img[^>]+src="(data:image\/[^"]+)"/i.exec(html);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 export async function readDocx(bytes: Uint8Array): Promise<DocxRead> {

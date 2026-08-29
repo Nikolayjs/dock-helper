@@ -197,7 +197,7 @@ function tokenize(source: string): Token[] {
       index += 2;
       continue;
     }
-    if ('+-*/^=<>&%'.includes(char)) {
+    if (char !== undefined && '+-*/^=<>&%'.includes(char)) {
       tokens.push({ kind: 'op', value: char });
       index++;
       continue;
@@ -569,7 +569,9 @@ class Evaluator {
     // делением на ноль ещё и вернула бы ошибку там, где условие её никогда не выберет.
     if (node.name === 'IF') {
       if (node.args.length < 2) return { error: ERRORS.value };
-      const condition = this.evaluateNode(node.args[0], depth + 1);
+      const first = node.args[0];
+      if (!first) return { error: ERRORS.value };
+      const condition = this.evaluateNode(first, depth + 1);
       if (isError(condition)) return condition;
       const truthy = typeof condition === 'boolean' ? condition : toNumber(condition) !== 0;
       const branch = truthy ? node.args[1] : node.args[2];

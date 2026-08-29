@@ -156,7 +156,7 @@ export function PatientImportModal({ opened, onClose, onImport }: PatientImportM
 
   const columnOptions =
     stage.kind === 'review'
-      ? stage.rows[stage.header.rowIndex].map((cell, index) => ({
+      ? (stage.rows[stage.header.rowIndex] ?? []).map((cell, index) => ({
           value: String(index),
           label: `${index + 1}. ${String(cell ?? '—').slice(0, 30)}`,
         }))

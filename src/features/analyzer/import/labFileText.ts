@@ -31,7 +31,8 @@ function assembleLines(fragments: TextFragment[], tolerance: number): string[] {
   // Descending y: PDF user space grows upward, so the top of the page is the largest value.
   for (const fragment of [...fragments].sort((a, b) => b.y - a.y)) {
     const row = rows[rows.length - 1];
-    if (row && Math.abs(row[0].y - fragment.y) <= tolerance) row.push(fragment);
+    const first = row?.[0];
+    if (row && first && Math.abs(first.y - fragment.y) <= tolerance) row.push(fragment);
     else rows.push([fragment]);
   }
 
@@ -64,7 +65,8 @@ async function linesFromPdf(file: File): Promise<string[]> {
         // which is what the caller reports as "no text found" rather than silently succeeding.
         if (!('str' in item) || typeof item.str !== 'string' || !item.str.trim()) continue;
         const transform = (item as { transform: number[] }).transform;
-        fragments.push({ text: item.str, x: transform[4], y: transform[5] });
+        // Матрица преобразования PDF всегда из шести чисел; пятое и шестое — сдвиг по x и y.
+        fragments.push({ text: item.str, x: transform[4] ?? 0, y: transform[5] ?? 0 });
       }
       lines.push(...assembleLines(fragments, PDF_LINE_TOLERANCE_PT));
     }

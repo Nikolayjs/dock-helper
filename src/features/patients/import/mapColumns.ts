@@ -92,7 +92,7 @@ export function findHeader(rows: Cell[][]): HeaderMatch | null {
   for (let rowIndex = 0; rowIndex < Math.min(rows.length, 15); rowIndex++) {
     const columns: Partial<Record<PatientField, number>> = {};
     let score = 0;
-    rows[rowIndex].forEach((cell, columnIndex) => {
+    (rows[rowIndex] ?? []).forEach((cell, columnIndex) => {
       const field = fieldForHeading(cell);
       if (field && columns[field] === undefined) {
         columns[field] = columnIndex;
@@ -177,7 +177,7 @@ export function parseDateCell(cell: Cell): string | null {
   const text = String(cell).trim();
   const dmy = text.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2,4})$/);
   if (dmy) {
-    const [, d, m, y] = dmy;
+    const [, d = '', m = '', y = ''] = dmy;
     const year = y.length === 2 ? expandTwoDigitYear(Number(y)) : Number(y);
     return isoFromParts(year, Number(m), Number(d));
   }

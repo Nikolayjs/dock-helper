@@ -149,7 +149,8 @@ export function createLayoutBlock(overrides: Partial<TemplateLayoutBlock> = {}):
   };
 }
 
-export function emptyLayout(preset: PagePreset = PAGE_PRESETS[5]): TemplateLayout {
+/** По умолчанию A4 — шестая заготовка в списке. `!` здесь про длину константы, а не про данные. */
+export function emptyLayout(preset: PagePreset = PAGE_PRESETS[5]!): TemplateLayout {
   return { pageWidthMm: preset.widthMm, pageHeightMm: preset.heightMm, copiesPerSheet: 1, backdropDataUrl: null, blocks: [] };
 }
 

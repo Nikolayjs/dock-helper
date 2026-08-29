@@ -38,7 +38,7 @@ function readJpeg(b: Uint8Array): ImageSize | null {
   let offset = 2;
   while (offset + 9 < b.length) {
     if (b[offset] !== 0xff) return null;
-    const marker = b[offset + 1];
+    const marker = b[offset + 1] ?? 0;
     // SOF0..SOF15 carry the frame size; DHT (c4), DAC (cc) and the RST markers sit in that range too.
     if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
       return { width: view.getUint16(offset + 7), height: view.getUint16(offset + 5) };

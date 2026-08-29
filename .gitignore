@@ -10,7 +10,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage
 *.local
+
+# Настройки конкретной машины. Образец — в `.env.example`, он и должен лежать в git.
+.env
+.env.*
+!.env.example
 
 # Local Claude Code session state — not project source. settings.json is the exception: the
 # permission rules for this project belong in version control, not in one machine's config.

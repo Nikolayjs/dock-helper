@@ -50,10 +50,13 @@ function openCall(text: string, caret: number): { at: number; argument: number }
     if (quoted) continue;
     if (char === '(') stack.push({ at: index, argument: 0 });
     else if (char === ')') stack.pop();
-    else if ((char === ';' || char === ',') && stack.length > 0) stack[stack.length - 1].argument++;
+    else if (char === ';' || char === ',') {
+      const open = stack[stack.length - 1];
+      if (open) open.argument++;
+    }
   }
 
-  return stack.length > 0 ? stack[stack.length - 1] : null;
+  return stack[stack.length - 1] ?? null;
 }
 
 /**
@@ -69,16 +72,16 @@ export function formulaHint(text: string, caret: number): FormulaHint | null {
   // Незакрытая кавычка — внутри текста, там подсказывать нечего.
   if ((before.match(/"/g)?.length ?? 0) % 2 === 1) return null;
 
-  const typed = /([A-Za-zА-Яа-яЁё]+)$/.exec(before);
+  const typed = /([A-Za-zА-Яа-яЁё]+)$/.exec(before)?.[1];
   if (typed) {
-    const matches = matching(typed[1]);
-    if (matches.length > 0) return { kind: 'functions', prefix: typed[1], matches };
+    const matches = matching(typed);
+    if (matches.length > 0) return { kind: 'functions', prefix: typed, matches };
   }
 
   const call = openCall(before, before.length);
   if (call) {
-    const name = /([A-Za-zА-Яа-яЁё]+)$/.exec(before.slice(0, call.at));
-    const doc = name ? findDoc(name[1]) : undefined;
+    const name = /([A-Za-zА-Яа-яЁё]+)$/.exec(before.slice(0, call.at))?.[1];
+    const doc = name ? findDoc(name) : undefined;
     if (doc) return { kind: 'signature', doc, argument: call.argument };
   }
 
@@ -116,8 +119,8 @@ export function referencesIn(text: string): string[] {
  */
 export function completeFunction(text: string, caret: number, name: string): { text: string; caret: number } {
   const before = text.slice(0, caret);
-  const typed = /([A-Za-zА-Яа-яЁё]+)$/.exec(before);
-  const start = typed ? caret - typed[1].length : caret;
+  const typed = /([A-Za-zА-Яа-яЁё]+)$/.exec(before)?.[1];
+  const start = typed ? caret - typed.length : caret;
   const inserted = `${name}(`;
   return {
     text: text.slice(0, start) + inserted + text.slice(caret),
