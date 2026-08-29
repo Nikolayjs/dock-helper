@@ -3,7 +3,7 @@ import { IconChevronRight, IconNotes } from '@tabler/icons-react';
 
 import { useIncrementalList } from '../../lib/useIncrementalList';
 import classes from '../drugs/DrugList.module.css';
-import type { Icd10ListRow } from './types';
+import type { Icd10Row } from './types';
 
 /**
  * Классификация на узком экране.
@@ -15,8 +15,8 @@ import type { Icd10ListRow } from './types';
  * Стили общие со справочником препаратов: это один и тот же список, и расходиться им незачем.
  */
 interface Props {
-  rows: Icd10ListRow[];
-  onOpen: (row: Icd10ListRow) => void;
+  rows: Icd10Row[];
+  onOpen: (row: Icd10Row) => void;
 }
 
 export function Icd10List({ rows, onOpen }: Props) {
@@ -26,20 +26,30 @@ export function Icd10List({ rows, onOpen }: Props) {
     <Stack gap={0}>
       {visible.map((row) => (
         <div key={row.code} className={classes.row}>
-          <UnstyledButton className={classes.main} onClick={() => onOpen(row)}>
+          <UnstyledButton className={classes.main} onClick={() => onOpen(row)} pl={row.depth === 0 ? 0 : 16}>
             <Group gap="xs" wrap="nowrap" align="center">
-              <Text fw={600} size="sm" ff="monospace" style={{ flexShrink: 0 }}>
+              <Text
+                fw={row.depth === 0 ? 600 : 400}
+                size="sm"
+                ff="monospace"
+                c={row.depth === 0 ? undefined : 'dimmed'}
+                style={{ flexShrink: 0 }}
+              >
                 {row.code}
               </Text>
-              <Text size="sm" lineClamp={2} style={{ flex: 1 }}>
+              <Text size="sm" lineClamp={2} style={{ flex: 1 }} c={row.depth === 0 ? undefined : 'dimmed'}>
                 {row.name}
               </Text>
               {row.hasNote && <IconNotes size={13} style={{ flexShrink: 0, opacity: 0.5 }} aria-label="Есть справка" />}
             </Group>
-            <Text size="xs" c="dimmed" lineClamp={1}>
-              {row.blockRange} · {row.blockName}
-              {row.children > 0 ? ` · подрубрик: ${row.children}` : ' · конечный код'}
-            </Text>
+            {/* У подрубрики блок тот же, что у рубрики строкой выше: повторять его — занимать
+                вторую строку тем, что уже прочитано. */}
+            {row.depth === 0 ? (
+              <Text size="xs" c="dimmed" lineClamp={1}>
+                {row.blockRange} · {row.blockName}
+                {row.children > 0 ? ` · подрубрик: ${row.children}` : ' · конечный код'}
+              </Text>
+            ) : null}
           </UnstyledButton>
           <IconChevronRight size={16} className={classes.chevron} />
         </div>

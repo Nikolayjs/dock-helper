@@ -4,14 +4,14 @@ import { IconNotes } from '@tabler/icons-react';
 import { DataTable } from '../../components/common/DataTable';
 import type { DataColumn } from '../../components/common/DataTable';
 import type { SortState, SortValue } from '../../lib/tableSort';
-import type { Icd10ListRow } from './types';
+import type { Icd10Row } from './types';
 
 /**
- * Оглавление классификации, по рубрике на строку.
+ * Классификация целиком: рубрики и их подрубрики.
  *
- * Показываются трёхзначные рубрики, а не все 14 641 код: подрубрики отличаются локализацией или
- * уточнением и читаются на карточке своей рубрики, где видны рядом друг с другом. Найти конкретную
- * подрубрику поиск позволяет и так — он ищет по всем кодам.
+ * Подрубрика отличается от рубрики отступом и приглушённым кодом, а не отдельным столбцом: столбец
+ * «уровень» занял бы место и потребовал бы читать его, тогда как отступ читается сам. Идёт она
+ * всегда следом за своей рубрикой — при любой сортировке.
  */
 export type Icd10SortKey = 'code' | 'name' | 'chapter' | 'block' | 'children';
 
@@ -24,7 +24,7 @@ const ROMAN_ORDER = new Map(
   ),
 );
 
-export function icd10SortValue(row: Icd10ListRow, key: Icd10SortKey): SortValue {
+export function icd10SortValue(row: Icd10Row, key: Icd10SortKey): SortValue {
   switch (key) {
     case 'code':
       return row.code;
@@ -40,20 +40,26 @@ export function icd10SortValue(row: Icd10ListRow, key: Icd10SortKey): SortValue 
 }
 
 interface Icd10TableProps {
-  rows: Icd10ListRow[];
+  rows: Icd10Row[];
   sort: SortState<Icd10SortKey>;
   onSort: (key: Icd10SortKey) => void;
-  onOpen: (row: Icd10ListRow) => void;
+  onOpen: (row: Icd10Row) => void;
 }
 
 export function Icd10Table({ rows, sort, onSort, onOpen }: Icd10TableProps) {
-  const columns: DataColumn<Icd10ListRow, Icd10SortKey>[] = [
+  const columns: DataColumn<Icd10Row, Icd10SortKey>[] = [
     {
       key: 'code',
       header: 'Код',
-      w: 96,
+      w: 128,
       render: (row) => (
-        <Text fw={600} size="sm" ff="monospace">
+        <Text
+          fw={row.depth === 0 ? 600 : 400}
+          size="sm"
+          ff="monospace"
+          c={row.depth === 0 ? undefined : 'dimmed'}
+          pl={row.depth === 0 ? 0 : 20}
+        >
           {row.code}
         </Text>
       ),
@@ -63,8 +69,8 @@ export function Icd10Table({ rows, sort, onSort, onOpen }: Icd10TableProps) {
       header: 'Наименование',
       miw: 320,
       render: (row) => (
-        <Group gap={8} wrap="nowrap">
-          <Text size="sm" lineClamp={2}>
+        <Group gap={8} wrap="nowrap" pl={row.depth === 0 ? 0 : 20}>
+          <Text size="sm" lineClamp={2} c={row.depth === 0 ? undefined : 'dimmed'}>
             {row.name}
           </Text>
           {/* Отметка о справке — единственное, что отличает строки друг от друга по содержанию,
@@ -75,41 +81,47 @@ export function Icd10Table({ rows, sort, onSort, onOpen }: Icd10TableProps) {
         </Group>
       ),
     },
+    // Класс и блок у подрубрики те же, что у её рубрики строкой выше — а она всегда строкой выше,
+    // при любой сортировке. Повторять их на каждой из 12 587 подрубрик значило бы заполнить
+    // половину таблицы уже прочитанным.
     {
       key: 'chapter',
       header: 'Класс',
       w: 88,
-      render: (row) => (
-        <Badge variant="light" color="gray" size="sm" tt="none">
-          {row.chapter}
-        </Badge>
-      ),
+      render: (row) =>
+        row.depth === 0 ? (
+          <Badge variant="light" color="gray" size="sm" tt="none">
+            {row.chapter}
+          </Badge>
+        ) : null,
     },
     {
       key: 'block',
       header: 'Блок',
       miw: 240,
-      render: (row) => (
-        <>
-          <Text size="sm" ff="monospace">
-            {row.blockRange}
-          </Text>
-          <Text size="xs" c="dimmed" lineClamp={1}>
-            {row.blockName}
-          </Text>
-        </>
-      ),
+      render: (row) =>
+        row.depth === 0 ? (
+          <>
+            <Text size="sm" ff="monospace">
+              {row.blockRange}
+            </Text>
+            <Text size="xs" c="dimmed" lineClamp={1}>
+              {row.blockName}
+            </Text>
+          </>
+        ) : null,
     },
     {
       key: 'children',
       header: 'Подрубрик',
       w: 120,
+      // Столбец отвечает на вопрос «можно ли ставить этот код в диагноз»: рубрика с подрубриками
+      // нельзя, без них — можно. У подрубрики ответ всегда «можно», и повторять это 12 587 раз
+      // значило бы забить столбец одним словом; что строка — подрубрика, видно по отступу.
       render: (row) =>
-        row.children > 0 ? (
+        row.depth === 1 ? null : row.children > 0 ? (
           <Text size="sm">{row.children}</Text>
         ) : (
-          // Ноль подрубрик означает, что рубрика сама и есть конечный код: это не пустота,
-          // а важный факт при выборе кода для диагноза.
           <Text size="sm" c="dimmed">
             конечный
           </Text>
