@@ -37,6 +37,7 @@ export function InteractionsCheck() {
   const [entered, setEntered] = useState<string[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [ruleSearch, setRuleSearch] = useState('');
+  const [drugSearch, setDrugSearch] = useState('');
   // Рамка со списком правил: она же граница видимости для дозагрузки по прокрутке.
   const [ruleBox, setRuleBox] = useState<HTMLDivElement | null>(null);
 
@@ -70,6 +71,16 @@ export function InteractionsCheck() {
   const shared = useMemo(() => findSharedComponents(entered, index), [entered, index]);
 
   const innOptions = useMemo(() => drugs.map((drug) => drug.inn).sort((a, b) => a.localeCompare(b, 'ru')), [drugs]);
+
+  // Пока не набрано ни буквы, подсказывать нечего: полторы тысячи названий по алфавиту начинаются
+  // с «Абаджио» и «Авамиса», к которым врач не имеет никакого отношения. Пустой список Mantine не
+  // показывает вовсе (`hiddenWhenEmpty` у выпадающего списка) — а как только буква набрана,
+  // подсказка работает как обычно. Гасить её через `openOnFocus={false}` нельзя: набор текста
+  // список **не** открывает, и подсказки не было бы вообще никогда.
+  const drugSuggestions = useMemo(
+    () => (drugSearch.trim() ? knownDrugNames : []),
+    [drugSearch, knownDrugNames],
+  );
 
   const handleDelete = (id: string) => {
     const interaction = interactions.find((item) => item.id === id);
@@ -107,15 +118,12 @@ export function InteractionsCheck() {
             <Skeleton h={36} radius="md" />
           ) : (
             <>
-              {/* Список не открывается по одному щелчку в поле: в справочнике полторы тысячи
-                  названий, и первые двадцать по алфавиту («Абаджио», «Авамис»…) не имеют никакого
-                  отношения к тому, что врач собирается набрать. Подсказка появляется, когда есть
-                  что подсказывать, — то есть с первой буквы. */}
               <TagsInput
                 placeholder="Название с упаковки или МНН — «Нурофен» тоже подойдёт…"
-                data={knownDrugNames}
+                data={drugSuggestions}
                 limit={20}
-                openOnFocus={false}
+                searchValue={drugSearch}
+                onSearchChange={setDrugSearch}
                 value={entered}
                 onChange={setEntered}
                 clearable
@@ -125,20 +133,11 @@ export function InteractionsCheck() {
           )}
         </Card>
 
-        {entered.length < 2 ? (
-          <Card withBorder padding="xl">
-            <Stack align="center" gap="sm" py="lg">
-              <ThemeIcon size={48} radius="xl" variant="light" color="gray">
-                <IconPills size={24} />
-              </ThemeIcon>
-              <Text fw={600}>Добавьте минимум два препарата</Text>
-              <Text size="sm" c="dimmed" ta="center" maw={460}>
-                Взаимодействия проверяются попарно между всеми препаратами в списке выше. Можно вводить торговые
-                названия — они распознаются по справочнику препаратов.
-              </Text>
-            </Stack>
-          </Card>
-        ) : (
+        {/* Пустого состояния «добавьте минимум два препарата» здесь нет: под полем ввода и так
+            лежит весь список правил, и плита во весь экран только отодвигала его вниз. Что
+            проверяется попарно и что торговые названия распознаются, написано в самом поле и в
+            предупреждении сверху. */}
+        {entered.length >= 2 && (
           <Stack gap="sm">
             <SharedComponents shared={shared} />
 
