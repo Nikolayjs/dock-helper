@@ -37,7 +37,6 @@ import { ArticleViewPage } from './pages/ArticleViewPage';
 import { ArticleEditorPage } from './pages/ArticleEditorPage';
 import { AnalyzerPage } from './pages/AnalyzerPage';
 import { AnalyzerBuilderPage } from './pages/AnalyzerBuilderPage';
-import { InteractionsPage } from './pages/InteractionsPage';
 import { DrugsPage } from './pages/DrugsPage';
 import { DrugViewPage } from './pages/DrugViewPage';
 import { DrugEditorPage } from './pages/DrugEditorPage';
@@ -79,7 +78,19 @@ export const router = createBrowserRouter(
         <Route path="/analyzer" element={<AnalyzerPage />} />
         <Route path="/analyzer/new" element={<AnalyzerBuilderPage />} />
         <Route path="/analyzer/:id/edit" element={<AnalyzerBuilderPage />} />
-        <Route path="/interactions" element={<InteractionsPage />} />
+        {/* Раздел переехал во вкладку справочника. Строка запроса сохраняется: карточка препарата
+            ведёт сюда с `?drugs=<МНН>`, и без него проверка открылась бы пустой. */}
+        <Route
+          path="/interactions"
+          element={
+            <RedirectTo
+              build={(_params, search) => {
+                search.set('tab', 'interactions');
+                return withSearch('/drugs', search);
+              }}
+            />
+          }
+        />
         <Route path="/drugs" element={<DrugsPage />} />
         <Route path="/drugs/new" element={<DrugEditorPage />} />
         <Route path="/drugs/:id" element={<DrugViewPage />} />

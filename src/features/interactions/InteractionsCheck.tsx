@@ -6,7 +6,6 @@ import {
   Badge,
   Button,
   Card,
-  Container,
   Group,
   Modal,
   Skeleton,
@@ -17,19 +16,19 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
-import { IconAlertTriangle, IconArrowRight, IconInfoCircle, IconPill, IconPills, IconSearch, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowRight, IconInfoCircle, IconPills, IconSearch, IconSettings, IconTrash } from '@tabler/icons-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
-import { useDrugs } from '../features/drugs/useDrugs';
-import { useIncrementalList } from '../lib/useIncrementalList';
-import { buildDrugIndex, checkInteractions, getKnownDrugNames, resolveEnteredDrugs } from '../features/interactions/interactionEngine';
-import type { ResolvedDrug } from '../features/interactions/interactionEngine';
-import { SEVERITY_COLOR, SEVERITY_LABELS } from '../features/interactions/types';
-import { InteractionForm } from '../features/interactions/InteractionForm';
-import { QUERY_KEY as INTERACTIONS_KEY, useDrugInteractions } from '../features/interactions/useDrugInteractions';
-import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { useDrugs } from '../drugs/useDrugs';
+import { useIncrementalList } from '../../lib/useIncrementalList';
+import { buildDrugIndex, checkInteractions, findSharedComponents, getKnownDrugNames, resolveEnteredDrugs } from './interactionEngine';
+import type { ResolvedDrug, SharedComponent } from './interactionEngine';
+import { SEVERITY_COLOR, SEVERITY_LABELS } from './types';
+import { InteractionForm } from './InteractionForm';
+import { QUERY_KEY as INTERACTIONS_KEY, useDrugInteractions } from './useDrugInteractions';
+import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 
-export function InteractionsPage() {
+export function InteractionsCheck() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { interactions, isLoading, addInteraction, deleteInteraction } = useDrugInteractions();
@@ -66,6 +65,7 @@ export function InteractionsPage() {
   const knownDrugNames = useMemo(() => getKnownDrugNames(drugs, interactions), [drugs, interactions]);
   const resolved = useMemo(() => resolveEnteredDrugs(entered, index), [entered, index]);
   const matches = useMemo(() => checkInteractions(entered, interactions, index), [entered, interactions, index]);
+  const shared = useMemo(() => findSharedComponents(entered, index), [entered, index]);
 
   const innOptions = useMemo(() => drugs.map((drug) => drug.inn).sort((a, b) => a.localeCompare(b, 'ru')), [drugs]);
 
@@ -82,7 +82,7 @@ export function InteractionsPage() {
   };
 
   return (
-    <Container size="lg" px={0}>
+    <>
       <Stack gap="lg">
         <Alert variant="light" color="yellow" icon={<IconInfoCircle size={18} />} title="Не заменяет клиническое суждение">
           Проверка охватывает ограниченный набор хорошо известных взаимодействий, а не полную фармакологическую базу.
@@ -99,16 +99,6 @@ export function InteractionsPage() {
               <Title order={4}>Препараты пациента</Title>
             </Group>
             <Group gap="xs" wrap="wrap">
-              <Button
-                component={Link}
-                to="/drugs"
-                variant="light"
-                color="gray"
-                size="xs"
-                leftSection={<IconPill size={14} />}
-              >
-                Справочник препаратов
-              </Button>
               <Button variant="light" color="gray" size="xs" leftSection={<IconSettings size={14} />} onClick={() => setManageOpen(true)}>
                 Управление списком
               </Button>
@@ -145,14 +135,18 @@ export function InteractionsPage() {
               </Text>
             </Stack>
           </Card>
-        ) : matches.length === 0 ? (
-          <Alert variant="light" color="teal" icon={<IconInfoCircle size={18} />} title="Известных взаимодействий не найдено">
-            Среди введённых препаратов нет пар из текущего списка проверки. Это не означает полную безопасность
-            комбинации — см. предупреждение выше.
-          </Alert>
         ) : (
           <Stack gap="sm">
-            {matches.map(({ interaction, a, b }) => (
+            <SharedComponents shared={shared} />
+
+            {matches.length === 0 && (
+              <Alert variant="light" color="teal" icon={<IconInfoCircle size={18} />} title="Парных взаимодействий не найдено">
+                Среди введённых препаратов нет пар из текущего списка проверки. Это не означает полную
+                безопасность комбинации — см. предупреждение вверху страницы.
+              </Alert>
+            )}
+
+            {matches.map(({ interaction, a, b, viaA, viaB }) => (
               <Alert
                 key={interaction.id}
                 variant="light"
@@ -161,7 +155,7 @@ export function InteractionsPage() {
                 title={
                   <Group gap={8} wrap="wrap">
                     <Text fw={600} span>
-                      {pairTitle(a, b)}
+                      {pairTitle(a, b, viaA, viaB)}
                     </Text>
                     <Badge size="sm" color={SEVERITY_COLOR[interaction.severity]} variant="filled">
                       {SEVERITY_LABELS[interaction.severity]}
@@ -252,18 +246,76 @@ export function InteractionsPage() {
           </Stack>
         </Stack>
       </Modal>
-    </Container>
+    </>
   );
 }
 
 /** «Нурофен (Ибупрофен) + Варфарин» — echo back what was typed, name what it was understood as. */
-function pairTitle(a: ResolvedDrug, b: ResolvedDrug): string {
-  return `${sideLabel(a)} + ${sideLabel(b)}`;
+function pairTitle(a: ResolvedDrug, b: ResolvedDrug, viaA?: string, viaB?: string): string {
+  return `${sideLabel(a, viaA)} + ${sideLabel(b, viaB)}`;
 }
 
-function sideLabel(side: ResolvedDrug): string {
+/**
+ * Сработавший компонент важнее полного состава комбинации.
+ *
+ * У «Ибуклина» МНН — «Ибупрофен/парацетамол», и подпись «Ибуклин (Ибупрофен/парацетамол)» не
+ * отвечает на вопрос, который у врача возникает первым: при чём тут варфарин. «Ибуклин (в составе
+ * ибупрофен)» отвечает — и заодно показывает, что предупреждение пришло от состава, а не от
+ * правила, написанного на саму комбинацию.
+ *
+ * Формулировка именительная, и это не придирка: названия склоняются по-разному («по ибупрофену», но
+ * «по ацетилсалициловой кислоте»), а склонять их в коде нечем.
+ */
+function sideLabel(side: ResolvedDrug, via?: string): string {
+  const name = side.viaBrandName || !side.drug ? side.entered : side.drug.inn;
+  if (via) return `${name} (в составе ${via.toLowerCase()})`;
   if (side.viaBrandName && side.drug) return `${side.entered} (${side.drug.inn})`;
   return side.drug?.inn ?? side.entered;
+}
+
+/**
+ * Одно и то же вещество в двух препаратах списка — удвоение дозы, а не взаимодействие.
+ *
+ * Отдельным блоком, а не среди правил, и это осознанно: у остальных предупреждений есть правило с
+ * механизмом и рекомендацией, а здесь правила нет и придумывать его нечем. Показывается выше
+ * взаимодействий — сложенная доза парацетамола опаснее большинства пар в списке и при этом не
+ * видна вовсе: обе упаковки приняты строго по инструкции.
+ */
+function SharedComponents({ shared }: { shared: SharedComponent[] }) {
+  if (shared.length === 0) return null;
+  return (
+    <>
+      {shared.map((item) => (
+        <Alert
+          key={item.component}
+          variant="light"
+          color="orange"
+          icon={<IconAlertTriangle size={18} />}
+          title={
+            <Group gap={8} wrap="wrap">
+              <Text fw={600} span>
+                {item.component} — в нескольких препаратах сразу
+              </Text>
+              <Badge size="sm" color="orange" variant="filled">
+                удвоение дозы
+              </Badge>
+            </Group>
+          }
+        >
+          <Stack gap={4}>
+            <Text size="sm">
+              Это вещество входит в состав сразу нескольких препаратов списка:{' '}
+              {item.drugs.map((drug) => drug.entered).join(', ')}. Суточная доза складывается, хотя каждая
+              упаковка принимается по инструкции.
+            </Text>
+            <Text size="sm" fw={500}>
+              Рекомендация: сложить суточные дозы и оставить один источник вещества.
+            </Text>
+          </Stack>
+        </Alert>
+      ))}
+    </>
+  );
 }
 
 /**

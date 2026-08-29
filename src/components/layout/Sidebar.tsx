@@ -34,7 +34,6 @@ import {
   IconNews,
   IconNotes,
   IconPill,
-  IconPills,
   IconUsers,
   IconZoomQuestion,
 } from "@tabler/icons-react";
@@ -57,7 +56,6 @@ const mainNav: NavItemData[] = [
   { label: "Анализы", path: "/analyzer", icon: IconMicroscope },
   { label: "Калькуляторы", path: "/calculators", icon: IconCalculator },
   { label: "Лекарственные препараты", path: "/drugs", icon: IconPill },
-  { label: "Взаимодействия", path: "/interactions", icon: IconPills },
   { label: "Планер", path: "/planner", icon: IconLayoutKanban },
   { label: "Заметки", path: "/notes", icon: IconNotes },
   { label: "Календарь", path: "/calendar", icon: IconCalendarStats },

@@ -192,7 +192,7 @@ function InteractionsSection({
             size="xs"
             variant="light"
             leftSection={<IconTestPipe size={14} />}
-            onClick={() => navigate(`/interactions?drugs=${encodeURIComponent(drug.inn)}`)}
+            onClick={() => navigate(`/drugs?tab=interactions&drugs=${encodeURIComponent(drug.inn)}`)}
           >
             Проверить с другими препаратами
           </Button>

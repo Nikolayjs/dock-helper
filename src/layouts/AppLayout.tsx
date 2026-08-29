@@ -22,11 +22,10 @@ interface PageMetaEntry {
 const PAGE_META: PageMetaEntry[] = [
   { match: (p) => p.startsWith('/dashboard'), title: 'Дашборд', subtitle: 'Обзор рабочего дня' },
   { match: (p) => p.startsWith('/analyzer'), title: 'Интерпретатор анализов', subtitle: 'ОАК, ОАМ и биохимия крови' },
-  { match: (p) => p === '/interactions', title: 'Проверка взаимодействий', subtitle: 'Ограниченный набор известных лекарственных взаимодействий' },
   {
     match: (p) => p === '/drugs',
     title: 'Лекарственные препараты',
-    subtitle: 'Справочник МНН, торговых названий и дозирования',
+    subtitle: 'Справочник МНН и торговых названий, рядом — проверка взаимодействий',
   },
   { match: (p) => p === '/drugs/new', title: 'Новый препарат' },
   { match: (p) => p.startsWith('/drugs/') && p.endsWith('/edit'), title: 'Редактирование препарата' },
