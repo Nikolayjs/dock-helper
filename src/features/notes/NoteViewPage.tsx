@@ -8,6 +8,7 @@ import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { BackButton } from '../../components/common/BackButton';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
 import { labelForPath, readFrom } from '../../lib/backTarget';
+import { SafeHtml } from '../../components/common/SafeHtml';
 
 export function NoteViewPage() {
   const { id } = useParams();
@@ -85,7 +86,7 @@ export function NoteViewPage() {
 
           {note.kind === 'note' ? (
             <Typography mt="lg">
-              <div dangerouslySetInnerHTML={{ __html: note.content }} />
+              <SafeHtml html={note.content} />
             </Typography>
           ) : (
             <Stack gap="md" mt="lg">

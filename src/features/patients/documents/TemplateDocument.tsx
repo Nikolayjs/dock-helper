@@ -7,8 +7,9 @@ import { DocumentLetterhead } from './DocumentLetterhead';
 import { DocumentSignature } from './DocumentSignature';
 import { LayoutSheet } from './LayoutSheet';
 import { copiesPerSheet } from './layoutTypes';
-import { substitutePlaceholders } from './templateTypes';
+import { substitutePlaceholdersHtml, substitutePlaceholdersText } from './templateTypes';
 import type { DocumentTemplate } from './templateTypes';
+import { SafeHtml } from '../../../components/common/SafeHtml';
 
 interface TemplateDocumentProps {
   template: DocumentTemplate;
@@ -35,18 +36,18 @@ export function TemplateDocument({ template, patient, visit, copiesOverride }: T
       <LayoutSheet
         layout={template.layout}
         copies={copiesOverride ?? copiesPerSheet(template.layout)}
-        resolveText={(text) => substitutePlaceholders(text, context)}
+        resolveText={(text) => substitutePlaceholdersText(text, context)}
       />
     );
   }
 
-  const html = substitutePlaceholders(template.bodyHtml, context);
+  const html = substitutePlaceholdersHtml(template.bodyHtml, context);
 
   return (
     <div>
       <DocumentLetterhead />
       <Typography>
-        <div dangerouslySetInnerHTML={{ __html: html }} />
+        <SafeHtml html={html} />
       </Typography>
       <DocumentSignature />
     </div>

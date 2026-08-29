@@ -4,6 +4,7 @@ import type { ClinicSettings } from '../clinicSettings';
 import { REFERRAL_CATEGORY_LABELS } from '../referralUtils';
 import type { Patient, PatientVisit } from '../types';
 import type { DocumentTemplateKind, TemplateLayout } from './layoutTypes';
+import { escapeHtml } from '../../../lib/escapeHtml';
 
 export interface DocumentTemplate {
   id: string;
@@ -89,6 +90,26 @@ export const PLACEHOLDERS: PlaceholderDef[] = [
   { token: '{{issueDate}}', label: 'Дата выдачи (сегодня)', resolve: () => dayjs().format('D MMMM YYYY') },
 ];
 
-export function substitutePlaceholders(html: string, ctx: TemplateContext): string {
-  return PLACEHOLDERS.reduce((result, placeholder) => result.split(placeholder.token).join(placeholder.resolve(ctx)), html);
+/**
+ * Подстановка в **текст** — там, где результат рисуется React'ом как обычная строка.
+ *
+ * Так печатаются блоки бланка-скана: экранировать здесь нельзя, иначе фамилия «Иванов <b>» вышла бы
+ * на бумагу с буквальными `&lt;`.
+ */
+export function substitutePlaceholdersText(text: string, ctx: TemplateContext): string {
+  return PLACEHOLDERS.reduce((result, placeholder) => result.split(placeholder.token).join(placeholder.resolve(ctx)), text);
+}
+
+/**
+ * Подстановка в **разметку** бланка: значения экранируются.
+ *
+ * Фамилия, диагноз, направление и реквизиты клиники — это текст, который врач набрал в поле формы,
+ * а результат уходит в разметку страницы. Символ `<` в фамилии ломал печатную справку молча: часть
+ * документа переставала печататься, а причина видна только в исходном коде страницы.
+ */
+export function substitutePlaceholdersHtml(html: string, ctx: TemplateContext): string {
+  return PLACEHOLDERS.reduce(
+    (result, placeholder) => result.split(placeholder.token).join(escapeHtml(placeholder.resolve(ctx))),
+    html,
+  );
 }

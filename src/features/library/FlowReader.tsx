@@ -6,6 +6,7 @@ import './flowReader.css';
 import { SCROLL_ROOT_ID } from '../../components/layout/scrollRoot';
 import { ToolbarSlot } from './ReaderBar';
 import { READER_FONT_SCALE_MAX, READER_FONT_SCALE_MIN, getReaderFontScale, setReaderFontScale } from './readerPrefs';
+import { SafeHtml } from '../../components/common/SafeHtml';
 
 const BASE_FONT_SIZE = 16;
 /** Сколько кадров ждать, пока разметка книги уляжется и появится куда прокручивать. */
@@ -158,7 +159,7 @@ function FlowReaderView({
           fontSize: BASE_FONT_SIZE * fontScale,
         }}
       >
-        <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+        <SafeHtml html={bodyHtml} />
       </div>
     </Stack>
   );

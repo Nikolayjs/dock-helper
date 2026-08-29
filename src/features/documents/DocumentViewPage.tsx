@@ -14,6 +14,7 @@ import { KIND_LABEL } from './types';
 import { QUERY_KEY, useDoctorDocuments } from './useDoctorDocuments';
 import { BackButton } from '../../components/common/BackButton';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
+import { SafeHtml } from '../../components/common/SafeHtml';
 
 export function DocumentViewPage() {
   const { id } = useParams();
@@ -140,7 +141,7 @@ export function DocumentViewPage() {
             <SheetTable sheet={doc.sheet} />
           ) : (
             <Typography>
-              <div dangerouslySetInnerHTML={{ __html: doc.content }} />
+              <SafeHtml html={doc.content} />
             </Typography>
           )}
         </ReadingSheet>

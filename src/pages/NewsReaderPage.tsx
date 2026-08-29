@@ -8,6 +8,7 @@ import { useDocuments } from '../features/knowledgeBase/useDocuments';
 import { useArticleFullText } from '../features/newsFeed/useArticleFullText';
 import './articleContent.css';
 import { BackButton } from '../components/common/BackButton';
+import { SafeHtml } from '../components/common/SafeHtml';
 
 const SUMMARY_MAX_LENGTH = 200;
 
@@ -130,7 +131,7 @@ export function NewsReaderPage() {
 
         {!isLoading && article && !showSourceFrame && (
           <>
-            <div className="article-content" dangerouslySetInnerHTML={{ __html: article.contentHtml }} />
+            <SafeHtml className="article-content" html={article.contentHtml} />
             <Button variant="subtle" color="gray" size="xs" mt="md" onClick={() => setShowSourceFrame(true)}>
               Показать оригинал страницы вместо извлечённого текста
             </Button>

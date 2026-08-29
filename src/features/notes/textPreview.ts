@@ -1,5 +1,16 @@
+/**
+ * Текст заметки без разметки — для превью в списке.
+ *
+ * Разбирается `DOMParser`, а не присвоением `innerHTML` созданному узлу. Разница не косметическая:
+ * присвоение запускает у элементов загрузку ресурсов и обработчики `onerror` — то есть выполняет
+ * чужую разметку ради того, чтобы показать три строки в списке. `DOMParser` строит отдельный,
+ * неактивный документ: он ничего не грузит и ничего не выполняет.
+ *
+ * Закрывающие теги блоков заменяются на себя же плюс перевод строки — иначе «Осмотр» и «Жалобы»,
+ * стоящие в соседних абзацах, склеились бы в «ОсмотрЖалобы».
+ */
 export function stripHtml(html: string): string {
-  const container = document.createElement('div');
-  container.innerHTML = html.replace(/<\/(p|div|li|h[1-6]|blockquote|tr)>|<br\s*\/?>/gi, '$&\n');
-  return (container.textContent ?? '').replace(/\s+/g, ' ').trim();
+  const withBreaks = html.replace(/<\/(p|div|li|h[1-6]|blockquote|tr)>|<br\s*\/?>/gi, '$&\n');
+  const parsed = new DOMParser().parseFromString(withBreaks, 'text/html');
+  return (parsed.body.textContent ?? '').replace(/\s+/g, ' ').trim();
 }

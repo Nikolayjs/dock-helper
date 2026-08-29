@@ -5,6 +5,11 @@
  * anything unrecognized just falls through to its rendered children.
  */
 
+import { escapeHtml } from '../../lib/escapeHtml';
+
+/** Что FB2 разрешено объявлять картинкой. SVG сюда не входит: это документ, а не растр. */
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp']);
+
 export interface Fb2Content {
   title: string;
   author: string;
@@ -33,10 +38,6 @@ function getHref(el: Element): string | null {
     el.getAttribute('l:href') ||
     el.getAttribute('href')
   );
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function authorName(authorEl: Element | null): string {
@@ -97,7 +98,9 @@ function renderBlock(el: Element, binaries: Map<string, string>, depth: number):
     case 'image': {
       const href = getHref(el);
       const src = href ? binaries.get(href.replace(/^#/, '')) : undefined;
-      return src ? `<img class="fb2-image" src="${src}" alt="" />` : '';
+      // Экранирование обязательно: `src` собран из содержимого чужого файла, и кавычка в нём
+      // вырвала бы значение из атрибута. Тип картинки к этому моменту уже проверен по списку.
+      return src ? `<img class="fb2-image" src="${escapeHtml(src)}" alt="" />` : '';
     }
     case 'section':
       return `<section class="fb2-section">${renderChildren(el, binaries, depth + 1)}</section>`;
@@ -133,8 +136,12 @@ export function parseFb2(xmlText: string): Fb2Content {
   const binaries = new Map<string, string>();
   doc.querySelectorAll('binary').forEach((bin) => {
     const id = bin.getAttribute('id');
-    const contentType = bin.getAttribute('content-type') || 'image/jpeg';
-    const base64 = (bin.textContent ?? '').replace(/\s+/g, '');
+    // Тип берётся из чужого файла и уходит прямо в `data:`-адрес. Поэтому он не подставляется, а
+    // **выбирается** из списка: всё незнакомое читается как JPEG. SVG в списке нет намеренно —
+    // это документ со своими скриптами, а не картинка.
+    const declared = (bin.getAttribute('content-type') || '').trim().toLowerCase();
+    const contentType = IMAGE_TYPES.has(declared) ? declared : 'image/jpeg';
+    const base64 = (bin.textContent ?? '').replace(/\s+/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
     if (id && base64) binaries.set(id, `data:${contentType};base64,${base64}`);
   });
 

@@ -11,6 +11,7 @@ import { useAllDocuments, useDocuments, useKnowledgeDocument } from './useDocume
 import { renderWikiLinks } from './wikiLinks';
 import { BackButton } from '../../components/common/BackButton';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
+import { SafeHtml } from '../../components/common/SafeHtml';
 
 interface KnowledgeViewPageProps {
   kind: KnowledgeKind;
@@ -115,8 +116,9 @@ export function KnowledgeViewPage({ kind, basePath, notFoundText, backLabel, del
             </Group>
           ) : (
             <Typography>
+              {/* Переход по ссылке `[[Название]]` ловится на обёртке, а не на самой ссылке: разметку
+                  рисует `SafeHtml`, и обработчика внутри неё нет. */}
               <div
-                dangerouslySetInnerHTML={{ __html: renderWikiLinks(full.content, allDocuments) }}
                 onClick={(e) => {
                   const link = (e.target as HTMLElement).closest('[data-doc-link]');
                   const href = link?.getAttribute('href');
@@ -125,7 +127,9 @@ export function KnowledgeViewPage({ kind, basePath, notFoundText, backLabel, del
                     navigate(href);
                   }
                 }}
-              />
+              >
+                <SafeHtml html={renderWikiLinks(full.content, allDocuments)} />
+              </div>
             </Typography>
           )}
         </ReadingSheet>
