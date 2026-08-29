@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { ActionIcon, Group, Stack } from '@mantine/core';
 import { IconMinus, IconPlus } from '@tabler/icons-react';
 
@@ -40,7 +40,7 @@ interface FlowReaderProps {
  * Собственная прокрутка остаётся только в полноэкранном режиме: там страницы приложения нет,
  * элемент читалки показывается браузером поверх всего, и прокручивать, кроме него, нечего.
  */
-export function FlowReader({
+function FlowReaderView({
   bodyHtml,
   contentClassName,
   initialProgress = 0,
@@ -163,3 +163,14 @@ export function FlowReader({
     </Stack>
   );
 }
+
+/**
+ * Мемоизация здесь — не микрооптимизация, а условие плавной прокрутки.
+ *
+ * Страница читалки перерисовывается на каждую смену доли прочитанного и на каждое появление панели.
+ * Само по себе это копейки, но вместе с перерисовкой заново собирается и эта коробка — а внутри неё
+ * книга в семнадцать тысяч узлов. Замер на книге высотой 300 000 px: кадр, в котором сменилась
+ * подпись, стоил около 300 мс — ровно то «зависание в какой-то момент прокрутки», о котором пришла
+ * жалоба. Пропсы у читалки не меняются, поэтому её просто не нужно трогать.
+ */
+export const FlowReader = memo(FlowReaderView);

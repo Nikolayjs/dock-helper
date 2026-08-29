@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActionIcon, Button, Center, Container, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import { IconArrowsMaximize, IconArrowsMinimize } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
@@ -75,6 +75,14 @@ export function BookReaderPage() {
     // (у оболочки Mantine остаётся несколько своих пикселей — замер: 12 на 1400 и 44 на 390).
     // Поэтому следующим кадром высота подрезается ровно на то, что фактически не поместилось.
     // Подрезка сходится за один шаг: как только страница перестала прокручиваться, вычитать нечего.
+    //
+    // **Следить за размером области прокрутки при этом нельзя, и это была настоящая ошибка.**
+    // Пока высота не подрезана, страница переполнена — значит у неё есть полоса прокрутки, а полоса
+    // сужает область на свою ширину. `ResizeObserver` на этой области будил замер, замер возвращал
+    // высоту к неподрезанной оценке, переполнение появлялось снова — и так каждый кадр: дрожало всё,
+    // включая шапку, потому что прокрутка страницы прыгала между нулём и переполнением. В headless
+    // этого не видно вовсе: там полоса накладная и ширины не отнимает (о том же предупреждает
+    // раздел про жёлоб полосы в `CLAUDE.md`). Поэтому замер повторяется только по `resize`.
     const trim = () => {
       const root = document.getElementById(SCROLL_ROOT_ID);
       if (!root) return;
@@ -92,11 +100,8 @@ export function BookReaderPage() {
 
     remeasure();
     window.addEventListener('resize', remeasure);
-    const observer = new ResizeObserver(remeasure);
-    observer.observe(document.getElementById(SCROLL_ROOT_ID) ?? document.documentElement);
     return () => {
       window.removeEventListener('resize', remeasure);
-      observer.disconnect();
       cancelAnimationFrame(frame);
     };
   }, [stage, barHeight]);
@@ -198,6 +203,18 @@ export function BookReaderPage() {
       updateProgress(book.id, location);
     }, SAVE_DEBOUNCE_MS);
   };
+
+  // Обработчик отдаётся мемоизированной читалке и потому обязан быть постоянным; всё, что в нём
+  // меняется от рендера к рендеру, читается из ссылки. Ссылка обновляется в `useLayoutEffect`, а не
+  // в рендере: рендер в React 19 может быть отброшен.
+  const progressHandlerRef = useRef(handleProgress);
+  useLayoutEffect(() => {
+    progressHandlerRef.current = handleProgress;
+  });
+  const handleFlowProgress = useCallback((fraction: number) => {
+    progressHandlerRef.current(fraction);
+    setPositionLabel(`Прочитано ${Math.round(fraction * 100)} %`);
+  }, []);
 
   if (!book) {
     return (
@@ -310,10 +327,7 @@ export function BookReaderPage() {
                 initialProgress={book.progress?.location ?? 0}
                 immersive={immersive}
                 toolbarSlot={toolbarSlot}
-                onProgressChange={(fraction) => {
-                  handleProgress(fraction);
-                  setPositionLabel(`Прочитано ${Math.round(fraction * 100)} %`);
-                }}
+                onProgressChange={handleFlowProgress}
               />
             </ReadingSheet>
           </Container>
