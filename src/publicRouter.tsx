@@ -1,10 +1,28 @@
-import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { Loader, Stack } from '@mantine/core';
+import { createBrowserRouter, createRoutesFromElements, Outlet, Route, RouterProvider } from 'react-router-dom';
 
-import { LandingPage } from './pages/LandingPage';
-import { LegalPage } from './pages/legal/LegalPage';
-import { LoginPage } from './pages/LoginPage';
-import { PricingPage } from './pages/PricingPage';
-import { PublicNotFoundPage } from './pages/PublicNotFoundPage';
+// Each public page in its own chunk: a visitor reading the landing should not download the login
+// form's inputs, and someone following a link straight to /login should not download the landing.
+const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
+const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
+const PricingPage = lazy(() => import('./pages/PricingPage').then((m) => ({ default: m.PricingPage })));
+const LegalPage = lazy(() => import('./pages/legal/LegalPage').then((m) => ({ default: m.LegalPage })));
+const PublicNotFoundPage = lazy(() => import('./pages/PublicNotFoundPage').then((m) => ({ default: m.PublicNotFoundPage })));
+
+function PublicRoot() {
+  return (
+    <Suspense
+      fallback={
+        <Stack align="center" justify="center" mih="100vh">
+          <Loader />
+        </Stack>
+      }
+    >
+      <Outlet />
+    </Suspense>
+  );
+}
 
 /**
  * The public site: everything a visitor can see without a session.
@@ -19,7 +37,7 @@ import { PublicNotFoundPage } from './pages/PublicNotFoundPage';
  */
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route>
+    <Route element={<PublicRoot />}>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/pricing" element={<PricingPage />} />

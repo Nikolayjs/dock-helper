@@ -2,10 +2,8 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { createHttpRepository } from '../../lib/httpRepository';
-import { extractDjvuMeta } from './djvuMeta';
 import { decodeFb2Text, parseFb2 } from './fb2';
 import { fetchBookFile, updateBookProgress, uploadBook } from './libraryApi';
-import { extractPdfMeta } from './pdfMeta';
 import { readDocx } from '../../lib/docx/readDocx';
 import { LEGACY_DOC_MESSAGE } from '../../lib/docx/wordFormat';
 import type { Book, BookFormat, BookMetaInput } from './types';
@@ -58,6 +56,11 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
   }
 
   if (format === 'djvu') {
+    // Разборщики PDF и DjVu подключаются здесь, а не сверху файла, и это не стиль, а вес: pdf.js
+    // — 94 КБ gzip, и статический импорт тянул его в каждый экран, который спрашивает список книг.
+    // Полка начатых книг стоит на дашборде, то есть pdf.js грузился при каждом входе в приложение,
+    // тогда как нужен он ровно в одну секунду — когда врач загружает книгу.
+    const { extractDjvuMeta } = await import('./djvuMeta');
     const meta = await extractDjvuMeta(buffer);
     return {
       title: fallbackTitle,
@@ -68,6 +71,7 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
     };
   }
 
+  const { extractPdfMeta } = await import('./pdfMeta');
   const meta = await extractPdfMeta(buffer);
   return {
     title: meta.title || fallbackTitle,

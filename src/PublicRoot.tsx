@@ -1,5 +1,9 @@
 import { MantineProvider } from '@mantine/core';
 
+import './publicStyles';
+// После Mantine: наш файл перекрывает её правила (фон `body`).
+import './publicBase.css';
+
 import { PublicRouter } from './publicRouter';
 import { theme } from './theme';
 

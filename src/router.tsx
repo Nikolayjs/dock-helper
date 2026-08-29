@@ -1,55 +1,77 @@
+import { lazy, Suspense } from 'react';
+import type { ComponentType } from 'react';
+import { Loader, Stack } from '@mantine/core';
 import { createBrowserRouter, createRoutesFromElements, Navigate, Outlet, Route, RouterProvider } from 'react-router-dom';
 
 import { APP_BASE } from './lib/appBase';
 import { RequireAuth } from './routes/RequireAuth';
 import { DeleteConfirmProvider } from './features/deletion/DeleteConfirmProvider';
 import { AppLayout } from './layouts/AppLayout';
-import { DashboardPage } from './pages/DashboardPage';
-import { DoctorPage } from './pages/DoctorPage';
-import { CalculatorsPage } from './pages/CalculatorsPage';
-import { CalculatorRunPage } from './pages/CalculatorRunPage';
-import { CalculatorBuilderPage } from './pages/CalculatorBuilderPage';
-import { NotesPage } from './pages/NotesPage';
-import { NoteViewPage } from './pages/NoteViewPage';
-import { NoteEditorPage } from './pages/NoteEditorPage';
-import { CalendarPage } from './pages/CalendarPage';
-import { PatientsPage } from './pages/PatientsPage';
-import { PatientViewPage } from './pages/PatientViewPage';
-import { PatientEditorPage } from './pages/PatientEditorPage';
-import { DispensaryViewPage } from './pages/DispensaryViewPage';
-import { PrintableDocumentPage } from './pages/PrintableDocumentPage';
-import { DocumentsPage } from './pages/DocumentsPage';
-import { DocumentViewPage } from './pages/DocumentViewPage';
-import { DocumentEditorPage } from './pages/DocumentEditorPage';
+
 import { RedirectTo, withSearch } from './pages/RedirectTo';
-import { DocumentTemplateEditorPage } from './pages/DocumentTemplateEditorPage';
-import { ScanTemplatePage } from './pages/ScanTemplatePage';
-import { DispensaryEditorPage } from './pages/DispensaryEditorPage';
-import { DispensaryStatsPage } from './pages/DispensaryStatsPage';
-import { GuidelinesPage } from './pages/GuidelinesPage';
-import { KnowledgeGraphPage } from './pages/KnowledgeGraphPage';
-import { KnowledgeTagPage } from './pages/KnowledgeTagPage';
-import { GuidelineViewPage } from './pages/GuidelineViewPage';
-import { GuidelineEditorPage } from './pages/GuidelineEditorPage';
-import { QuestionnairesPage } from './pages/QuestionnairesPage';
-import { QuestionnaireViewPage } from './pages/QuestionnaireViewPage';
-import { QuestionnaireBuilderPage } from './pages/QuestionnaireBuilderPage';
-import { ArticlesPage } from './pages/ArticlesPage';
-import { ArticleViewPage } from './pages/ArticleViewPage';
-import { ArticleEditorPage } from './pages/ArticleEditorPage';
-import { AnalyzerPage } from './pages/AnalyzerPage';
-import { AnalyzerBuilderPage } from './pages/AnalyzerBuilderPage';
-import { DrugsPage } from './pages/DrugsPage';
-import { DrugViewPage } from './pages/DrugViewPage';
-import { DrugEditorPage } from './pages/DrugEditorPage';
-import { PlannerPage } from './pages/PlannerPage';
-import { LibraryPage } from './pages/LibraryPage';
-import { BookViewPage } from './pages/BookViewPage';
-import { BookReaderPage } from './pages/BookReaderPage';
-import { ComingSoonPage } from './pages/ComingSoonPage';
-import { NewsPage } from './pages/NewsPage';
-import { NewsReaderPage } from './pages/NewsReaderPage';
-import { NotFoundPage } from './pages/NotFoundPage';
+
+/**
+ * Every page behind its own dynamic import.
+ *
+ * Without this the application is one chunk: opening the dashboard downloaded the Word editor, the
+ * PDF reader and the knowledge graph's force layout, none of which that screen uses. Pages export
+ * a named component rather than a default one, so the module is unwrapped here instead of at each
+ * of the sixty call sites.
+ */
+// Страницы принимают разные пропсы (у `ComingSoonPage` есть `title`), и общий тип здесь — вся
+// суть помощника: он про то, как достать компонент из модуля, а не про то, что тот принимает.
+// oxlint-disable-next-line typescript/no-explicit-any
+type PageComponent = ComponentType<any>;
+
+function lazyPage<M extends Record<string, PageComponent>, K extends keyof M>(load: () => Promise<M>, name: K) {
+  return lazy(async () => ({ default: (await load())[name] }));
+}
+
+const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage');
+const DoctorPage = lazyPage(() => import('./pages/DoctorPage'), 'DoctorPage');
+const CalculatorsPage = lazyPage(() => import('./pages/CalculatorsPage'), 'CalculatorsPage');
+const CalculatorRunPage = lazyPage(() => import('./pages/CalculatorRunPage'), 'CalculatorRunPage');
+const CalculatorBuilderPage = lazyPage(() => import('./pages/CalculatorBuilderPage'), 'CalculatorBuilderPage');
+const NotesPage = lazyPage(() => import('./pages/NotesPage'), 'NotesPage');
+const NoteViewPage = lazyPage(() => import('./pages/NoteViewPage'), 'NoteViewPage');
+const NoteEditorPage = lazyPage(() => import('./pages/NoteEditorPage'), 'NoteEditorPage');
+const CalendarPage = lazyPage(() => import('./pages/CalendarPage'), 'CalendarPage');
+const PatientsPage = lazyPage(() => import('./pages/PatientsPage'), 'PatientsPage');
+const PatientViewPage = lazyPage(() => import('./pages/PatientViewPage'), 'PatientViewPage');
+const PatientEditorPage = lazyPage(() => import('./pages/PatientEditorPage'), 'PatientEditorPage');
+const DispensaryViewPage = lazyPage(() => import('./pages/DispensaryViewPage'), 'DispensaryViewPage');
+const PrintableDocumentPage = lazyPage(() => import('./pages/PrintableDocumentPage'), 'PrintableDocumentPage');
+const DocumentsPage = lazyPage(() => import('./pages/DocumentsPage'), 'DocumentsPage');
+const DocumentViewPage = lazyPage(() => import('./pages/DocumentViewPage'), 'DocumentViewPage');
+const DocumentEditorPage = lazyPage(() => import('./pages/DocumentEditorPage'), 'DocumentEditorPage');
+const DocumentTemplateEditorPage = lazyPage(() => import('./pages/DocumentTemplateEditorPage'), 'DocumentTemplateEditorPage');
+const ScanTemplatePage = lazyPage(() => import('./pages/ScanTemplatePage'), 'ScanTemplatePage');
+const DispensaryEditorPage = lazyPage(() => import('./pages/DispensaryEditorPage'), 'DispensaryEditorPage');
+const DispensaryStatsPage = lazyPage(() => import('./pages/DispensaryStatsPage'), 'DispensaryStatsPage');
+const GuidelinesPage = lazyPage(() => import('./pages/GuidelinesPage'), 'GuidelinesPage');
+const KnowledgeGraphPage = lazyPage(() => import('./pages/KnowledgeGraphPage'), 'KnowledgeGraphPage');
+const KnowledgeTagPage = lazyPage(() => import('./pages/KnowledgeTagPage'), 'KnowledgeTagPage');
+const GuidelineViewPage = lazyPage(() => import('./pages/GuidelineViewPage'), 'GuidelineViewPage');
+const GuidelineEditorPage = lazyPage(() => import('./pages/GuidelineEditorPage'), 'GuidelineEditorPage');
+const QuestionnairesPage = lazyPage(() => import('./pages/QuestionnairesPage'), 'QuestionnairesPage');
+const QuestionnaireViewPage = lazyPage(() => import('./pages/QuestionnaireViewPage'), 'QuestionnaireViewPage');
+const QuestionnaireBuilderPage = lazyPage(() => import('./pages/QuestionnaireBuilderPage'), 'QuestionnaireBuilderPage');
+const ArticlesPage = lazyPage(() => import('./pages/ArticlesPage'), 'ArticlesPage');
+const ArticleViewPage = lazyPage(() => import('./pages/ArticleViewPage'), 'ArticleViewPage');
+const ArticleEditorPage = lazyPage(() => import('./pages/ArticleEditorPage'), 'ArticleEditorPage');
+const AnalyzerPage = lazyPage(() => import('./pages/AnalyzerPage'), 'AnalyzerPage');
+const AnalyzerBuilderPage = lazyPage(() => import('./pages/AnalyzerBuilderPage'), 'AnalyzerBuilderPage');
+const DrugsPage = lazyPage(() => import('./pages/DrugsPage'), 'DrugsPage');
+const DrugViewPage = lazyPage(() => import('./pages/DrugViewPage'), 'DrugViewPage');
+const DrugEditorPage = lazyPage(() => import('./pages/DrugEditorPage'), 'DrugEditorPage');
+const PlannerPage = lazyPage(() => import('./pages/PlannerPage'), 'PlannerPage');
+const LibraryPage = lazyPage(() => import('./pages/LibraryPage'), 'LibraryPage');
+const BookViewPage = lazyPage(() => import('./pages/BookViewPage'), 'BookViewPage');
+const BookReaderPage = lazyPage(() => import('./pages/BookReaderPage'), 'BookReaderPage');
+const ComingSoonPage = lazyPage(() => import('./pages/ComingSoonPage'), 'ComingSoonPage');
+const NewsPage = lazyPage(() => import('./pages/NewsPage'), 'NewsPage');
+const NewsReaderPage = lazyPage(() => import('./pages/NewsReaderPage'), 'NewsReaderPage');
+const NotFoundPage = lazyPage(() => import('./pages/NotFoundPage'), 'NotFoundPage');
 
 /**
  * Общее для всех маршрутов, чему нужен сам роутер.
@@ -60,7 +82,17 @@ import { NotFoundPage } from './pages/NotFoundPage';
 function RouterRoot() {
   return (
     <DeleteConfirmProvider>
-      <Outlet />
+      {/* Одна заглушка на все страницы: разделение по чанкам — свойство сборки, а не поведение
+          экрана, и своё ожидание каждой странице придумывать незачем. */}
+      <Suspense
+        fallback={
+          <Stack align="center" justify="center" mih="60vh">
+            <Loader />
+          </Stack>
+        }
+      >
+        <Outlet />
+      </Suspense>
     </DeleteConfirmProvider>
   );
 }

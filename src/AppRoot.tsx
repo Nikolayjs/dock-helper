@@ -5,10 +5,13 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ru';
 
+import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/charts/styles.css';
 import '@mantine/tiptap/styles.css';
+// Наш файл — последним: он перекрывает переменные Mantine (карточка, поле ввода, подкраска обоями).
+import './index.css';
 
 import { AppearanceProvider, useAppearance } from './features/appearance/AppearanceProvider';
 import { AuthProvider } from './features/auth/AuthContext';
