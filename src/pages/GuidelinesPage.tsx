@@ -1,8 +1,7 @@
 import { Container } from '@mantine/core';
-import { IconBook2 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
-import { KnowledgeGrid } from '../features/knowledgeBase/KnowledgeGrid';
+import { GuidelinesCatalog } from '../features/knowledgeBase/GuidelinesCatalog';
 import type { KnowledgeDocument } from '../features/knowledgeBase/types';
 import { QUERY_KEY as KNOWLEDGE_KEY, useDocuments } from '../features/knowledgeBase/useDocuments';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
@@ -24,13 +23,8 @@ export function GuidelinesPage() {
 
   return (
     <Container size="xl" px={0}>
-      <KnowledgeGrid
+      <GuidelinesCatalog
         documents={documents}
-        icon={IconBook2}
-        addLabel="Добавить рекомендацию"
-        emptyTitle="Пока нет клинических рекомендаций"
-        emptyText="Добавьте протокол, чек-лист или конспект рекомендаций с форматированным текстом."
-        searchPlaceholder="Поиск по рекомендациям…"
         onAdd={() => navigate('/guidelines/new')}
         onOpen={(doc) => navigate(`/guidelines/${doc.id}`)}
         onEdit={(doc) => navigate(`/guidelines/${doc.id}/edit`)}
