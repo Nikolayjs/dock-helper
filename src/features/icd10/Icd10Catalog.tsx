@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Alert, Badge, Card, Group, Select, Stack, Switch, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Alert, Card, Group, Select, Stack, Switch, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconInfoCircle, IconListSearch, IconSearch } from '@tabler/icons-react';
+import { IconInfoCircle, IconListSearch, IconSearch, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { QueryState } from '../../components/common/QueryState';
@@ -132,17 +132,31 @@ export function Icd10Catalog() {
                 ? `Рубрик: ${rows.length}`
                 : `Найдено рубрик: ${sorted.length} из ${rows.length}`}
             </Text>
-            {sorted.length === 0 && rows.length > 0 && (
-              <Badge variant="light" color="gray" size="sm" tt="none">
-                под условия ничего не подходит
-              </Badge>
-            )}
           </Group>
 
-          {isNarrow ? (
-            <Icd10List rows={sorted} onOpen={open} />
+          {/* Таблица лежит на сплошной подложке, как справочник препаратов: под обоями строки без
+              неё читаются прямо по фотографии. `padding={0}` — таблица сама держит свои отступы. */}
+          {sorted.length === 0 ? (
+            <Card withBorder padding="xl">
+              <Stack align="center" gap="sm" py="xl">
+                <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+                  <IconX size={24} />
+                </ThemeIcon>
+                <Text fw={600}>Ничего не найдено</Text>
+                <Text size="sm" c="dimmed" ta="center" maw={420}>
+                  Под выбранные условия не подходит ни одна рубрика. Попробуйте изменить запрос,
+                  снять фильтр по классу или выключить «Только со справкой».
+                </Text>
+              </Stack>
+            </Card>
           ) : (
-            <Icd10Table rows={sorted} sort={sort} onSort={toggle} onOpen={open} />
+            <Card withBorder padding={0}>
+              {isNarrow ? (
+                <Icd10List rows={sorted} onOpen={open} />
+              ) : (
+                <Icd10Table rows={sorted} sort={sort} onSort={toggle} onOpen={open} />
+              )}
+            </Card>
           )}
         </>
       </QueryState>
