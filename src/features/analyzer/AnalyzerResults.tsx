@@ -46,6 +46,16 @@ export function AnalyzerResults({ result }: AnalyzerResultsProps) {
 
   return (
     <Stack gap="lg">
+      {/* По каким нормам считали. Молчать здесь нельзя: норма, взятая не для того возраста, — это
+          неверный ответ, который выглядит как верный. */}
+      {result.ageNote && (
+        <Alert variant="light" color="gray" icon={<IconInfoCircle size={18} />}>
+          {result.ageNote.kind === 'assumed'
+            ? `Возраст не указан — нормы взяты для взрослого ${result.ageNote.assumedAge} лет. Укажите возраст, если пациент ребёнок или подросток.`
+            : `Возраст ${result.ageNote.age} лет не попадает ни в одну возрастную норму этого анализатора — взята ближайшая.`}
+        </Alert>
+      )}
+
       {result.matchedPatterns.length > 0 && (
         <Stack gap="sm">
           <Title order={5}>Возможные состояния</Title>

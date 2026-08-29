@@ -1,4 +1,4 @@
-import { getParamRange } from './types';
+import { DEFAULT_ADULT_AGE, getParamRange, hasAgeBands, isAgeWithinBands } from './types';
 import type { LabParameter, LabTestDefinition, ParamStatus, PatternRule, Sex } from './types';
 
 export interface ParamDeviation {
@@ -14,6 +14,13 @@ export interface AnalysisResult {
   deviations: ParamDeviation[];
   matchedPatterns: PatternRule[];
   enteredCount: number;
+  /**
+   * Чем нормы отличаются от заявленных, если отличаются.
+   *
+   * Показывается врачу. Норма, взятая не для того возраста, — это неверный ответ, который выглядит
+   * как верный: у ребёнка и у взрослого расходятся и гемоглобин, и лейкоциты, и щелочная фосфатаза.
+   */
+  ageNote?: { kind: 'assumed'; assumedAge: number } | { kind: 'outside'; age: number };
 }
 
 function getStatus(value: number, range: { min?: number; max?: number }): ParamStatus {
@@ -50,13 +57,34 @@ export function analyzeTest(
     evaluate(param, value);
   }
 
-  // Derived params are computed after all directly entered values are known.
-  for (const param of test.parameters) {
-    if (param.inputType !== 'derived' || !param.derive) continue;
-    evaluate(param, param.derive(numericValues));
+  // Производные считаются после прямых — и по кругу, пока появляются новые значения.
+  //
+  // Одного прохода мало: производное от производного посчиталось бы, только если стоит в списке
+  // ниже своего источника, и молча не посчиталось бы иначе. Кругов не больше, чем параметров, —
+  // на взаимной ссылке двух показателей друг на друга это останавливается, а не висит.
+  const derived = test.parameters.filter((param) => param.inputType === 'derived' && param.derive);
+  for (let round = 0; round < derived.length; round++) {
+    const before = Object.keys(numericValues).length;
+    for (const param of derived) {
+      if (param.key in numericValues) continue;
+      evaluate(param, param.derive!(numericValues));
+    }
+    if (Object.keys(numericValues).length === before) break;
   }
 
   const matchedPatterns = test.patterns.filter((pattern) => pattern.match(statuses, numericValues));
+
+  // О подстановке говорится только тогда, когда она на что-то влияет: если ни один заполненный
+  // показатель не зависит от возраста, сообщение было бы шумом.
+  const ageDependent = test.parameters.filter((param) => hasAgeBands(param) && param.key in numericValues);
+  const ageNote: AnalysisResult['ageNote'] =
+    ageDependent.length === 0
+      ? undefined
+      : age === undefined
+        ? { kind: 'assumed', assumedAge: DEFAULT_ADULT_AGE }
+        : ageDependent.every((param) => isAgeWithinBands(param, age))
+          ? undefined
+          : { kind: 'outside', age };
 
   return {
     statuses,
@@ -64,5 +92,6 @@ export function analyzeTest(
     deviations,
     matchedPatterns,
     enteredCount,
+    ageNote,
   };
 }

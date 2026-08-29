@@ -168,7 +168,12 @@ export interface LabTestDraft {
 
 function evalPatternNode(node: PatternNode, statuses: Record<string, ParamStatus>): boolean {
   if (node.type === 'condition') {
-    const result = statuses[node.paramKey] === node.status;
+    // Незаполненный показатель не выполняет условие ни в каком виде, **в том числе с отрицанием**.
+    // Иначе «гемоглобин не в норме» срабатывало на анализе, где гемоглобина нет вовсе: отсутствие
+    // значения — это не состояние, и вывод о нём был бы выводом ни из чего.
+    const actual = statuses[node.paramKey];
+    if (actual === undefined) return false;
+    const result = actual === node.status;
     return node.negate ? !result : result;
   }
   return node.operator === 'and'
