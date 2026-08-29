@@ -39,7 +39,7 @@ function deleteObservation(recordId: string, observationId: string): Promise<voi
 
 export function useDispensary() {
   const queryClient = useQueryClient();
-  const { data: records = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: records = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const addRecordMutation = useMutation({
@@ -87,6 +87,8 @@ export function useDispensary() {
   return {
     records,
     isLoading,
+    error,
+    refetch,
     addRecord: addRecordMutation.mutateAsync,
     updateRecord: (id: string, input: DispensaryRecordInput) => updateRecordMutation.mutateAsync({ id, input }),
     deleteRecord: deleteRecordMutation.mutateAsync,

@@ -8,11 +8,12 @@ import { stripHtml } from '../features/notes/textPreview';
 import type { Note, NoteKind } from '../features/notes/types';
 import { QUERY_KEY as NOTES_KEY, useNotes } from '../features/notes/useNotes';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { QueryState } from '../components/common/QueryState';
 
 type KindFilter = 'all' | NoteKind;
 
 export function NotesPage() {
-  const { notes, deleteNote, toggleTodoItem } = useNotes();
+  const { notes, deleteNote, toggleTodoItem, isLoading, error, refetch } = useNotes();
   const confirmDelete = useDeleteWithConfirm();
   const navigate = useNavigate();
 
@@ -76,32 +77,34 @@ export function NotesPage() {
           </Group>
         </Group>
 
-        {sorted.length === 0 ? (
-          <Card withBorder padding="xl">
-            <Stack align="center" gap="sm" py="xl">
-              <ThemeIcon size={48} radius="xl" variant="light" color="gray">
-                <IconNotes size={24} />
-              </ThemeIcon>
-              <Text fw={600}>Пока нет заметок</Text>
-              <Text size="sm" c="dimmed">
-                Создайте заметку или чек-лист — при желании закрепите её за датой.
-              </Text>
-            </Stack>
-          </Card>
-        ) : (
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-            {sorted.map((note) => (
-              <NoteCard
-                key={note.id}
-                note={note}
-                onOpen={() => navigate(`/notes/${note.id}`)}
-                onEdit={() => navigate(`/notes/${note.id}/edit`)}
-                onDelete={() => handleDelete(note)}
-                onToggleItem={(itemId) => toggleTodoItem(note.id, itemId)}
-              />
-            ))}
-          </SimpleGrid>
-        )}
+        <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="заметки">
+          {sorted.length === 0 ? (
+            <Card withBorder padding="xl">
+              <Stack align="center" gap="sm" py="xl">
+                <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+                  <IconNotes size={24} />
+                </ThemeIcon>
+                <Text fw={600}>Пока нет заметок</Text>
+                <Text size="sm" c="dimmed">
+                  Создайте заметку или чек-лист — при желании закрепите её за датой.
+                </Text>
+              </Stack>
+            </Card>
+          ) : (
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+              {sorted.map((note) => (
+                <NoteCard
+                  key={note.id}
+                  note={note}
+                  onOpen={() => navigate(`/notes/${note.id}`)}
+                  onEdit={() => navigate(`/notes/${note.id}/edit`)}
+                  onDelete={() => handleDelete(note)}
+                  onToggleItem={(itemId) => toggleTodoItem(note.id, itemId)}
+                />
+              ))}
+            </SimpleGrid>
+          )}
+        </QueryState>
       </Stack>
     </Container>
   );

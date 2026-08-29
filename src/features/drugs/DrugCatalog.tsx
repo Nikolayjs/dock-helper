@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
-import { Alert, Button, Card, Group, Select, Skeleton, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Alert, Button, Card, Group, Select, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconCategory, IconInfoCircle, IconPill, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,12 +13,13 @@ import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { sortRows, useTableSort } from '../../lib/tableSort';
 import { buildDrugIndex, drugCategoryCounts, drugMatchesQuery, normalizeDrugName, resolveDrug } from './drugIndex';
 import { useDrugInteractions } from '../interactions/useDrugInteractions';
+import { QueryState } from '../../components/common/QueryState';
 
 const ALL_CATEGORIES = '__all__';
 
 export function DrugCatalog() {
   const navigate = useNavigate();
-  const { drugs, isLoading, deleteDrug } = useDrugs();
+  const { drugs, isLoading, error, refetch, deleteDrug } = useDrugs();
   const confirmDelete = useDeleteWithConfirm();
   const { interactions } = useDrugInteractions();
   const [search, setSearch] = useState('');
@@ -139,50 +140,46 @@ export function DrugCatalog() {
           </Group>
         </Group>
 
-        {isLoading ? (
-          <Stack gap="xs">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} h={44} radius="sm" />
-            ))}
-          </Stack>
-        ) : filtered.length === 0 ? (
-          <Card withBorder padding="xl">
-            <Stack align="center" gap="sm" py="xl">
-              <ThemeIcon size={48} radius="xl" variant="light" color="gray">
-                {isFiltering ? <IconX size={24} /> : <IconPill size={24} />}
-              </ThemeIcon>
-              <Text fw={600}>{isFiltering ? 'Ничего не найдено' : 'Справочник пуст'}</Text>
-              <Text size="sm" c="dimmed" ta="center" maw={420}>
-                {isFiltering
-                  ? 'Попробуйте изменить запрос или снять фильтр по разделу.'
-                  : 'Добавьте препараты, которые назначаете чаще всего — вместе с торговыми названиями, под которыми их знают пациенты.'}
-              </Text>
-            </Stack>
-          </Card>
-        ) : (
-          <Card withBorder padding={0}>
-            {isNarrow ? (
-              <DrugList
-                drugs={sorted}
-                interactionCounts={interactionCounts}
-                normalizeInn={normalizeDrugName}
-                onOpen={(drug) => navigate(`/drugs/${drug.id}`)}
-                onEdit={(drug) => navigate(`/drugs/${drug.id}/edit`)}
-              />
-            ) : (
-              <DrugTable
-                drugs={sorted}
-                interactionCounts={interactionCounts}
-                normalizeInn={normalizeDrugName}
-                sort={sort}
-                onSort={toggle}
-                onOpen={(drug) => navigate(`/drugs/${drug.id}`)}
-                onEdit={(drug) => navigate(`/drugs/${drug.id}/edit`)}
-                onDelete={handleDelete}
-              />
-            )}
-          </Card>
-        )}
+        <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="справочник">
+          {filtered.length === 0 ? (
+            <Card withBorder padding="xl">
+              <Stack align="center" gap="sm" py="xl">
+                <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+                  {isFiltering ? <IconX size={24} /> : <IconPill size={24} />}
+                </ThemeIcon>
+                <Text fw={600}>{isFiltering ? 'Ничего не найдено' : 'Справочник пуст'}</Text>
+                <Text size="sm" c="dimmed" ta="center" maw={420}>
+                  {isFiltering
+                    ? 'Попробуйте изменить запрос или снять фильтр по разделу.'
+                    : 'Добавьте препараты, которые назначаете чаще всего — вместе с торговыми названиями, под которыми их знают пациенты.'}
+                </Text>
+              </Stack>
+            </Card>
+          ) : (
+            <Card withBorder padding={0}>
+              {isNarrow ? (
+                <DrugList
+                  drugs={sorted}
+                  interactionCounts={interactionCounts}
+                  normalizeInn={normalizeDrugName}
+                  onOpen={(drug) => navigate(`/drugs/${drug.id}`)}
+                  onEdit={(drug) => navigate(`/drugs/${drug.id}/edit`)}
+                />
+              ) : (
+                <DrugTable
+                  drugs={sorted}
+                  interactionCounts={interactionCounts}
+                  normalizeInn={normalizeDrugName}
+                  sort={sort}
+                  onSort={toggle}
+                  onOpen={(drug) => navigate(`/drugs/${drug.id}`)}
+                  onEdit={(drug) => navigate(`/drugs/${drug.id}/edit`)}
+                  onDelete={handleDelete}
+                />
+              )}
+            </Card>
+          )}
+        </QueryState>
       </Stack>
 
       <DrugCategoriesModal

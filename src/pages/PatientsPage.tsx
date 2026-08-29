@@ -16,6 +16,7 @@ import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from '../features/patients
 import { QUERY_KEY as PATIENTS_KEY, usePatients } from '../features/patients/usePatients';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { observationsWarning, visitsWarning } from '../features/patients/deleteWarnings';
+import { QueryState } from '../components/common/QueryState';
 
 const DISCLAIMER_KEY = 'medassist:patients-disclaimer-dismissed';
 
@@ -23,8 +24,8 @@ type PatientsTab = 'all' | 'dispensary';
 type DispensaryFilter = 'active' | 'all';
 
 export function PatientsPage() {
-  const { patients, deletePatient, importPatients } = usePatients();
-  const { records, deleteRecord } = useDispensary();
+  const { patients, deletePatient, importPatients, isLoading: patientsLoading, error: patientsError, refetch: refetchPatients } = usePatients();
+  const { records, deleteRecord, isLoading: recordsLoading, error: recordsError, refetch: refetchRecords } = useDispensary();
   const confirmDelete = useDeleteWithConfirm();
   const navigate = useNavigate();
   const [tab, setTab] = useState<PatientsTab>('all');
@@ -146,11 +147,15 @@ export function PatientsPage() {
               <Text c="dimmed" size="sm">
                 {/* Shows the narrowed count as well as the total, so an unexpectedly short list is
                     explained by the toolbar rather than looking like missing data. */}
-                {patients.length === 0
-                  ? 'Пока нет пациентов'
-                  : sorted.length === patients.length
-                    ? `${patients.length} пациентов в списке`
-                    : `Показано ${sorted.length} из ${patients.length}`}
+                {/* Пока список не загрузился, счётчик молчит: «Пока нет пациентов» при оборванном
+                    запросе — утверждение о чужих данных, которого никто не проверял. */}
+                {patientsLoading || patientsError
+                  ? ''
+                  : patients.length === 0
+                    ? 'Пока нет пациентов'
+                    : sorted.length === patients.length
+                      ? `${patients.length} пациентов в списке`
+                      : `Показано ${sorted.length} из ${patients.length}`}
               </Text>
               <Group gap="sm" wrap="wrap">
                 <TextInput
@@ -194,32 +199,34 @@ export function PatientsPage() {
               </Card>
             </Collapse>
 
-            {sorted.length === 0 ? (
-              <Card withBorder padding="xl">
-                <Stack align="center" gap="sm" py="xl">
-                  <ThemeIcon size={48} radius="xl" variant="light" color="gray">
-                    {search.trim() ? <IconX size={24} /> : <IconUsers size={24} />}
-                  </ThemeIcon>
-                  <Text fw={600}>{search.trim() ? 'Ничего не найдено' : 'Пока нет пациентов'}</Text>
-                  <Text size="sm" c="dimmed" ta="center" maw={360}>
-                    {search.trim()
-                      ? 'Попробуйте изменить запрос.'
-                      : 'Добавьте пациента, чтобы вести историю визитов, диагнозы и короткие заметки.'}
-                  </Text>
-                </Stack>
-              </Card>
-            ) : (
-              <Card withBorder padding={0}>
-                <PatientTable
-                  patients={sorted}
-                  sort={patientSort.sort}
-                  onSort={patientSort.toggle}
-                  onOpen={(patient) => navigate(`/patients/${patient.id}`)}
-                  onEdit={(patient) => navigate(`/patients/${patient.id}/edit`)}
-                  onDelete={handleDelete}
-                />
-              </Card>
-            )}
+            <QueryState isLoading={patientsLoading} error={patientsError} onRetry={refetchPatients} what="пациентов">
+              {sorted.length === 0 ? (
+                <Card withBorder padding="xl">
+                  <Stack align="center" gap="sm" py="xl">
+                    <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+                      {search.trim() ? <IconX size={24} /> : <IconUsers size={24} />}
+                    </ThemeIcon>
+                    <Text fw={600}>{search.trim() ? 'Ничего не найдено' : 'Пока нет пациентов'}</Text>
+                    <Text size="sm" c="dimmed" ta="center" maw={360}>
+                      {search.trim()
+                        ? 'Попробуйте изменить запрос.'
+                        : 'Добавьте пациента, чтобы вести историю визитов, диагнозы и короткие заметки.'}
+                    </Text>
+                  </Stack>
+                </Card>
+              ) : (
+                <Card withBorder padding={0}>
+                  <PatientTable
+                    patients={sorted}
+                    sort={patientSort.sort}
+                    onSort={patientSort.toggle}
+                    onOpen={(patient) => navigate(`/patients/${patient.id}`)}
+                    onEdit={(patient) => navigate(`/patients/${patient.id}/edit`)}
+                    onDelete={handleDelete}
+                  />
+                </Card>
+              )}
+            </QueryState>
           </>
         ) : (
           <>
@@ -242,32 +249,34 @@ export function PatientsPage() {
               </Group>
             </Group>
 
-            {sortedRecords.length === 0 ? (
-              <Card withBorder padding="xl">
-                <Stack align="center" gap="sm" py="xl">
-                  <ThemeIcon size={48} radius="xl" variant="light" color="gray">
-                    <IconClipboardHeart size={24} />
-                  </ThemeIcon>
-                  <Text fw={600}>{dispensaryFilter === 'active' ? 'Нет активных карт учёта' : 'Пока нет диспансерных карт'}</Text>
-                  <Text size="sm" c="dimmed" ta="center" maw={360}>
-                    Поставьте пациента на диспансерный учёт, чтобы вести отдельную карту с диагнозом и датами осмотров.
-                  </Text>
-                </Stack>
-              </Card>
-            ) : (
-              <Card withBorder padding={0}>
-                <DispensaryTable
-                  records={sortedRecords}
-                  patientsById={patientsById}
-                  sort={dispensarySort.sort}
-                  onSort={dispensarySort.toggle}
-                  icdNames={icdNames}
-                  onOpen={(record) => navigate(`/patients/dispensary/${record.id}`)}
-                  onEdit={(record) => navigate(`/patients/dispensary/${record.id}/edit`)}
-                  onDelete={handleDeleteRecord}
-                />
-              </Card>
-            )}
+            <QueryState isLoading={recordsLoading} error={recordsError} onRetry={refetchRecords} what="карты учёта">
+              {sortedRecords.length === 0 ? (
+                <Card withBorder padding="xl">
+                  <Stack align="center" gap="sm" py="xl">
+                    <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+                      <IconClipboardHeart size={24} />
+                    </ThemeIcon>
+                    <Text fw={600}>{dispensaryFilter === 'active' ? 'Нет активных карт учёта' : 'Пока нет диспансерных карт'}</Text>
+                    <Text size="sm" c="dimmed" ta="center" maw={360}>
+                      Поставьте пациента на диспансерный учёт, чтобы вести отдельную карту с диагнозом и датами осмотров.
+                    </Text>
+                  </Stack>
+                </Card>
+              ) : (
+                <Card withBorder padding={0}>
+                  <DispensaryTable
+                    records={sortedRecords}
+                    patientsById={patientsById}
+                    sort={dispensarySort.sort}
+                    onSort={dispensarySort.toggle}
+                    icdNames={icdNames}
+                    onOpen={(record) => navigate(`/patients/dispensary/${record.id}`)}
+                    onEdit={(record) => navigate(`/patients/dispensary/${record.id}/edit`)}
+                    onDelete={handleDeleteRecord}
+                  />
+                </Card>
+              )}
+            </QueryState>
           </>
         )}
       </Stack>

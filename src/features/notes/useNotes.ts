@@ -16,7 +16,7 @@ function toggleTodoItem(noteId: string, itemId: string): Promise<Note> {
 
 export function useNotes() {
   const queryClient = useQueryClient();
-  const { data: notes = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: notes = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const addNoteMutation = useMutation({
@@ -42,6 +42,8 @@ export function useNotes() {
   return {
     notes,
     isLoading,
+    error,
+    refetch,
     addNote: addNoteMutation.mutateAsync,
     updateNote: (id: string, input: NoteInput) => updateNoteMutation.mutateAsync({ id, input }),
     deleteNote: deleteNoteMutation.mutateAsync,

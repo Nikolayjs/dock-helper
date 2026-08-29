@@ -15,7 +15,7 @@ const repo = createHttpRepository<DoctorDocument, DoctorDocumentInput>('/documen
 
 export function useDoctorDocuments() {
   const queryClient = useQueryClient();
-  const { data: documents = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: documents = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const addMutation = useMutation({ mutationFn: (input: DoctorDocumentInput) => repo.create(input), onSuccess: invalidate });
@@ -28,6 +28,8 @@ export function useDoctorDocuments() {
   return {
     documents,
     isLoading,
+    error,
+    refetch,
     addDocument: addMutation.mutateAsync,
     updateDocument: (id: string, input: DoctorDocumentInput) => updateMutation.mutateAsync({ id, input }),
     deleteDocument: deleteMutation.mutateAsync,

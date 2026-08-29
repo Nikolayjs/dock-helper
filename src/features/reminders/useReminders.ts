@@ -12,7 +12,7 @@ const repo = createHttpRepository<Reminder, ReminderInput, Partial<ReminderInput
 
 export function useReminders() {
   const queryClient = useQueryClient();
-  const { data: reminders = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: reminders = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const addReminderMutation = useMutation({
@@ -38,6 +38,8 @@ export function useReminders() {
   return {
     reminders,
     isLoading,
+    error,
+    refetch,
     addReminder: addReminderMutation.mutateAsync,
     updateReminder: (id: string, input: ReminderInput) => updateReminderMutation.mutateAsync({ id, input }),
     deleteReminder: deleteReminderMutation.mutateAsync,

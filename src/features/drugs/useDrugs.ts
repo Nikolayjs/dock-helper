@@ -18,7 +18,7 @@ const repo = createHttpRepository<DrugSummary, DrugInput>('/drugs');
  */
 export function useDrugs() {
   const queryClient = useQueryClient();
-  const { data: drugs = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: drugs = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     // Правка карточки меняет и её отдельный кэш, а не только строку в списке.
@@ -35,6 +35,8 @@ export function useDrugs() {
   return {
     drugs,
     isLoading,
+    error,
+    refetch,
     createDrug: createMutation.mutateAsync,
     updateDrug: updateMutation.mutateAsync,
     deleteDrug: deleteMutation.mutateAsync,

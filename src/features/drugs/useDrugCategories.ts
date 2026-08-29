@@ -27,7 +27,7 @@ const repo = createHttpRepository<DrugCategory, { name: string; position?: numbe
  */
 export function useDrugCategories() {
   const queryClient = useQueryClient();
-  const { data: rows = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: rows = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
 
   const names = useMemo(
     () => [...rows].sort((a, b) => a.position - b.position).map((c) => c.name),
@@ -64,6 +64,8 @@ export function useDrugCategories() {
     categories: [...rows].sort((a, b) => a.position - b.position),
     names,
     isLoading,
+    error,
+    refetch,
     addCategory: addMutation.mutateAsync,
     renameCategory: renameMutation.mutateAsync,
     removeCategory: removeMutation.mutateAsync,

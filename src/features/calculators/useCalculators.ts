@@ -25,7 +25,7 @@ function setFavourite(id: string, favourite: boolean): Promise<CalculatorDefinit
 
 export function useCalculators() {
   const queryClient = useQueryClient();
-  const { data: calculators = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: calculators = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const addCalculatorMutation = useMutation({
@@ -56,6 +56,8 @@ export function useCalculators() {
   return {
     calculators,
     isLoading,
+    error,
+    refetch,
     addCalculator: addCalculatorMutation.mutateAsync,
     updateCalculator: updateCalculatorMutation.mutateAsync,
     deleteCalculator: deleteCalculatorMutation.mutateAsync,

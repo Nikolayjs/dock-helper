@@ -42,7 +42,7 @@ function deleteVisit(patientId: string, visitId: string): Promise<void> {
 
 export function usePatients() {
   const queryClient = useQueryClient();
-  const { data: patients = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: patients = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const addPatientMutation = useMutation({
@@ -84,6 +84,8 @@ export function usePatients() {
   return {
     patients,
     isLoading,
+    error,
+    refetch,
     addPatient: addPatientMutation.mutateAsync,
     importPatients: importPatientsMutation.mutateAsync,
     updatePatient: (id: string, input: PatientInput) => updatePatientMutation.mutateAsync({ id, input }),

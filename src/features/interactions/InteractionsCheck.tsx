@@ -27,11 +27,12 @@ import { SEVERITY_COLOR, SEVERITY_LABELS } from './types';
 import { InteractionForm } from './InteractionForm';
 import { QUERY_KEY as INTERACTIONS_KEY, useDrugInteractions } from './useDrugInteractions';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
+import { QueryState } from '../../components/common/QueryState';
 
 export function InteractionsCheck() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { interactions, isLoading, addInteraction, deleteInteraction } = useDrugInteractions();
+  const { interactions, isLoading, error, refetch, addInteraction, deleteInteraction } = useDrugInteractions();
   const confirmDelete = useDeleteWithConfirm();
   const { drugs, isLoading: drugsLoading } = useDrugs();
   const [entered, setEntered] = useState<string[]>([]);
@@ -223,39 +224,41 @@ export function InteractionsCheck() {
               собой саму проверку. Дозагрузка следит за меткой **внутри этой рамки** — наблюдатель,
               сравнивающий метку с окном, не увидел бы её никогда, потому что её обрезает край
               рамки. Ровно на этом «загружается ещё…» и висело, ничего не загружая. */}
-          <Stack gap="xs" mt="sm" mah={420} style={{ overflowY: 'auto' }} ref={setRuleBox}>
-            {matchedRules.length === 0 ? (
-              <Text size="sm" c="dimmed">
-                {interactions.length === 0 ? 'Список пуст.' : 'Ничего не найдено.'}
-              </Text>
-            ) : (
-              rules.visible.map((interaction) => (
-                <Group key={interaction.id} justify="space-between" wrap="nowrap" align="flex-start">
-                  <div style={{ minWidth: 0 }}>
-                    <Group gap={6} wrap="wrap">
-                      <Text size="sm" fw={500}>
-                        {interaction.drugA} + {interaction.drugB}
+          <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="правила взаимодействий">
+            <Stack gap="xs" mt="sm" mah={420} style={{ overflowY: 'auto' }} ref={setRuleBox}>
+              {matchedRules.length === 0 ? (
+                <Text size="sm" c="dimmed">
+                  {interactions.length === 0 ? 'Список пуст.' : 'Ничего не найдено.'}
+                </Text>
+              ) : (
+                rules.visible.map((interaction) => (
+                  <Group key={interaction.id} justify="space-between" wrap="nowrap" align="flex-start">
+                    <div style={{ minWidth: 0 }}>
+                      <Group gap={6} wrap="wrap">
+                        <Text size="sm" fw={500}>
+                          {interaction.drugA} + {interaction.drugB}
+                        </Text>
+                        <Badge size="xs" color={SEVERITY_COLOR[interaction.severity]} variant="light">
+                          {SEVERITY_LABELS[interaction.severity]}
+                        </Badge>
+                      </Group>
+                      <Text size="xs" c="dimmed" lineClamp={2}>
+                        {interaction.mechanism}
                       </Text>
-                      <Badge size="xs" color={SEVERITY_COLOR[interaction.severity]} variant="light">
-                        {SEVERITY_LABELS[interaction.severity]}
-                      </Badge>
-                    </Group>
-                    <Text size="xs" c="dimmed" lineClamp={2}>
-                      {interaction.mechanism}
-                    </Text>
-                  </div>
-                  <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(interaction.id)} aria-label="Удалить взаимодействие">
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                </Group>
-              ))
-            )}
-            {rules.hasMore && (
-              <Text ref={rules.setSentinel} size="xs" c="dimmed" ta="center" py="xs">
-                Загружается ещё… осталось {rules.remaining}
-              </Text>
-            )}
-          </Stack>
+                    </div>
+                    <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(interaction.id)} aria-label="Удалить взаимодействие">
+                      <IconTrash size={16} />
+                    </ActionIcon>
+                  </Group>
+                ))
+              )}
+              {rules.hasMore && (
+                <Text ref={rules.setSentinel} size="xs" c="dimmed" ta="center" py="xs">
+                  Загружается ещё… осталось {rules.remaining}
+                </Text>
+              )}
+            </Stack>
+          </QueryState>
         </Card>
       </Stack>
 

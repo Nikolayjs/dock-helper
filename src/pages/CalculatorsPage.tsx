@@ -6,10 +6,11 @@ import { useNavigate } from 'react-router-dom';
 import { CalculatorCard } from '../features/calculators/CalculatorCard';
 import { CALCULATOR_CATEGORIES } from '../features/calculators/types';
 import { useCalculators } from '../features/calculators/useCalculators';
+import { QueryState } from '../components/common/QueryState';
 
 export function CalculatorsPage() {
   const navigate = useNavigate();
-  const { calculators, toggleFavourite } = useCalculators();
+  const { calculators, toggleFavourite, isLoading, error, refetch } = useCalculators();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>('all');
 
@@ -66,25 +67,27 @@ export function CalculatorsPage() {
         />
       </Group>
 
-      {filtered.length === 0 ? (
-        <Card withBorder padding="xl">
-          <Stack align="center" gap="sm" py="xl">
-            <ThemeIcon size={48} radius="xl" variant="light" color="gray">
-              <IconCalculatorOff size={24} />
-            </ThemeIcon>
-            <Text fw={600}>Ничего не найдено</Text>
-            <Text size="sm" c="dimmed">
-              Попробуйте изменить запрос или создайте свой калькулятор.
-            </Text>
-          </Stack>
-        </Card>
-      ) : (
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-          {filtered.map((calc) => (
-            <CalculatorCard key={calc.id} definition={calc} onToggleFavourite={() => toggleFavourite(calc)} />
-          ))}
-        </SimpleGrid>
-      )}
+      <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="калькуляторы">
+        {filtered.length === 0 ? (
+          <Card withBorder padding="xl">
+            <Stack align="center" gap="sm" py="xl">
+              <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+                <IconCalculatorOff size={24} />
+              </ThemeIcon>
+              <Text fw={600}>Ничего не найдено</Text>
+              <Text size="sm" c="dimmed">
+                Попробуйте изменить запрос или создайте свой калькулятор.
+              </Text>
+            </Stack>
+          </Card>
+        ) : (
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+            {filtered.map((calc) => (
+              <CalculatorCard key={calc.id} definition={calc} onToggleFavourite={() => toggleFavourite(calc)} />
+            ))}
+          </SimpleGrid>
+        )}
+      </QueryState>
     </Container>
   );
 }

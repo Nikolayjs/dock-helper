@@ -17,7 +17,7 @@ const repo = createHttpRepository<DocumentTemplate, DocumentTemplateInput>('/doc
 
 export function useDocumentTemplates() {
   const queryClient = useQueryClient();
-  const { data: templates = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: templates = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const addTemplateMutation = useMutation({
@@ -38,6 +38,8 @@ export function useDocumentTemplates() {
   return {
     templates,
     isLoading,
+    error,
+    refetch,
     addTemplate: addTemplateMutation.mutateAsync,
     updateTemplate: (id: string, input: DocumentTemplateInput) => updateTemplateMutation.mutateAsync({ id, input }),
     deleteTemplate: deleteTemplateMutation.mutateAsync,

@@ -9,7 +9,7 @@ const repo = createHttpRepository<BackendLabTest, CreateLabTestPayload>('/custom
 
 export function useCustomAnalyzers() {
   const queryClient = useQueryClient();
-  const { data: customTests = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: customTests = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const addTestMutation = useMutation({
@@ -30,6 +30,8 @@ export function useCustomAnalyzers() {
   return {
     customTests,
     isLoading,
+    error,
+    refetch,
     addTest: addTestMutation.mutateAsync,
     updateTest: (id: string, payload: CreateLabTestPayload) => updateTestMutation.mutateAsync({ id, payload }),
     deleteTest: deleteTestMutation.mutateAsync,

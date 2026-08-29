@@ -26,7 +26,7 @@ export function slugifyQuestionnaireId(title: string): string {
 
 export function useQuestionnaires() {
   const queryClient = useQueryClient();
-  const { data: questionnaires = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: questionnaires = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const addQuestionnaireMutation = useMutation({
@@ -47,6 +47,8 @@ export function useQuestionnaires() {
   return {
     questionnaires,
     isLoading,
+    error,
+    refetch,
     addQuestionnaire: addQuestionnaireMutation.mutateAsync,
     updateQuestionnaire: updateQuestionnaireMutation.mutateAsync,
     deleteQuestionnaire: deleteQuestionnaireMutation.mutateAsync,

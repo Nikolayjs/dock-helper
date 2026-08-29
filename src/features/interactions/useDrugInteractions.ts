@@ -12,7 +12,7 @@ const repo = createHttpRepository<DrugInteraction, DrugInteractionInput>('/drug-
 
 export function useDrugInteractions() {
   const queryClient = useQueryClient();
-  const { data: interactions = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
+  const { data: interactions = [], isLoading, error, refetch } = useQuery({ queryKey: QUERY_KEY, queryFn: repo.list });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
   const addInteractionMutation = useMutation({
@@ -28,6 +28,8 @@ export function useDrugInteractions() {
   return {
     interactions,
     isLoading,
+    error,
+    refetch,
     addInteraction: addInteractionMutation.mutateAsync,
     deleteInteraction: deleteInteractionMutation.mutateAsync,
   };
