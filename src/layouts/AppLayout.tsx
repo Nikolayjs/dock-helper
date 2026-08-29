@@ -33,6 +33,12 @@ const PAGE_META: PageMetaEntry[] = [
   { match: (p) => p === '/drugs/new', title: 'Новый препарат' },
   { match: (p) => p.startsWith('/drugs/') && p.endsWith('/edit'), title: 'Редактирование препарата' },
   { match: (p) => p.startsWith('/drugs/'), title: 'Карточка препарата' },
+  {
+    match: (p) => p === '/icd10',
+    title: 'МКБ-10',
+    subtitle: 'Международная классификация болезней: рубрики, блоки и справки по кодированию',
+  },
+  { match: (p) => p.startsWith('/icd10/'), title: 'Код МКБ-10' },
   { match: (p) => p === '/planner', title: 'Планер', subtitle: 'Доска задач с колонками и карточками' },
   { match: (p) => p.startsWith('/doctor'), title: 'Мой профиль', subtitle: 'Данные врача, настройки и статистика' },
   {

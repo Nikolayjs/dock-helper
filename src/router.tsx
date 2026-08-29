@@ -63,6 +63,8 @@ const ArticleEditorPage = lazyPage(() => import('./pages/ArticleEditorPage'), 'A
 const AnalyzerPage = lazyPage(() => import('./pages/AnalyzerPage'), 'AnalyzerPage');
 const AnalyzerBuilderPage = lazyPage(() => import('./pages/AnalyzerBuilderPage'), 'AnalyzerBuilderPage');
 const DrugsPage = lazyPage(() => import('./pages/DrugsPage'), 'DrugsPage');
+const Icd10Page = lazyPage(() => import('./pages/Icd10Page'), 'Icd10Page');
+const Icd10ViewPage = lazyPage(() => import('./pages/Icd10ViewPage'), 'Icd10ViewPage');
 const DrugViewPage = lazyPage(() => import('./pages/DrugViewPage'), 'DrugViewPage');
 const DrugEditorPage = lazyPage(() => import('./pages/DrugEditorPage'), 'DrugEditorPage');
 const PlannerPage = lazyPage(() => import('./pages/PlannerPage'), 'PlannerPage');
@@ -142,6 +144,11 @@ export const router = createBrowserRouter(
           <Route path="/drugs/new" element={<DrugEditorPage />} />
           <Route path="/drugs/:id" element={<DrugViewPage />} />
           <Route path="/drugs/:id/edit" element={<DrugEditorPage />} />
+
+          {/* Код в адресе содержит точку (`I21.0`), и это единственный сегмент приложения, где
+              она встречается: роутер к ней безразличен, а вот `encodeURIComponent` обязателен. */}
+          <Route path="/icd10" element={<Icd10Page />} />
+          <Route path="/icd10/:code" element={<Icd10ViewPage />} />
           <Route path="/planner" element={<PlannerPage />} />
           <Route path="/doctor" element={<DoctorPage />} />
           <Route path="/calculators" element={<CalculatorsPage />} />

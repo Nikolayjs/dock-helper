@@ -12,11 +12,12 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconArticle, IconBook2, IconCalculator, IconNotes, IconPill, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
+import { IconArticle, IconBook2, IconCalculator, IconListSearch, IconNotes, IconPill, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useCalculators } from '../../features/calculators/useCalculators';
 import { useDrugSearch } from '../../features/drugs/useDrugSearch';
+import { useIcd10Search } from '../../features/patients/useIcd10Search';
 import { useDocuments } from '../../features/knowledgeBase/useDocuments';
 import { useNotes } from '../../features/notes/useNotes';
 import { stripHtml } from '../../features/notes/textPreview';
@@ -52,10 +53,12 @@ export function HeaderSearch() {
   const [debouncedQuery] = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   // Препараты ищет сервер: их полторы тысячи, а строка поиска стоит на каждой странице.
   const { drugs, isFetching: drugsFetching } = useDrugSearch(query, MAX_RESULTS_PER_GROUP);
+  // Коды МКБ ищет тот же сервер: их 14 641, и подрубрику иначе пришлось бы искать через рубрику.
+  const { results: icd10, isSearching: icdFetching } = useIcd10Search(query);
 
   const trimmedQuery = query.trim();
   const trimmedDebouncedQuery = debouncedQuery.trim();
-  const isSearching = trimmedQuery.length > 0 && (trimmedDebouncedQuery !== trimmedQuery || drugsFetching);
+  const isSearching = trimmedQuery.length > 0 && (trimmedDebouncedQuery !== trimmedQuery || drugsFetching || icdFetching);
   const opened = focused && trimmedQuery.length > 0;
 
   const groupedResults = useMemo(() => {
@@ -133,6 +136,17 @@ export function HeaderSearch() {
         })),
       },
       {
+        group: 'МКБ-10',
+        items: icd10.slice(0, MAX_RESULTS_PER_GROUP).map((entry) => ({
+          id: entry.code,
+          title: entry.code,
+          description: entry.name,
+          path: `/icd10/${encodeURIComponent(entry.code)}`,
+          icon: IconListSearch,
+          group: 'МКБ-10',
+        })),
+      },
+      {
         group: 'Пациенты',
         items: patients
           .filter((patient) => matches(q, patient.fullName, patient.phone, ...patient.visits.map((v) => v.diagnosis)))
@@ -149,7 +163,7 @@ export function HeaderSearch() {
     ];
 
     return groups.filter((group) => group.items.length > 0);
-  }, [trimmedDebouncedQuery, calculators, guidelines, articles, notes, patients, drugs]);
+  }, [trimmedDebouncedQuery, calculators, guidelines, articles, notes, patients, drugs, icd10]);
 
   const totalResults = groupedResults.reduce((sum, group) => sum + group.items.length, 0);
 

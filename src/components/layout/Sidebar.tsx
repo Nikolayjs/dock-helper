@@ -22,6 +22,7 @@ import {
   IconArticle,
   IconBook2,
   IconBooks,
+  IconListSearch,
   IconCalculator,
   IconCalendarEvent,
   IconCalendarStats,
@@ -66,6 +67,7 @@ const mainNav: NavItemData[] = [
 const knowledgeNav: NavItemData[] = [
   { label: "Новости медицины", path: "/news", icon: IconNews },
   { label: "Клинические рекомендации", path: "/guidelines", icon: IconBook2 },
+  { label: "МКБ-10", path: "/icd10", icon: IconListSearch },
   { label: "Статьи", path: "/articles", icon: IconArticle },
   { label: "Диагностика", path: "/diagnostics", icon: IconZoomQuestion },
   { label: "Библиотека", path: "/library", icon: IconBooks },

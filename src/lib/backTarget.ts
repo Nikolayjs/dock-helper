@@ -38,6 +38,7 @@ const SECTION_LABELS: { prefix: string; label: string; item?: string }[] = [
   { prefix: '/analyzer', label: 'К анализам' },
   { prefix: '/drugs', label: 'К справочнику', item: 'К препарату' },
   { prefix: '/interactions', label: 'К взаимодействиям' },
+  { prefix: '/icd10', label: 'К МКБ-10', item: 'К коду МКБ-10' },
   { prefix: '/planner', label: 'К планеру' },
   { prefix: '/notes', label: 'К заметкам', item: 'К заметке' },
   { prefix: '/library', label: 'К библиотеке', item: 'К книге' },
