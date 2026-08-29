@@ -1,5 +1,5 @@
-import { Badge, Group, Text } from '@mantine/core';
-import { IconNotes } from '@tabler/icons-react';
+import { ActionIcon, Badge, Group, Text } from '@mantine/core';
+import { IconChevronRight, IconNotes } from '@tabler/icons-react';
 
 import { DataTable } from '../../components/common/DataTable';
 import type { DataColumn } from '../../components/common/DataTable';
@@ -7,11 +7,15 @@ import type { SortState, SortValue } from '../../lib/tableSort';
 import type { Icd10Row } from './types';
 
 /**
- * Классификация целиком: рубрики и их подрубрики.
+ * Классификация: рубрики и раскрытые под ними подрубрики.
  *
  * Подрубрика отличается от рубрики отступом и приглушённым кодом, а не отдельным столбцом: столбец
  * «уровень» занял бы место и потребовал бы читать его, тогда как отступ читается сам. Идёт она
  * всегда следом за своей рубрикой — при любой сортировке.
+ *
+ * **Стрелка раскрытия — отдельный столбец, а не сама строка.** Строка открывает карточку кода, и
+ * это её основное действие; отдать щелчок раскрытию значило бы отобрать у списка то, ради чего его
+ * открывают. Столбец объявлен `stopClick`: нажатие на стрелку до строки не доходит.
  */
 export type Icd10SortKey = 'code' | 'name' | 'chapter' | 'block' | 'children';
 
@@ -44,10 +48,33 @@ interface Icd10TableProps {
   sort: SortState<Icd10SortKey>;
   onSort: (key: Icd10SortKey) => void;
   onOpen: (row: Icd10Row) => void;
+  onToggle: (code: string) => void;
 }
 
-export function Icd10Table({ rows, sort, onSort, onOpen }: Icd10TableProps) {
+export function Icd10Table({ rows, sort, onSort, onOpen, onToggle }: Icd10TableProps) {
   const columns: DataColumn<Icd10Row, Icd10SortKey>[] = [
+    {
+      // Место под стрелку занято всегда, даже у конечного кода: ширина столбца меряется по
+      // содержимому, и значок, появляющийся из ниоткуда, раздвигал бы таблицу при раскрытии.
+      w: 44,
+      stopClick: true,
+      render: (row) =>
+        row.depth === 0 && row.children > 0 ? (
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="sm"
+            onClick={() => onToggle(row.code)}
+            aria-label={row.expanded ? `Свернуть подрубрики ${row.code}` : `Раскрыть подрубрики ${row.code}`}
+            aria-expanded={row.expanded}
+          >
+            <IconChevronRight
+              size={16}
+              style={{ transform: row.expanded ? 'rotate(90deg)' : undefined, transition: 'transform 150ms' }}
+            />
+          </ActionIcon>
+        ) : null,
+    },
     {
       key: 'code',
       header: 'Код',

@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
-import { Alert, Card, Group, Select, Stack, Switch, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, Button, Card, Group, Loader, Select, Stack, Switch, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconInfoCircle, IconListSearch, IconSearch, IconX } from '@tabler/icons-react';
+import { IconFold, IconFoldDown, IconInfoCircle, IconListSearch, IconSearch, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { QueryState } from '../../components/common/QueryState';
@@ -10,19 +10,19 @@ import { ICD10_SORT_KEYS, Icd10Table, icd10SortValue, type Icd10SortKey } from '
 import { Icd10List } from './Icd10List';
 import { countTotal, flattenIcd10 } from './flatten';
 import type { Icd10Row } from './types';
-import { Icd10Unavailable, useIcd10Chapters, useIcd10List } from './useIcd10';
+import { Icd10Unavailable, useIcd10Chapters, useIcd10Children, useIcd10List } from './useIcd10';
 
 const ALL_CHAPTERS = '__all__';
 
 /**
- * Оглавление МКБ-10.
+ * Классификация МКБ-10.
  *
- * Показываются 2054 трёхзначные рубрики — столько же строк, сколько в справочнике препаратов.
- * Подрубрик ещё 12 587, и все они видны на карточке своей рубрики: они отличаются локализацией или
- * уточнением, а не сутью, и плоский список из четырнадцати тысяч строк не оглавление, а свалка.
+ * Страница рисуется оглавлением из 2054 трёхзначных рубрик — 41 КБ. Уточнений к ним ещё 12 587, и
+ * они приезжают **вторым запросом**, когда рубрику раскрыли или начали искать: с ними ответ весит
+ * 209 КБ, и платил бы их каждый, кто открыл раздел посмотреть один диагноз.
  *
- * Поиск идёт по коду и наименованию **среди рубрик**. Найти конкретную подрубрику можно строкой
- * поиска в шапке приложения — она спрашивает сервер и ищет по всем кодам.
+ * Раскрывается рубрика щелчком по стрелке слева от кода. Щелчок по самой строке по-прежнему
+ * открывает карточку — раскрытие не должно отбирать у списка его основное действие.
  */
 export function Icd10Catalog() {
   const navigate = useNavigate();
@@ -32,9 +32,16 @@ export function Icd10Catalog() {
   const [search, setSearch] = useState('');
   const [chapter, setChapter] = useState<string>(ALL_CHAPTERS);
   const [onlyWithNote, setOnlyWithNote] = useState(false);
-  // Подрубрики показаны сразу: диагноз ставится именно ими, а оглавление из одних рубрик —
-  // это половина справочника. Свернуть их можно, когда нужен обзор классов.
-  const [showChildren, setShowChildren] = useState(true);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+
+  /**
+   * Уточнения запрашиваются, как только они кому-то понадобились, и дальше живут весь сеанс.
+   *
+   * Поиск считается такой надобностью наравне с раскрытием: диагноз ставится подрубрикой, и
+   * справочник, отвечающий «не найдено» на «I21.4», бесполезен ровно там, где нужен.
+   */
+  const needChildren = expanded.size > 0 || search.trim() !== '' || onlyWithNote;
+  const { children, isLoading: childrenLoading } = useIcd10Children(needChildren);
 
   // На телефоне таблица из пяти колонок требует бокового смахивания ради каждого поля,
   // кроме первого, — там вместо неё компактный список. Так же сделан справочник препаратов.
@@ -58,27 +65,42 @@ export function Icd10Catalog() {
    * таблице документа: уточнение обязано ехать вместе с тем, к чему оно относится.
    */
   const sortedRubrics = useMemo(
-    () => sortRows(rows, sort, (row, key) => icd10SortValue({ ...row, depth: 0, children: row.children.length }, key)),
+    () =>
+      sortRows(rows, sort, (row, key) =>
+        icd10SortValue({ ...row, depth: 0, children: row.childCount, expanded: false }, key),
+      ),
     [rows, sort],
   );
 
   const sorted = useMemo(
     () =>
-      flattenIcd10(sortedRubrics, {
+      flattenIcd10(sortedRubrics, children, {
         query: search,
         chapter: chapter === ALL_CHAPTERS ? null : chapter,
         onlyWithNote,
-        showChildren,
+        expanded,
       }),
-    [sortedRubrics, search, chapter, onlyWithNote, showChildren],
+    [sortedRubrics, children, search, chapter, onlyWithNote, expanded],
   );
 
   const open = (row: Icd10Row) => navigate(`/icd10/${encodeURIComponent(row.code)}`);
+
+  const toggleExpanded = useCallback((code: string) => {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (!next.delete(code)) next.add(code);
+      return next;
+    });
+  }, []);
+
+  const expandAll = () => setExpanded(new Set(rows.map((row) => row.code)));
+
   const total = useMemo(() => countTotal(rows), [rows]);
-  const withNote = useMemo(
-    () => rows.reduce((sum, row) => sum + (row.hasNote ? 1 : 0), 0),
-    [rows],
-  );
+  const withNote = useMemo(() => rows.reduce((sum, row) => sum + (row.hasNote ? 1 : 0), 0), [rows]);
+
+  // Пока отбирают, рубрики раскрывает сам отбор — кнопка «свернуть» в этот момент ничего бы не
+  // свернула, а обещала бы обратное.
+  const filtering = search.trim() !== '' || onlyWithNote;
 
   /**
    * В демо раздела нет — и это не поломка, а объявленное ограничение.
@@ -105,10 +127,11 @@ export function Icd10Catalog() {
   return (
     <Stack gap="lg">
       <Alert variant="light" color="gray" icon={<IconInfoCircle size={18} />}>
-        Международная классификация болезней 10-го пересмотра целиком: {total || '14 641'} код —
-        {' '}{rows.length || '2054'} трёхзначные рубрики и их подрубрики. Справка по кодированию
-        написана у {withNote || 300} рубрик и достаётся их подрубрикам; у остальных карточка
-        показывает место кода в классификации и соседние коды.
+        Международная классификация болезней 10-го пересмотра целиком: {total || '14 641'} код —{' '}
+        {rows.length || '2054'} трёхзначные рубрики и их подрубрики. Рубрика раскрывается стрелкой
+        слева от кода; поиск раскрывает её сам. Справка по кодированию написана у {withNote || 300}{' '}
+        рубрик и достаётся их подрубрикам; у остальных карточка показывает место кода в
+        классификации и соседние коды.
       </Alert>
 
       <Card withBorder padding="md">
@@ -133,16 +156,25 @@ export function Icd10Catalog() {
           />
           <Switch
             mb={8}
-            checked={showChildren}
-            onChange={(e) => setShowChildren(e.currentTarget.checked)}
-            label="Подрубрики"
-          />
-          <Switch
-            mb={8}
             checked={onlyWithNote}
             onChange={(e) => setOnlyWithNote(e.currentTarget.checked)}
             label="Только со справкой"
           />
+          {!filtering &&
+            (expanded.size > 0 ? (
+              <Button
+                mb={4}
+                variant="default"
+                leftSection={<IconFold size={16} />}
+                onClick={() => setExpanded(new Set())}
+              >
+                Свернуть все
+              </Button>
+            ) : (
+              <Button mb={4} variant="default" leftSection={<IconFoldDown size={16} />} onClick={expandAll}>
+                Раскрыть все
+              </Button>
+            ))}
         </Group>
       </Card>
 
@@ -153,10 +185,18 @@ export function Icd10Catalog() {
               <IconListSearch size={13} />
             </ThemeIcon>
             <Text size="sm" c="dimmed">
-              {sorted.length === total
-                ? `Кодов: ${total}`
-                : `Показано кодов: ${sorted.length} из ${total}`}
+              {sorted.length === total ? `Кодов: ${total}` : `Показано кодов: ${sorted.length} из ${total}`}
             </Text>
+            {/* Пока уточнения едут, отбор идёт по одним рубрикам — и об этом надо сказать. Список,
+                молча показывающий половину справочника, читается как полный ответ. */}
+            {childrenLoading && (
+              <Group gap={6}>
+                <Loader size={12} />
+                <Text size="sm" c="dimmed">
+                  подрубрики загружаются, пока показаны только рубрики
+                </Text>
+              </Group>
+            )}
           </Group>
 
           {/* Таблица лежит на сплошной подложке, как справочник препаратов: под обоями строки без
@@ -169,17 +209,17 @@ export function Icd10Catalog() {
                 </ThemeIcon>
                 <Text fw={600}>Ничего не найдено</Text>
                 <Text size="sm" c="dimmed" ta="center" maw={420}>
-                  Под выбранные условия не подходит ни один код. Попробуйте изменить запрос, снять
-                  фильтр по классу или включить подрубрики.
+                  Под выбранные условия не подходит ни один код. Попробуйте изменить запрос или
+                  снять фильтр по классу.
                 </Text>
               </Stack>
             </Card>
           ) : (
             <Card withBorder padding={0}>
               {isNarrow ? (
-                <Icd10List rows={sorted} onOpen={open} />
+                <Icd10List rows={sorted} onOpen={open} onToggle={toggleExpanded} />
               ) : (
-                <Icd10Table rows={sorted} sort={sort} onSort={toggle} onOpen={open} />
+                <Icd10Table rows={sorted} sort={sort} onSort={toggle} onOpen={open} onToggle={toggleExpanded} />
               )}
             </Card>
           )}

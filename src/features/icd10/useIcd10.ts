@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { API_BASE_URL } from '../../lib/apiConfig';
 import { isDemoSession } from '../demo/demoSession';
-import type { Icd10Card, Icd10ChapterInfo, Icd10ListRow } from './types';
+import type { Icd10Card, Icd10ChapterInfo, Icd10ChildrenMap, Icd10ListRow } from './types';
 
 /**
  * Справочник МКБ-10 — с сервера, и это единственный возможный вариант.
@@ -49,6 +49,28 @@ export function useIcd10List() {
     ...FOREVER,
   });
   return { rows: data ?? [], isLoading, error, refetch };
+}
+
+/**
+ * Подрубрики — вторым запросом и только когда понадобились.
+ *
+ * Оглавление из рубрик весит 41 КБ, уточнения к ним — ещё 190 КБ: впятеро больше, чем вся
+ * остальная страница. Платит их тот, кто раскрыл рубрику или начал искать, а не всякий, кто
+ * заглянул в раздел.
+ *
+ * **Одним запросом на все рубрики, а не по запросу на раскрытую.** Ограничитель на сервере пускает
+ * двадцать запросов в минуту с адреса, а рубрик 2054: врач, раскрывший подряд два десятка строк,
+ * получил бы 429 — справочник, переставший раскрываться посреди работы. И поиск обязан находить
+ * `I21.4` тогда же, когда его набрали, а искать по тому, что ещё не приехало, нечем.
+ */
+export function useIcd10Children(enabled: boolean) {
+  const { data, isFetching, error } = useQuery({
+    queryKey: ['icd10-children'],
+    queryFn: () => get<Icd10ChildrenMap>('/icd10/children'),
+    enabled,
+    ...FOREVER,
+  });
+  return { children: data ?? null, isLoading: enabled && isFetching && !data, error };
 }
 
 export function useIcd10Card(code: string | undefined) {

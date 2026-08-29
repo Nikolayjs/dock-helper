@@ -1,4 +1,4 @@
-import { Group, Stack, Text, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronRight, IconNotes } from '@tabler/icons-react';
 
 import { useIncrementalList } from '../../lib/useIncrementalList';
@@ -12,20 +12,44 @@ import type { Icd10Row } from './types';
  * Здесь вместо неё две строки на рубрику: код с наименованием и блок под ними — ровно то, ради чего
  * справочник открывают с телефона: найти код и открыть карточку.
  *
+ * Раскрывается рубрика стрелкой слева. Она стоит **перед** кодом, а не справа от строки: справа
+ * уже есть шеврон «открыть карточку», и две одинаковые стрелки по краям строки означали бы разное,
+ * ничем себя не различая.
+ *
  * Стили общие со справочником препаратов: это один и тот же список, и расходиться им незачем.
  */
 interface Props {
   rows: Icd10Row[];
   onOpen: (row: Icd10Row) => void;
+  onToggle: (code: string) => void;
 }
 
-export function Icd10List({ rows, onOpen }: Props) {
+export function Icd10List({ rows, onOpen, onToggle }: Props) {
   const { visible, hasMore, remaining, setSentinel } = useIncrementalList(rows, 40);
 
   return (
     <Stack gap={0}>
       {visible.map((row) => (
         <div key={row.code} className={classes.row}>
+          {/* Место под стрелку занято всегда: иначе строки рубрик и конечных кодов начинались бы
+              на разной высоте отступа, и список читался бы как рваный. */}
+          <div style={{ width: 32, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+            {row.depth === 0 && row.children > 0 && (
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                onClick={() => onToggle(row.code)}
+                aria-label={row.expanded ? `Свернуть подрубрики ${row.code}` : `Раскрыть подрубрики ${row.code}`}
+                aria-expanded={row.expanded}
+              >
+                <IconChevronRight
+                  size={16}
+                  style={{ transform: row.expanded ? 'rotate(90deg)' : undefined, transition: 'transform 150ms' }}
+                />
+              </ActionIcon>
+            )}
+          </div>
           <UnstyledButton className={classes.main} onClick={() => onOpen(row)} pl={row.depth === 0 ? 0 : 16}>
             <Group gap="xs" wrap="nowrap" align="center">
               <Text

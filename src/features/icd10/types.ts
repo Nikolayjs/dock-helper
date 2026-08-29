@@ -8,14 +8,23 @@ export interface Icd10Child extends Icd10Entry {
   hasNote: boolean;
 }
 
-/** Рубрика со своими подрубриками — так же, как вложена сама классификация. */
+/**
+ * Строка оглавления — трёхзначная рубрика.
+ *
+ * Подрубрик здесь нет: они приезжают отдельным запросом и только когда понадобились. Но их
+ * **число** известно сразу — иначе список не мог бы ответить, конечный это код или его надо
+ * уточнять, а ради ответа пришлось бы тянуть все 12 587 уточнений.
+ */
 export interface Icd10ListRow extends Icd10Entry {
   chapter: string;
   blockRange: string;
   blockName: string;
   hasNote: boolean;
-  children: Icd10Child[];
+  childCount: number;
 }
+
+/** Подрубрики всех рубрик разом: рубрика → её уточнения. */
+export type Icd10ChildrenMap = Record<string, Icd10Child[]>;
 
 /**
  * Строка таблицы: рубрика или подрубрика.
@@ -33,6 +42,8 @@ export interface Icd10Row extends Icd10Entry {
   depth: 0 | 1;
   /** Сколько подрубрик у рубрики; у подрубрики всегда 0. */
   children: number;
+  /** Рубрика раскрыта — её уточнения идут следом. У подрубрики всегда false. */
+  expanded: boolean;
 }
 
 export interface Icd10ChapterInfo {
