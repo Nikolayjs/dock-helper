@@ -5,6 +5,7 @@ import './publicStyles';
 import './publicBase.css';
 
 import { PublicRouter } from './publicRouter';
+import { AppErrorBoundary } from './components/common/AppErrorBoundary';
 import { theme } from './theme';
 
 /**
@@ -19,7 +20,9 @@ import { theme } from './theme';
 export function PublicRoot() {
   return (
     <MantineProvider theme={theme} defaultColorScheme="light">
-      <PublicRouter />
+      <AppErrorBoundary>
+        <PublicRouter />
+      </AppErrorBoundary>
     </MantineProvider>
   );
 }

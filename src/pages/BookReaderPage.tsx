@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { DjvuReader } from '../features/library/DjvuReader';
 import { ReaderBar } from '../features/library/ReaderBar';
+import { AppErrorBoundary } from '../components/common/AppErrorBoundary';
 import { FlowReader } from '../features/library/FlowReader';
 import { ReadingSheet } from '../components/common/ReadingSheet';
 import { decodeFb2Text, parseFb2 } from '../features/library/fb2';
@@ -289,19 +290,26 @@ export function BookReaderPage() {
         </Center>
       )}
 
+      {/* Читалки разбирают чужие файлы — PDF, DjVu поверх вендорного `djvu.js`, Word через
+          mammoth — и падают на битом файле. Панель с кнопкой «Назад» обязана пережить это падение:
+          иначе из сломавшейся книги нельзя выйти иначе как перезагрузкой. */}
       {!error && paged && (
         <div ref={setStage} style={{ position: 'relative' }}>
           {readerBar}
           {book.format === 'pdf' ? (
             pdfData ? (
-              <PdfReader data={pdfData} initialPage={book.progress?.location ?? 1} {...pagedProps} />
+              <AppErrorBoundary what="Читалка PDF" compact>
+                <PdfReader data={pdfData} initialPage={book.progress?.location ?? 1} {...pagedProps} />
+              </AppErrorBoundary>
             ) : (
               <Center py={100}>
                 <Loader />
               </Center>
             )
           ) : djvuData ? (
-            <DjvuReader data={djvuData} initialPage={book.progress?.location ?? 1} {...pagedProps} />
+            <AppErrorBoundary what="Читалка DjVu" compact>
+              <DjvuReader data={djvuData} initialPage={book.progress?.location ?? 1} {...pagedProps} />
+            </AppErrorBoundary>
           ) : (
             <Center py={100}>
               <Loader />
@@ -321,14 +329,16 @@ export function BookReaderPage() {
           <Container size="md" px={0} w="100%" miw={0}>
             {/* Книга читается подряд — ей подложка нужна ровно так же, как статье. */}
             <ReadingSheet>
-              <FlowReader
-                bodyHtml={flowHtml}
-                contentClassName={book.format === 'docx' ? 'docx-content' : 'fb2-content'}
-                initialProgress={book.progress?.location ?? 0}
-                immersive={immersive}
-                toolbarSlot={toolbarSlot}
-                onProgressChange={handleFlowProgress}
-              />
+              <AppErrorBoundary what="Читалка" compact>
+                <FlowReader
+                  bodyHtml={flowHtml}
+                  contentClassName={book.format === 'docx' ? 'docx-content' : 'fb2-content'}
+                  initialProgress={book.progress?.location ?? 0}
+                  immersive={immersive}
+                  toolbarSlot={toolbarSlot}
+                  onProgressChange={handleFlowProgress}
+                />
+              </AppErrorBoundary>
             </ReadingSheet>
           </Container>
         ) : (

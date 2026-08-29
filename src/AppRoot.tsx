@@ -15,6 +15,7 @@ import './index.css';
 
 import { AppearanceProvider, useAppearance } from './features/appearance/AppearanceProvider';
 import { AuthProvider } from './features/auth/AuthContext';
+import { AppErrorBoundary } from './components/common/AppErrorBoundary';
 import { queryClient } from './lib/queryClient';
 import { AppRouter } from './router';
 
@@ -41,7 +42,11 @@ function ThemedApp() {
       <DatesProvider settings={{ locale: 'ru' }}>
         <Notifications position="top-right" />
         <AuthProvider>
-          <AppRouter />
+          {/* Последний рубеж: сюда попадает то, что не поймал `errorElement` маршрута, — падение
+              самой оболочки или провайдера. Без него это белый лист без единого слова. */}
+          <AppErrorBoundary>
+            <AppRouter />
+          </AppErrorBoundary>
         </AuthProvider>
       </DatesProvider>
     </MantineProvider>

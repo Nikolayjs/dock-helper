@@ -5,6 +5,7 @@ import { createBrowserRouter, createRoutesFromElements, Navigate, Outlet, Route,
 
 import { APP_BASE } from './lib/appBase';
 import { RequireAuth } from './routes/RequireAuth';
+import { RouteErrorPage } from './pages/RouteErrorPage';
 import { DeleteConfirmProvider } from './features/deletion/DeleteConfirmProvider';
 import { AppLayout } from './layouts/AppLayout';
 
@@ -115,6 +116,10 @@ export const router = createBrowserRouter(
     <Route element={<RouterRoot />}>
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
+          {/* Безымянный маршрут ради `errorElement`: он **внутри** оболочки, поэтому упавшая
+              страница заменяется сообщением, а шапка и сайдбар остаются. С `errorElement` уровнем
+              выше одна ошибка уносила бы и навигацию, и уйти можно было бы только перезагрузкой. */}
+          <Route errorElement={<RouteErrorPage />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/analyzer" element={<AnalyzerPage />} />
@@ -204,7 +209,8 @@ export const router = createBrowserRouter(
           <Route path="/patients/:id/documents/:visitId" element={<PrintableDocumentPage />} />
           <Route path="/schedule" element={<ComingSoonPage title="Расписание" />} />
           <Route path="/messages" element={<ComingSoonPage title="Сообщения" />} />
-          <Route path="*" element={<NotFoundPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
         </Route>
       </Route>
     </Route>,

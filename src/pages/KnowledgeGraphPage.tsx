@@ -4,6 +4,7 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { GraphView } from '../features/knowledgeBase/GraphView';
+import { AppErrorBoundary } from '../components/common/AppErrorBoundary';
 import { buildKnowledgeGraph } from '../features/knowledgeBase/knowledgeGraph';
 import type { GraphNode } from '../features/knowledgeBase/knowledgeGraph';
 import { useAllDocumentsWithContent } from '../features/knowledgeBase/useDocuments';
@@ -71,7 +72,11 @@ export function KnowledgeGraphPage() {
           </Card>
         ) : (
           <Card withBorder padding={0} h="calc(100vh - 240px)" mih={480}>
-            <GraphView nodes={nodes} edges={edges} onOpen={handleOpen} />
+            {/* Раскладка на d3 считает координаты сама и падает на вырожденных данных; страница
+                вокруг — список документов и фильтры, терять их вместе с графом незачем. */}
+            <AppErrorBoundary what="Граф связей" compact>
+              <GraphView nodes={nodes} edges={edges} onOpen={handleOpen} />
+            </AppErrorBoundary>
           </Card>
         )}
       </Stack>
