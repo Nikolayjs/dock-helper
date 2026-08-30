@@ -53,6 +53,7 @@ const GuidelinesPage = lazyPage(() => import('./pages/GuidelinesPage'), 'Guideli
 const KnowledgeTagPage = lazyPage(() => import('./pages/KnowledgeTagPage'), 'KnowledgeTagPage');
 const ReferencePage = lazyPage(() => import('./pages/ReferencePage'), 'ReferencePage');
 const DiseaseViewPage = lazyPage(() => import('./features/diseases/DiseaseViewPage'), 'DiseaseViewPage');
+const DiseaseEditorPage = lazyPage(() => import('./features/diseases/DiseaseEditorPage'), 'DiseaseEditorPage');
 const GuidelineViewPage = lazyPage(() => import('./pages/GuidelineViewPage'), 'GuidelineViewPage');
 const GuidelineEditorPage = lazyPage(() => import('./pages/GuidelineEditorPage'), 'GuidelineEditorPage');
 const QuestionnairesPage = lazyPage(() => import('./pages/QuestionnairesPage'), 'QuestionnairesPage');
@@ -164,7 +165,9 @@ export const router = createBrowserRouter(
           <Route path="/news/read" element={<NewsReaderPage />} />
           <Route path="/knowledge/tag/:tag" element={<KnowledgeTagPage />} />
           <Route path="/reference" element={<ReferencePage />} />
+          <Route path="/reference/diseases/new" element={<DiseaseEditorPage />} />
           <Route path="/reference/diseases/:id" element={<DiseaseViewPage />} />
+          <Route path="/reference/diseases/:id/edit" element={<DiseaseEditorPage />} />
           {/* Прежние адреса разделов — вместе со строкой запроса: ссылка на код МКБ с параметрами
               не должна терять их по дороге. */}
           <Route

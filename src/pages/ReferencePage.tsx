@@ -54,7 +54,10 @@ export function ReferencePage() {
             держать их наготове у того, кто открыл вкладку с сокращениями, незачем. */}
         <Tabs.Panel value="diseases">
           <Stack gap="lg">
-            <DiseasesCatalog onOpen={(row) => navigate(`/reference/diseases/${row.id}`)} />
+            <DiseasesCatalog
+              onOpen={(row) => navigate(`/reference/diseases/${row.id}`)}
+              onEdit={(row) => navigate(row ? `/reference/diseases/${row.id}/edit` : '/reference/diseases/new')}
+            />
           </Stack>
         </Tabs.Panel>
         <Tabs.Panel value="abbreviations">

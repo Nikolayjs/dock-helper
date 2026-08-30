@@ -1,13 +1,12 @@
-import { useState } from 'react';
 import { Alert, Badge, Button, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
 import { IconBook2, IconEdit, IconInfoCircle, IconListSearch, IconNotes } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router-dom';
 
 import { BackButton } from '../../components/common/BackButton';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
+import { SafeHtml } from '../../components/common/SafeHtml';
 import { useAllDocuments } from '../knowledgeBase/useDocuments';
-import { DiseaseForm } from './DiseaseForm';
-import type { DiseaseInput } from './types';
+import { descriptionToHtml } from './description';
 import { useDiseases } from './useDiseases';
 
 /**
@@ -23,9 +22,8 @@ import { useDiseases } from './useDiseases';
  */
 export function DiseaseViewPage() {
   const { id } = useParams<{ id: string }>();
-  const { diseases, isLoading, updateDisease } = useDiseases();
+  const { diseases, isLoading } = useDiseases();
   const { documents } = useAllDocuments();
-  const [formOpen, setFormOpen] = useState(false);
 
   const disease = diseases.find((row) => row.id === id) ?? null;
 
@@ -50,14 +48,17 @@ export function DiseaseViewPage() {
     ? (documents.find((doc) => doc.id === disease.guidelineId) ?? null)
     : null;
 
-  const save = (input: DiseaseInput) => updateDisease(disease.id, input);
-
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
         <Group justify="space-between" wrap="wrap">
           <BackButton fallback={{ to: '/reference', label: 'К справочнику' }} />
-          <Button variant="default" leftSection={<IconEdit size={16} />} onClick={() => setFormOpen(true)}>
+          <Button
+            component={Link}
+            to={`/reference/diseases/${disease.id}/edit`}
+            variant="default"
+            leftSection={<IconEdit size={16} />}
+          >
             {disease.description ? 'Править' : 'Дополнить описание'}
           </Button>
         </Group>
@@ -113,9 +114,11 @@ export function DiseaseViewPage() {
             </Group>
 
             {disease.description ? (
-              // Обычный текст, а не разметка: сюда пишут своими словами, и пропускать это через
-              // санитайзер незачем — разметки здесь нет по устройству поля.
-              <Text style={{ whiteSpace: 'pre-wrap' }}>{disease.description}</Text>
+              /* Чужая разметка — через общий санитайзер, как статья и документ врача: описание
+                 приносят вставкой из руководства, то есть это ровно тот случай, ради которого
+                 `SafeHtml` и заведён. `descriptionToHtml` по дороге поднимает абзацы у записей,
+                 сделанных до появления редактора. */
+              <SafeHtml html={descriptionToHtml(disease.description)} />
             ) : (
               <Alert variant="light" color="gray" icon={<IconNotes size={18} />}>
                 <Text size="sm">
@@ -159,14 +162,6 @@ export function DiseaseViewPage() {
           </Card>
         )}
       </Stack>
-
-      <DiseaseForm
-        opened={formOpen}
-        editing={disease}
-        sections={[...new Set(diseases.map((row) => row.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'))}
-        onClose={() => setFormOpen(false)}
-        onSubmit={save}
-      />
     </Container>
   );
 }

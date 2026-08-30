@@ -1,130 +1,140 @@
-import { useEffect, useState } from 'react';
-import { Button, Group, Modal, Select, Stack, TagsInput, TextInput, Textarea } from '@mantine/core';
+import { useState } from 'react';
+import { Button, Group, Select, Stack, TagsInput, TextInput } from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
 
+import { FormActions } from '../../components/common/FormActions';
+import { RichTextField } from '../../components/common/RichTextField';
+import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../components/common/unsavedChanges';
+import { useRichTextEditor } from '../../components/common/useRichTextEditor';
+import { useSaveAction } from '../../components/common/useSaveAction';
+import { descriptionToHtml } from './description';
 import type { Disease, DiseaseInput } from './types';
 
 /**
- * Добавление и правка нозологии.
+ * Форма заболевания — с полноценным редактором описания.
  *
- * Описание здесь — обычная многострочная запись, а не редактор с оформлением: карточка болезни
- * отвечает «что это, каким кодом кодируется и где читать подробно», а подробно пишется в
- * клинической рекомендации, у которой для этого есть настоящий редактор. Второй такой же здесь
- * означал бы два места для одного текста.
+ * Описание правится тем же редактором, что статьи и клинические рекомендации, и это не роскошь.
+ * Текст про болезнь приносят готовым — из руководства, из методички, из Википедии, — а там он
+ * разбит на разделы: этиология, патогенез, клиника, диагностика. Простое текстовое поле сминает
+ * это в один ком: заголовки становятся обычными строками, списки — строками с дефисом, таблица
+ * дозирования — мешаниной. Прочитать такое можно, но пользоваться им как справкой уже нельзя.
+ *
+ * **Отсюда же и страница вместо окна.** У сокращений форма осталась окном — там четыре коротких
+ * поля; здесь редактор занимает половину экрана, и в окне ему тесно ровно настолько, насколько
+ * длинный текст и не помещается в окно.
  */
 interface Props {
-  opened: boolean;
-  editing: Disease | null;
+  initial?: Disease;
   sections: string[];
-  onClose: () => void;
-  onSubmit: (input: DiseaseInput) => Promise<unknown>;
+  onSubmit: (input: DiseaseInput) => void | Promise<void>;
+  onCancel: () => void;
+  onDelete?: () => void;
 }
 
-const EMPTY: DiseaseInput = { name: '', synonyms: [], icdCodes: [], summary: '', description: '', category: '' };
+export function DiseaseForm({ initial, sections, onSubmit, onCancel, onDelete }: Props) {
+  const [name, setName] = useState(initial?.name ?? '');
+  const [synonyms, setSynonyms] = useState<string[]>(initial?.synonyms ?? []);
+  const [icdCodes, setIcdCodes] = useState<string[]>(initial?.icdCodes ?? []);
+  const [summary, setSummary] = useState(initial?.summary ?? '');
+  const [category, setCategory] = useState(initial?.category ?? '');
 
-export function DiseaseForm({ opened, editing, sections, onClose, onSubmit }: Props) {
-  const [value, setValue] = useState<DiseaseInput>(EMPTY);
-  const [saving, setSaving] = useState(false);
+  // Через `descriptionToHtml`: запись, сделанная до редактора, — обычный текст, и без этого
+  // первое же сохранение склеило бы её абзацы навсегда.
+  const editor = useRichTextEditor(descriptionToHtml(initial?.description ?? ''));
 
-  useEffect(() => {
-    if (!opened) return;
-    setValue(
-      editing
-        ? {
-            name: editing.name,
-            synonyms: editing.synonyms,
-            icdCodes: editing.icdCodes,
-            summary: editing.summary,
-            description: editing.description,
-            category: editing.category,
-          }
-        : EMPTY,
-    );
-  }, [opened, editing]);
+  const canSave = name.trim().length > 0;
 
-  const set = <K extends keyof DiseaseInput>(key: K, next: DiseaseInput[K]) =>
-    setValue((current) => ({ ...current, [key]: next }));
+  const fieldsDirty = useDirtyValue({ name, synonyms, icdCodes, summary, category });
+  const textDirty = useEditorDirty(editor);
+  const guard = useUnsavedGuard(fieldsDirty || textDirty);
+  const { saving, save } = useSaveAction(guard, onSubmit);
 
-  const canSave = value.name.trim() !== '' && !saving;
-
-  const submit = async () => {
-    if (!canSave) return;
-    setSaving(true);
-    try {
-      await onSubmit({
-        name: value.name.trim(),
-        synonyms: value.synonyms.map((s) => s.trim()).filter(Boolean),
-        // Коды приводятся к верхнему регистру: врач наберёт «i21», а ссылка на карточку кода
-        // собирается из этой самой строки.
-        icdCodes: value.icdCodes.map((c) => c.trim().toUpperCase()).filter(Boolean),
-        summary: value.summary.trim(),
-        description: value.description.trim(),
-        category: value.category.trim(),
-      });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
+  const handleSubmit = () => {
+    if (!canSave || !editor) return;
+    void save({
+      name: name.trim(),
+      synonyms: synonyms.map((s) => s.trim()).filter(Boolean),
+      // Коды приводятся к верхнему регистру: врач наберёт «j44», а ссылка на карточку кода
+      // собирается из этой самой строки.
+      icdCodes: icdCodes.map((c) => c.trim().toUpperCase()).filter(Boolean),
+      summary: summary.trim(),
+      description: editor.getHTML(),
+      category: category.trim(),
+    });
   };
 
   return (
-    <Modal opened={opened} onClose={onClose} title={editing ? 'Правка заболевания' : 'Новое заболевание'} centered size="lg">
-      <Stack gap="sm">
-        <TextInput
-          label="Название"
-          placeholder="Хронический бронхит"
-          required
-          value={value.name}
-          onChange={(e) => set('name', e.currentTarget.value)}
-          data-autofocus
-        />
-        <TagsInput
-          label="Синонимы"
-          description="Прежнее название, разговорное, аббревиатура — то, как болезнь называют"
-          placeholder="Enter — добавить"
-          value={value.synonyms}
-          onChange={(next) => set('synonyms', next)}
-        />
-        <TagsInput
-          label="Коды МКБ-10"
-          description="Можно несколько: болезнь часто кодируется группой рубрик"
-          placeholder="J41, J42"
-          value={value.icdCodes}
-          onChange={(next) => set('icdCodes', next)}
-        />
-        <Select
-          label="Раздел"
-          placeholder="без раздела"
-          data={sections}
-          value={value.category || null}
-          onChange={(next) => set('category', next ?? '')}
-          searchable
-          clearable
-          allowDeselect={false}
-        />
-        <TextInput
-          label="Суть"
-          description="Одна строка: что это. Видна в списке"
-          value={value.summary}
-          onChange={(e) => set('summary', e.currentTarget.value)}
-        />
-        <Textarea
-          label="Описание"
-          description="То, что вы хотите помнить про эту болезнь. Обновления справочника его не затирают"
-          autosize
-          minRows={4}
-          maxRows={16}
-          value={value.description}
-          onChange={(e) => set('description', e.currentTarget.value)}
-        />
-        <Group justify="flex-end" mt="xs">
-          <Button variant="default" onClick={onClose}>
-            Отмена
-          </Button>
-          <Button onClick={submit} disabled={!canSave} loading={saving}>
-            Сохранить
-          </Button>
+    <Stack gap="md">
+      <TextInput
+        label="Название"
+        placeholder="Хронический бронхит"
+        required
+        value={name}
+        onChange={(e) => setName(e.currentTarget.value)}
+      />
+      <TagsInput
+        label="Синонимы"
+        description="Прежнее название, разговорное, аббревиатура — то, как болезнь называют"
+        placeholder="Enter — добавить"
+        value={synonyms}
+        onChange={setSynonyms}
+      />
+      <TagsInput
+        label="Коды МКБ-10"
+        description="Можно несколько: болезнь часто кодируется группой рубрик"
+        placeholder="J41, J42"
+        value={icdCodes}
+        onChange={setIcdCodes}
+      />
+      <Select
+        label="Раздел"
+        placeholder="без раздела"
+        data={sections}
+        value={category || null}
+        onChange={(next) => setCategory(next ?? '')}
+        searchable
+        clearable
+        allowDeselect={false}
+      />
+      <TextInput
+        label="Суть"
+        description="Одна строка: что это. Видна в списке"
+        value={summary}
+        onChange={(e) => setSummary(e.currentTarget.value)}
+      />
+
+      <RichTextField
+        editor={editor}
+        exportTitle={name}
+        hint="Разделы, списки и таблицы сохраняются при вставке: текст из руководства не сминается в один ком. Обновления справочника ваше описание не затирают."
+      />
+
+      <FormActions>
+        <Group justify="space-between" mt="sm">
+          {initial && onDelete ? (
+            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={onDelete}>
+              Удалить
+            </Button>
+          ) : (
+            <div />
+          )}
+          <Group gap="sm">
+            <Button variant="default" onClick={onCancel}>
+              Отмена
+            </Button>
+            {/* Кнопки нет, пока сохранять нечего: обещать сохранение и ничего не сохранить хуже,
+                чем не обещать — на этом же правиле стоит окно несохранённых изменений. */}
+            <Button onClick={handleSubmit} disabled={!canSave} loading={saving}>
+              Сохранить
+            </Button>
+          </Group>
         </Group>
-      </Stack>
-    </Modal>
+      </FormActions>
+
+      {/* Окно «изменения не сохранены» рисует сама форма. Забыть эту строку — не значит остаться
+          без охраны: `useBlocker` переход всё равно **запрещает**, и кнопка «Назад» тогда просто
+          перестаёт работать, ничего не объясняя. Поймано прогоном. */}
+      {guard.render({ onSave: canSave ? handleSubmit : undefined })}
+    </Stack>
   );
 }

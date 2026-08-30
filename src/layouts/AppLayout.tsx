@@ -67,6 +67,13 @@ const PAGE_META: PageMetaEntry[] = [
     subtitle: 'Заголовки из RSS-лент — с переходом к первоисточнику',
   },
   { match: (p) => p === '/news/read', title: 'Статья' },
+  // Редактор — раньше карточки: его адрес тоже начинается с `/reference/diseases/`, и без своей
+  // строки он показывал бы подзаголовок карточки.
+  {
+    match: (p) => p === '/reference/diseases/new' || (p.startsWith('/reference/diseases/') && p.endsWith('/edit')),
+    title: 'Заболевание',
+    subtitle: 'Название, коды и описание',
+  },
   {
     match: (p) => p.startsWith('/reference/diseases/'),
     title: 'Заболевание',

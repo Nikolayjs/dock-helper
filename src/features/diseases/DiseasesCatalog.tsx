@@ -9,8 +9,7 @@ import { QueryState } from '../../components/common/QueryState';
 import { sortRows, useTableSort } from '../../lib/tableSort';
 import { useIncrementalList } from '../../lib/useIncrementalList';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
-import { DiseaseForm } from './DiseaseForm';
-import type { Disease, DiseaseInput } from './types';
+import type { Disease } from './types';
 import { QUERY_KEY, useDiseases } from './useDiseases';
 import classes from '../drugs/DrugList.module.css';
 
@@ -41,17 +40,16 @@ function matches(row: Disease, query: string): boolean {
 
 interface Props {
   onOpen: (row: Disease) => void;
+  /** `null` — создать новую запись. */
+  onEdit: (row: Disease | null) => void;
 }
 
-export function DiseasesCatalog({ onOpen }: Props) {
-  const { diseases, isLoading, error, refetch, createDisease, updateDisease, deleteDisease } = useDiseases();
+export function DiseasesCatalog({ onOpen, onEdit }: Props) {
+  const { diseases, isLoading, error, refetch, deleteDisease } = useDiseases();
   const confirmDelete = useDeleteWithConfirm();
 
   const [search, setSearch] = useState('');
   const [section, setSection] = useState<string>(ALL_SECTIONS);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Disease | null>(null);
-
   const isNarrow = useMediaQuery('(max-width: 62em)');
   const { sort, toggle } = useTableSort<SortKey>(
     { key: 'name', direction: 'asc' },
@@ -80,23 +78,10 @@ export function DiseasesCatalog({ onOpen }: Props) {
 
   const isFiltering = search.trim() !== '' || section !== ALL_SECTIONS;
 
-  const openNew = () => {
-    setEditing(null);
-    setFormOpen(true);
-  };
-  const openEdit = (row: Disease) => {
-    setEditing(row);
-    setFormOpen(true);
-  };
-
-  // После сохранения запись обязана быть видна — иначе врач прочитает это как «не сохранилось».
-  const submit = async (input: DiseaseInput) => {
-    const saved = editing ? await updateDisease(editing.id, input) : await createDisease(input);
-    const query = search.trim().toLowerCase();
-    if (query && !matches(saved, query)) setSearch('');
-    if (section !== ALL_SECTIONS && sectionOf(saved) !== section) setSection(ALL_SECTIONS);
-    return saved;
-  };
+  // Правка и добавление живут на своей странице: у описания полноценный редактор, и в окне ему
+  // тесно ровно настолько, насколько длинный текст не помещается в окно.
+  const openNew = () => onEdit(null);
+  const openEdit = (row: Disease) => onEdit(row);
 
   const handleDelete = (row: Disease) =>
     confirmDelete({
@@ -179,8 +164,7 @@ export function DiseasesCatalog({ onOpen }: Props) {
   ];
 
   return (
-    <>
-      <Stack gap="lg">
+    <Stack gap="lg">
         <Group justify="space-between" align="flex-end" wrap="wrap">
           <Text c="dimmed" size="sm">
             {isFiltering ? `Найдено: ${sorted.length} из ${diseases.length}` : `${diseases.length} заболеваний в справочнике`}
@@ -243,17 +227,8 @@ export function DiseasesCatalog({ onOpen }: Props) {
               )}
             </Card>
           )}
-        </QueryState>
-      </Stack>
-
-      <DiseaseForm
-        opened={formOpen}
-        editing={editing}
-        sections={sections.map(([name]) => name).filter((name) => name !== NO_SECTION)}
-        onClose={() => setFormOpen(false)}
-        onSubmit={submit}
-      />
-    </>
+      </QueryState>
+    </Stack>
   );
 }
 
