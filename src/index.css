@@ -281,8 +281,18 @@ body {
     display: table-header-group;
   }
 
-  .printable-document,
-  .printable-document * {
+  /*
+   * Показывающее правило обязано быть **не менее весомым**, чем прячущее, — и это исправленная
+   * ошибка, из-за которой печать одного листа выводила белую страницу.
+   *
+   * Прячущее правило выше — `body:not(:has(.printable-report)) *` — весит (0,1,1): элемент `body`
+   * плюс класс внутри `:has()`. Прежнее `.printable-document` весило (0,1,0), то есть **проигрывало
+   * ему**, и всё, включая сам печатаемый документ, оставалось невидимым. Пока рядом не было
+   * `.printable-report`, прячущее правило было просто `body *` и не выигрывало; условие добавили —
+   * и молча сломали печать бланков, справок и шаблонов.
+   */
+  body:not(:has(.printable-report)) .printable-document,
+  body:not(:has(.printable-report)) .printable-document * {
     visibility: visible;
   }
 

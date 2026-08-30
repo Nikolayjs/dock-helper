@@ -1,4 +1,4 @@
-import { Badge, Button, Container, Group, Stack, Text, Title, Typography } from '@mantine/core';
+import { Badge, Box, Button, Container, Group, Stack, Text, Title, Typography } from '@mantine/core';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
 import { notifications } from '@mantine/notifications';
 import { IconDownload, IconEdit, IconPrinter, IconTrash, IconUser } from '@tabler/icons-react';
@@ -94,41 +94,50 @@ export function DocumentViewPage() {
 
         {/* Название, теги и дата — часть документа, поэтому лежат на той же подложке, что и текст:
             иначе заголовок оставался бы на обоях, то есть ровно там, где его хуже всего видно.
-            Снаружи остаются только действия над документом — они относятся к странице, не к тексту. */}
+            Снаружи остаются только действия над документом — они относятся к странице, не к тексту.
+
+            **На бумагу из этой шапки уходит не всё.** Вид документа, краткое описание, теги и дата
+            правки — пометки для списка, а не части бумаги: на распечатанном направлении они читаются
+            как случайный мусор над заголовком. Остаются название, пациент и сам текст. */}
         <ReadingSheet className="printable-report">
-          <Group gap="xs" mb={6}>
+          <Group gap="xs" mb={6} className="no-print">
             <Badge variant="light" color={doc.kind === 'sheet' ? 'teal' : 'brand'} size="sm">
               {KIND_LABEL[doc.kind]}
             </Badge>
-            {patient && (
-              <Badge
-                variant="light"
-                color="gray"
-                size="sm"
-                leftSection={<IconUser size={11} />}
-                style={{ cursor: 'pointer' }}
-                onClick={() => navigate(`/patients/${patient.id}`, { state: { from: `/documents/${doc.id}` } })}
-              >
-                {patient.fullName}
-              </Badge>
-            )}
-            {/* Ссылка на пациента может повиснуть: пациента удаляют, документ остаётся. Молча
-                прятать привязку нельзя — на бумаге чьё-то имя всё ещё стоит. */}
-            {doc.patientId && !patient && (
-              <Badge variant="light" color="orange" size="sm">
-                Пациент удалён
-              </Badge>
-            )}
           </Group>
+
+          {/* Пациент печатается: направление или справка без имени — бумага ни о ком. Ссылка при
+              этом может повиснуть — пациента удаляют, документ остаётся, — и прятать привязку
+              нельзя по той же причине. */}
+          {(patient || doc.patientId) && (
+            <Group gap="xs" mb={6}>
+              {patient ? (
+                <Badge
+                  variant="light"
+                  color="gray"
+                  size="sm"
+                  leftSection={<IconUser size={11} />}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => navigate(`/patients/${patient.id}`, { state: { from: `/documents/${doc.id}` } })}
+                >
+                  {patient.fullName}
+                </Badge>
+              ) : (
+                <Badge variant="light" color="orange" size="sm">
+                  Пациент удалён
+                </Badge>
+              )}
+            </Group>
+          )}
 
           <Title order={2}>{doc.title}</Title>
           {doc.summary && (
-            <Text size="sm" c="dimmed" mt={6}>
+            <Text size="sm" c="dimmed" mt={6} className="no-print">
               {doc.summary}
             </Text>
           )}
           {doc.tags.length > 0 && (
-            <Group gap={6} mt={10}>
+            <Group gap={6} mt={10} className="no-print">
               {doc.tags.map((tag) => (
                 <Badge key={tag} size="sm" variant="light" color="gray">
                   {tag}
@@ -136,17 +145,21 @@ export function DocumentViewPage() {
               ))}
             </Group>
           )}
-          <Text size="xs" c="dimmed" mt={8} mb="lg">
+          <Text size="xs" c="dimmed" mt={8} className="no-print">
             Изменён {dayjs(doc.updatedAt).format('D MMMM YYYY')}
           </Text>
 
-          {doc.kind === 'sheet' ? (
-            <SheetTable sheet={doc.sheet} />
-          ) : (
-            <Typography>
-              <SafeHtml html={doc.content} />
-            </Typography>
-          )}
+          {/* Отступ до текста держит сам текст, а не дата над ним: дата на бумагу не идёт, и вместе
+              с ней исчезал бы просвет — заголовок садился бы прямо на первую строку. */}
+          <Box mt="lg">
+            {doc.kind === 'sheet' ? (
+              <SheetTable sheet={doc.sheet} />
+            ) : (
+              <Typography>
+                <SafeHtml html={doc.content} />
+              </Typography>
+            )}
+          </Box>
         </ReadingSheet>
       </Stack>
     </Container>
