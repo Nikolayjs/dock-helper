@@ -1,20 +1,33 @@
 import { useMemo, useState } from 'react';
-import { Button, Card, Container, Group, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Tabs } from '@mantine/core';
+import { Box, Button, Container, Group, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconCalculatorOff, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
-import { CatalogToolbar } from '../components/common/CatalogPanel';
+import { CatalogPanel } from '../components/common/CatalogPanel';
 
-import { CalculatorCard } from '../features/calculators/CalculatorCard';
-import { CALCULATOR_CATEGORIES } from '../features/calculators/types';
+import {
+  CALCULATOR_SORT_KEYS,
+  CalculatorTable,
+  calculatorSortValue,
+  type CalculatorSortKey,
+} from '../features/calculators/CalculatorTable';
+import { CALCULATOR_CATEGORIES, CATEGORY_COLORS } from '../features/calculators/types';
 import { useCalculators } from '../features/calculators/useCalculators';
 import { QueryState } from '../components/common/QueryState';
+import { sortRows, useTableSort } from '../lib/tableSort';
 
 export function CalculatorsPage() {
   const navigate = useNavigate();
   const { calculators, toggleFavourite, isLoading, error, refetch } = useCalculators();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>('all');
+  // На телефоне таблица из трёх колонок требует бокового смахивания — там компактный список.
+  const isNarrow = useMediaQuery('(max-width: 62em)');
+  const { sort, toggle } = useTableSort<CalculatorSortKey>(
+    { key: 'favourite', direction: 'asc' },
+    { storageKey: 'medassist:sort:calculators', keys: CALCULATOR_SORT_KEYS },
+  );
 
   const filtered = useMemo(() => {
     return calculators.filter((calc) => {
@@ -26,6 +39,8 @@ export function CalculatorsPage() {
       return matchesCategory && matchesSearch;
     });
   }, [calculators, search, category]);
+
+  const sorted = useMemo(() => sortRows(filtered, sort, calculatorSortValue), [filtered, sort]);
 
   const isFiltering = search.trim() !== '' || category !== 'all';
 
@@ -40,10 +55,13 @@ export function CalculatorsPage() {
 
   return (
     <Container size="xl" px={0}>
-      {/* Одна панель на всё: счётчик, поиск, кнопка и разделы. Отдельной карточкой сверху счётчик
-          с кнопкой занимали целую полосу экрана ради одной строки текста. */}
-      <CatalogToolbar>
-        <Stack gap="sm">
+      {/* Промежуток между панелью и плитками задаёт общий `Stack`, как на остальных страницах
+          разделов: без него панель и первый ряд карточек стояли впритык. */}
+      {/* Одна панель на всё: счётчик, поиск, кнопка, разделы и сам список. Отдельной карточкой
+          сверху счётчик с кнопкой занимали целую полосу экрана ради одной строки текста. */}
+      <CatalogPanel
+        header={
+          <Stack gap="sm">
           <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
             <Text c="dimmed" size="sm">
               {/* Пока ничего не отобрано, число ни о чём не говорит — но как только врач ищет или
@@ -76,13 +94,12 @@ export function CalculatorsPage() {
               ))}
             </Tabs.List>
           </Tabs>
-        </Stack>
-      </CatalogToolbar>
-
-
+          </Stack>
+        }
+      >
       <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="калькуляторы">
         {filtered.length === 0 ? (
-          <Card withBorder padding="xl">
+          <Box p="xl">
             <Stack align="center" gap="sm" py="xl">
               <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                 <IconCalculatorOff size={24} />
@@ -92,15 +109,20 @@ export function CalculatorsPage() {
                 Попробуйте изменить запрос или создайте свой калькулятор.
               </Text>
             </Stack>
-          </Card>
+          </Box>
         ) : (
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-            {filtered.map((calc) => (
-              <CalculatorCard key={calc.id} definition={calc} onToggleFavourite={() => toggleFavourite(calc)} />
-            ))}
-          </SimpleGrid>
+          <CalculatorTable
+            calculators={sorted}
+            sort={sort}
+            onSort={toggle}
+            onOpen={(calc) => navigate(`/calculators/${calc.id}`)}
+            onToggleFavourite={toggleFavourite}
+            categoryColor={(category) => CATEGORY_COLORS[category] ?? 'brand'}
+            narrow={isNarrow}
+          />
         )}
       </QueryState>
+      </CatalogPanel>
     </Container>
   );
 }

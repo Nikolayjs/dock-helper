@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
-import { ActionIcon, Badge, Button, Card, Group, Menu, Select, SimpleGrid, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { IconEdit, IconFileText, IconFileSpreadsheet, IconPlus, IconSearch, IconTrash, IconUser } from '@tabler/icons-react';
-import dayjs from 'dayjs';
+import { Box, Button, Group, Menu, Select, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
+import { IconFileText, IconFileSpreadsheet, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
-import { CatalogToolbar } from '../../components/common/CatalogPanel';
+import { CatalogPanel } from '../../components/common/CatalogPanel';
 
 import { stripHtml } from '../notes/textPreview';
 import { usePatients } from '../patients/usePatients';
+import { DOCUMENT_SORT_KEYS, DocumentTable, documentSortValue, type DocumentSortKey } from './DocumentTable';
+import { sortRows, useTableSort } from '../../lib/tableSort';
 import { KIND_LABEL, type DoctorDocument } from './types';
 import { QUERY_KEY, useDoctorDocuments } from './useDoctorDocuments';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
@@ -29,6 +31,12 @@ function preview(doc: DoctorDocument): string {
 export function DocumentList({ hint }: { hint?: string }) {
   const navigate = useNavigate();
   const { documents, isLoading, deleteDocument } = useDoctorDocuments();
+  // На телефоне таблица из пяти колонок требует бокового смахивания — там компактный список.
+  const isNarrow = useMediaQuery('(max-width: 62em)');
+  const { sort, toggle } = useTableSort<DocumentSortKey>(
+    { key: 'updated', direction: 'desc' },
+    { storageKey: 'medassist:sort:documents', keys: DOCUMENT_SORT_KEYS },
+  );
   const { patients } = usePatients();
   const confirmDelete = useDeleteWithConfirm();
 
@@ -49,6 +57,11 @@ export function DocumentList({ hint }: { hint?: string }) {
       );
     });
   }, [documents, patientId, search]);
+
+  const sorted = useMemo(
+    () => sortRows(filtered, sort, (doc, key) => documentSortValue(doc, key, patientName)),
+    [filtered, sort, patientName],
+  );
 
   /**
    * В выпадающем списке только те пациенты, у кого документы есть.
@@ -74,8 +87,8 @@ export function DocumentList({ hint }: { hint?: string }) {
     });
 
   return (
-    <Stack gap="lg">
-      <CatalogToolbar>
+    <CatalogPanel
+      header={
       <Stack gap="sm">
         {hint && (
           <Text size="sm" c="dimmed">
@@ -125,10 +138,11 @@ export function DocumentList({ hint }: { hint?: string }) {
         </Menu>
       </Group>
       </Stack>
-      </CatalogToolbar>
+      }
+    >
 
       {!isLoading && filtered.length === 0 && (
-        <Card withBorder padding="xl">
+        <Box p="xl">
           <Stack align="center" gap="sm" py="xl">
             <ThemeIcon size={48} radius="xl" variant="light" color="gray">
               <IconFileText size={24} />
@@ -140,66 +154,23 @@ export function DocumentList({ hint }: { hint?: string }) {
                 : 'Попробуйте изменить запрос или снять фильтр по пациенту.'}
             </Text>
           </Stack>
-        </Card>
+        </Box>
       )}
 
       {filtered.length > 0 && (
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-          {filtered.map((doc) => (
-            <Card
-              key={doc.id}
-              withBorder
-              padding="md"
-              h="100%"
-              style={{ cursor: 'pointer' }}
-              onClick={() => navigate(`/documents/${doc.id}`)}
-            >
-              <Group justify="space-between" align="flex-start" mb="xs" wrap="nowrap">
-                <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
-                  <ThemeIcon variant="light" color={doc.kind === 'sheet' ? 'teal' : 'brand'} size={32} radius="md">
-                    {doc.kind === 'sheet' ? <IconFileSpreadsheet size={17} /> : <IconFileText size={17} />}
-                  </ThemeIcon>
-                  <Text fw={600} size="sm" truncate>
-                    {doc.title}
-                  </Text>
-                </Group>
-                <Group gap={2} wrap="nowrap" onClick={(event) => event.stopPropagation()}>
-                  <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => navigate(`/documents/${doc.id}/edit`)}>
-                    <IconEdit size={14} />
-                  </ActionIcon>
-                  <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleDelete(doc)}>
-                    <IconTrash size={14} />
-                  </ActionIcon>
-                </Group>
-              </Group>
-
-              <Text size="sm" c="dimmed" lineClamp={3} mb="sm">
-                {preview(doc)}
-              </Text>
-
-              <Group gap={6} mb="sm">
-                <Badge size="xs" variant="light" color={doc.kind === 'sheet' ? 'teal' : 'brand'}>
-                  {KIND_LABEL[doc.kind]}
-                </Badge>
-                {doc.patientId && (
-                  <Badge size="xs" variant="light" color={patientName.has(doc.patientId) ? 'gray' : 'orange'} leftSection={<IconUser size={10} />}>
-                    {patientName.get(doc.patientId) ?? 'Пациент удалён'}
-                  </Badge>
-                )}
-                {doc.tags.map((tag) => (
-                  <Badge key={tag} size="xs" variant="light" color="gray">
-                    {tag}
-                  </Badge>
-                ))}
-              </Group>
-
-              <Text size="xs" c="dimmed" mt="auto">
-                {dayjs(doc.updatedAt).format('D MMMM YYYY')}
-              </Text>
-            </Card>
-          ))}
-        </SimpleGrid>
+        <DocumentTable
+          documents={sorted}
+          sort={sort}
+          onSort={toggle}
+          onOpen={(doc) => navigate(`/documents/${doc.id}`)}
+          onEdit={(doc) => navigate(`/documents/${doc.id}/edit`)}
+          onDelete={handleDelete}
+          patientName={patientName}
+          preview={preview}
+          kindLabel={KIND_LABEL}
+          narrow={isNarrow}
+        />
       )}
-    </Stack>
+    </CatalogPanel>
   );
 }
