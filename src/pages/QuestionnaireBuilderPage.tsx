@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Card, Container, Grid, Group, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Alert, Badge, Button, Card, Container, Group, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -10,6 +10,7 @@ import { SymptomPoolEditor, type DraftSymptom } from '../features/diagnostics/bu
 import type { Questionnaire } from '../features/diagnostics/types';
 import { QUERY_KEY as QUESTIONNAIRES_KEY, slugifyQuestionnaireId, useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { BuilderLayout } from '../components/common/BuilderLayout';
 import { FormActions } from '../components/common/FormActions';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
 import { useSaveAction } from '../components/common/useSaveAction';
@@ -139,9 +140,10 @@ export function QuestionnaireBuilderPage() {
         )}
       </Group>
 
-      <Grid gap="xl">
-        <Grid.Col span={{ base: 12, lg: 7 }}>
-          <Stack gap="lg">
+      <BuilderLayout
+        previewLabel="Предпросмотр опроса"
+        editor={
+          <>
             <Card withBorder padding="lg">
               <Title order={4} mb="md">
                 Основное
@@ -214,28 +216,27 @@ export function QuestionnaireBuilderPage() {
             )}
 
             {guard.render({ onSave: errors.length === 0 ? handleSave : undefined })}
-
-            <FormActions>
-              <Group justify="flex-end">
-                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
-                  {editingQuestionnaire ? 'Сохранить изменения' : 'Создать анкету'}
-                </Button>
-              </Group>
-            </FormActions>
+          </>
+        }
+        actions={
+          <FormActions>
+            <Group justify="flex-end">
+              <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
+                {editingQuestionnaire ? 'Сохранить изменения' : 'Создать анкету'}
+              </Button>
+            </Group>
+          </FormActions>
+        }
+        preview={
+          /* Опрос идёт естественной высотой и прокручивается страницей — см. пояснение у калькулятора. */
+          <Stack gap="lg">
+            <Badge variant="light" color="gray">
+              Предпросмотр опроса
+            </Badge>
+            <DiagnosticSession diseases={previewDefinition.diseases} symptoms={previewDefinition.symptoms} />
           </Stack>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, lg: 5 }}>
-          <div style={{ position: 'sticky', top: 84, maxHeight: 'calc(100vh - 104px)', overflowY: 'auto' }}>
-            <Stack gap="lg">
-              <Badge variant="light" color="gray">
-                Предпросмотр опроса
-              </Badge>
-              <DiagnosticSession diseases={previewDefinition.diseases} symptoms={previewDefinition.symptoms} />
-            </Stack>
-          </div>
-        </Grid.Col>
-      </Grid>
+        }
+      />
     </Container>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { Alert, Badge, Button, Card, Container, Grid, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Alert, Badge, Button, Card, Container, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -23,6 +23,7 @@ import type { Sex } from '../features/analyzer/types';
 import { QUERY_KEY as LAB_TESTS_KEY, useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { useMediaQuery } from '@mantine/hooks';
+import { BuilderLayout } from '../components/common/BuilderLayout';
 import { FormActions } from '../components/common/FormActions';
 import { useScreenFitHeight } from '../components/common/useScreenFitHeight';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
@@ -318,9 +319,9 @@ export function AnalyzerBuilderPage() {
         )}
       </Group>
 
-      <Grid gap="xl">
-        <Grid.Col span={{ base: 12, lg: 7 }}>
-          <Stack gap="lg">
+      <BuilderLayout
+        editor={
+          <>
             <Card withBorder padding="lg">
               <Title order={4} mb="md">
                 Основное
@@ -390,19 +391,19 @@ export function AnalyzerBuilderPage() {
             )}
 
             {guard.render({ onSave: errors.length === 0 ? handleSave : undefined })}
-
-            <FormActions>
-              <Group justify="flex-end">
-                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
-                  {editingTest ? 'Сохранить изменения' : 'Создать анализ'}
-                </Button>
-              </Group>
-            </FormActions>
-          </Stack>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, lg: 5 }}>
-          {/*
+          </>
+        }
+        actions={
+          <FormActions>
+            <Group justify="flex-end">
+              <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
+                {editingTest ? 'Сохранить изменения' : 'Создать анализ'}
+              </Button>
+            </Group>
+          </FormActions>
+        }
+        preview={
+          /*
             Предпросмотр не прикреплён к экрану, и это следствие того, что заключения растут
             свободно: прикреплённая карточка осталась бы висеть на месте, а разбор уезжал бы **под
             неё** — он идёт следующим в потоке и рисуется ниже. Прокручивается страница целиком.
@@ -410,7 +411,7 @@ export function AnalyzerBuilderPage() {
             Прокрутка внутри осталась ровно одна — список показателей внутри карточки формы. Полоса
             у неё `ScrollArea`, а не родная: родная отнимала бы у блока 10 px и рисовалась справа от
             карточки, прямо на обоях, отдельной чертой.
-          */}
+          */
           <Stack gap="lg" ref={previewRef}>
               <Card
                 withBorder
@@ -474,8 +475,8 @@ export function AnalyzerBuilderPage() {
                   у них нет, поэтому и обрывать их нечему. */}
               <AnalyzerResults result={previewResult} />
           </Stack>
-        </Grid.Col>
-      </Grid>
+        }
+      />
     </Container>
   );
 }

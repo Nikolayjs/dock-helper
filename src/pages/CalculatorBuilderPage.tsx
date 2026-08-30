@@ -8,7 +8,6 @@ import {
   Code,
   Container,
   Divider,
-  Grid,
   Group,
   NumberInput,
   Select,
@@ -44,6 +43,7 @@ import { CALCULATOR_CATEGORIES, type CalculatorDefinition, type InterpretationRa
 import { QUERY_KEY as CALCULATORS_KEY, useCalculators } from '../features/calculators/useCalculators';
 import { useCustomCategories } from '../features/calculators/useCustomCategories';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { BuilderLayout } from '../components/common/BuilderLayout';
 import { FormActions } from '../components/common/FormActions';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
 import { useSaveAction } from '../components/common/useSaveAction';
@@ -227,9 +227,9 @@ export function CalculatorBuilderPage() {
         )}
       </Group>
 
-      <Grid gap="xl">
-        <Grid.Col span={{ base: 12, lg: 7 }}>
-          <Stack gap="lg">
+      <BuilderLayout
+        editor={
+          <>
             <Card withBorder padding="lg">
               <Title order={4} mb="md">
                 Основное
@@ -443,20 +443,27 @@ export function CalculatorBuilderPage() {
             )}
 
             {guard.render({ onSave: errors.length === 0 ? handleSave : undefined })}
+          </>
+        }
+        actions={
+          <FormActions>
+            <Group justify="flex-end">
+              <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
+                {editingCalculator ? 'Сохранить изменения' : 'Создать калькулятор'}
+              </Button>
+            </Group>
+          </FormActions>
+        }
+        preview={
+          /*
+            Предпросмотр идёт естественной высотой и прокручивается вместе со страницей.
 
-            <FormActions>
-              <Group justify="flex-end">
-                <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
-                  {editingCalculator ? 'Сохранить изменения' : 'Создать калькулятор'}
-                </Button>
-              </Group>
-            </FormActions>
-          </Stack>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, lg: 5 }}>
-          <div style={{ position: 'sticky', top: 84, maxHeight: 'calc(100vh - 104px)', overflowY: 'auto' }}>
-            <Card withBorder padding="lg">
+            Раньше он был прилипшим блоком со своей прокруткой (`maxHeight: calc(100vh - 104px)`), и
+            это давало ровно те беды, что уже разобраны у анализатора: карточка обрезалась краем
+            области прокрутки, родная полоса рисовалась справа от неё прямо на обоях, а низ уходил
+            под прилипшую панель «Сохранить».
+          */
+          <Card withBorder padding="lg">
               <Badge variant="light" color="gray" mb="xs">
                 Предпросмотр
               </Badge>
@@ -467,10 +474,9 @@ export function CalculatorBuilderPage() {
                 {previewDefinition.description || 'Описание появится здесь'}
               </Text>
               <CalculatorForm definition={previewDefinition} />
-            </Card>
-          </div>
-        </Grid.Col>
-      </Grid>
+          </Card>
+        }
+      />
     </Container>
   );
 }
