@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Anchor, Box, Button, Container, Group, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconCalculatorOff, IconInfoCircle, IconPlus, IconSearch } from '@tabler/icons-react';
+import { IconCalculatorOff, IconInfoCircle, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { CatalogPanel } from '../components/common/CatalogPanel';
@@ -114,11 +114,28 @@ export function CalculatorsPage() {
       {forPatient && (
         <Box px="md" pt="md">
           <Alert variant="light" color="gray" icon={<IconInfoCircle size={18} />}>
-            Расчёт для пациента{' '}
-            <Anchor component={Link} to={`/patients/${forPatient.id}`}>
-              {forPatient.fullName}
-            </Anchor>
-            : поля калькулятора заполнятся из карточки, а результат можно будет записать в визит.
+            <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
+              <Text size="sm">
+                Расчёт для пациента{' '}
+                <Anchor component={Link} to={`/patients/${forPatient.id}`}>
+                  {forPatient.fullName}
+                </Anchor>
+                : поля калькулятора заполнятся из карточки, а результат можно будет записать в визит.
+              </Text>
+              {/* Выйти из расчёта «по пациенту» нечем, кроме как править адрес руками: врач приходит
+                  сюда из карточки, а дальше считает уже своё. `replace` — чтобы кнопка браузера
+                  «назад» не возвращала пациента, которого только что убрали. */}
+              <Button
+                size="xs"
+                variant="subtle"
+                color="gray"
+                leftSection={<IconX size={14} />}
+                onClick={() => navigate('/calculators', { replace: true })}
+                style={{ flexShrink: 0 }}
+              >
+                Очистить
+              </Button>
+            </Group>
           </Alert>
         </Box>
       )}

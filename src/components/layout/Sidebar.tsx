@@ -27,6 +27,7 @@ import {
   IconFileText,
   IconGripVertical,
   IconLayoutDashboard,
+  IconSunHigh,
   IconLayoutKanban,
   IconMicroscope,
   IconNews,
@@ -50,6 +51,7 @@ interface NavItemData {
 
 const mainNav: NavItemData[] = [
   { label: "Дашборд", path: "/dashboard", icon: IconLayoutDashboard },
+  { label: "Мой день", path: "/today", icon: IconSunHigh },
   { label: "Анализы", path: "/analyzer", icon: IconMicroscope },
   { label: "Калькуляторы", path: "/calculators", icon: IconCalculator },
   { label: "Лекарственные препараты", path: "/drugs", icon: IconPill },

@@ -29,6 +29,7 @@ function lazyPage<M extends Record<string, PageComponent>, K extends keyof M>(lo
 }
 
 const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage');
+const TodayPage = lazyPage(() => import('./features/today/TodayPage'), 'TodayPage');
 const DoctorPage = lazyPage(() => import('./pages/DoctorPage'), 'DoctorPage');
 const CalculatorsPage = lazyPage(() => import('./pages/CalculatorsPage'), 'CalculatorsPage');
 const CalculatorRunPage = lazyPage(() => import('./pages/CalculatorRunPage'), 'CalculatorRunPage');
@@ -125,6 +126,7 @@ export const router = createBrowserRouter(
           <Route errorElement={<RouteErrorPage />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/today" element={<TodayPage />} />
           <Route path="/analyzer" element={<AnalyzerPage />} />
           <Route path="/analyzer/new" element={<AnalyzerBuilderPage />} />
           <Route path="/analyzer/:id/edit" element={<AnalyzerBuilderPage />} />
