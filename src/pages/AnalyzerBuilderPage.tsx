@@ -381,35 +381,42 @@ export function AnalyzerBuilderPage() {
             }}
           >
               <Card withBorder padding="lg" style={sideBySide ? { flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' } : undefined}>
-                <Badge variant="light" color="gray" mb="xs">
-                  Предпросмотр
-                </Badge>
-                <Title order={4} mb={4}>
-                  {previewLabTest.title}
-                </Title>
-                <Text size="sm" c="dimmed" mb="lg">
-                  {previewLabTest.description || 'Описание появится здесь'}
-                </Text>
+                {/*
+                  Шапка карточки не сжимается, и это не мелочь: в flex-колонке сжимается **всё**, что
+                  не сказало обратного, — включая бейдж высотой в строку. Замер до правки: бейдж
+                  «Предпросмотр» 12 px вместо 20, то есть текст, обрезанный по горизонтали пополам.
+                */}
+                <div style={{ flexShrink: 0 }}>
+                  <Badge variant="light" color="gray" mb="xs">
+                    Предпросмотр
+                  </Badge>
+                  <Title order={4} mb={4}>
+                    {previewLabTest.title}
+                  </Title>
+                  <Text size="sm" c="dimmed" mb="lg">
+                    {previewLabTest.description || 'Описание появится здесь'}
+                  </Text>
 
-                <Group gap="sm" mb="lg">
-                  <NumberInput
-                    value={previewAge ?? ''}
-                    onChange={(v) => setPreviewAge(v === '' ? undefined : Number(v))}
-                    placeholder="Возраст, лет"
-                    min={0}
-                    max={120}
-                    w={140}
-                    radius="md"
-                  />
-                  <SegmentedControl
-                    value={previewSex}
-                    onChange={(v) => setPreviewSex(v as Sex)}
-                    data={[
-                      { value: 'male', label: 'Мужской' },
-                      { value: 'female', label: 'Женский' },
-                    ]}
-                  />
-                </Group>
+                  <Group gap="sm" mb="lg">
+                    <NumberInput
+                      value={previewAge ?? ''}
+                      onChange={(v) => setPreviewAge(v === '' ? undefined : Number(v))}
+                      placeholder="Возраст, лет"
+                      min={0}
+                      max={120}
+                      w={140}
+                      radius="md"
+                    />
+                    <SegmentedControl
+                      value={previewSex}
+                      onChange={(v) => setPreviewSex(v as Sex)}
+                      data={[
+                        { value: 'male', label: 'Мужской' },
+                        { value: 'female', label: 'Женский' },
+                      ]}
+                    />
+                  </Group>
+                </div>
 
                 <ScrollArea style={sideBySide ? { flex: '1 1 auto', minHeight: 0 } : undefined} type="auto" scrollbars="y">
                   <LabTestForm
@@ -423,9 +430,16 @@ export function AnalyzerBuilderPage() {
                   />
                 </ScrollArea>
               </Card>
-              {/* Заключения занимают столько, сколько им нужно, но не больше сорока процентов
-                  колонки: разбор с десятком совпавших правил иначе выдавил бы сам предпросмотр. */}
-              <ScrollArea style={sideBySide ? { flex: '0 1 auto', minHeight: 0, maxHeight: '40%' } : undefined} type="auto" scrollbars="y">
+              {/*
+                Заключения занимают ровно свою высоту — `0 0 auto`, а не `0 1 auto`.
+
+                Со сжатием их карточку резало так же, как раньше резало предпросмотр: пустое
+                состояние «Введите показатели анализа» высотой 245 px ужималось до 85 и обрывалось
+                на полуслове. Место в колонке отдаёт предпросмотр — ему есть что прокручивать, а
+                короткому блоку сжиматься некуда. Потолок в 40 % остаётся на случай разбора с
+                десятком совпавших правил: иначе он выдавил бы сам предпросмотр.
+              */}
+              <ScrollArea style={sideBySide ? { flex: '0 0 auto', minHeight: 0, maxHeight: '40%' } : undefined} type="auto" scrollbars="y">
                 <AnalyzerResults result={previewResult} />
               </ScrollArea>
           </div>
