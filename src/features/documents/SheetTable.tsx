@@ -7,7 +7,7 @@ import { getFormat } from './sheetFormat';
 import classes from './SheetTable.module.css';
 import { buildGrid, compareCells, type SortDirection } from './sheetOps';
 import type { CellFormat, DocumentSheet } from './types';
-import { useFittedHeight } from './useFittedHeight';
+import { useFittedHeight } from '../../components/common/useFittedHeight';
 
 /**
  * Таблица документа для чтения.

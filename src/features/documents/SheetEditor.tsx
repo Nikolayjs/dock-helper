@@ -39,7 +39,7 @@ import {
   type SortDirection,
 } from './sheetOps';
 import { SheetToolbar } from './SheetToolbar';
-import { useFittedHeight, usePageFillHeight } from './useFittedHeight';
+import { useFittedHeight, usePageFillHeight } from '../../components/common/useFittedHeight';
 import type { CellFormat, DocumentSheet, SheetFormats } from './types';
 
 interface SheetEditorProps {

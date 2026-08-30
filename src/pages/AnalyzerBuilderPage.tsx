@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Alert, Badge, Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { Alert, Badge, Button, Card, Container, Grid, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -23,6 +23,8 @@ import type { Sex } from '../features/analyzer/types';
 import { QUERY_KEY as LAB_TESTS_KEY, useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { FormActions } from '../components/common/FormActions';
+import { useFittedHeight } from '../components/common/useFittedHeight';
+import { STICKY_TOP } from '../layouts/shellMetrics';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
 import { useSaveAction } from '../components/common/useSaveAction';
 
@@ -191,6 +193,18 @@ export function AnalyzerBuilderPage() {
     [previewLabTest, previewValues, previewSex, previewAge],
   );
 
+  /**
+   * Предпросмотр кончается там, где кончается экран, а не там, где насчитала формула из `100vh`.
+   *
+   * Меряется живая позиция блока: до прокрутки он начинается ниже, чем после (замер: 144 и 84), а
+   * снизу его накрывает прилипшая панель «Сохранить» — её высоту хук вычитает сам. Пол в 320 px —
+   * на случай совсем низкого окна: предпросмотр в полторы строки бесполезен, пусть лучше уедет
+   * вниз вместе со страницей.
+   */
+  const previewRef = useRef<HTMLDivElement>(null);
+  // `ready` обязателен: до прихода записи страница показывает загрузку и блока не рисует вовсе.
+  const previewHeight = useFittedHeight(previewRef, { reserve: 16, min: 320, minRatio: 0, ready: !isEditMode || hydrated });
+
   const guard = useUnsavedGuard(useDirtyValue({ title, shortTitle, description, parameters, rules }, hydrated));
 
   const { saving, save: handleSave } = useSaveAction(guard, async () => {
@@ -328,8 +342,20 @@ export function AnalyzerBuilderPage() {
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, lg: 5 }}>
-          <div style={{ position: 'sticky', top: 84, maxHeight: 'calc(100vh - 104px)', overflowY: 'auto' }}>
-            <Stack gap="lg">
+          {/*
+            Предпросмотр стоит на виду, пока правят показатели, поэтому он прилипший и со своей
+            прокруткой. Высота при этом **меряется**, а не берётся из `calc(100vh - …)`: жёсткое
+            число не знает ни того, что до прокрутки блок начинается ниже (замер: 144 против 84
+            после прокрутки), ни того, что снизу его накрывает прилипшая панель «Сохранить». С ним
+            низ предпросмотра оказывался на 107 px ниже верха панели — карточка выглядела обрезанной.
+
+            Прокрутка — `ScrollArea`, а не `overflow: auto`: родная полоса отнимала у блока 10 px и
+            рисовалась **справа от карточки**, прямо на обоях, отдельной белой чертой. У `ScrollArea`
+            полоса лежит поверх содержимого, внутри поверхности, — так же, как в сайдбаре и в поиске.
+          */}
+          <div ref={previewRef} style={{ position: 'sticky', top: `calc(${STICKY_TOP} + 16px)` }}>
+            <ScrollArea h={previewHeight ?? undefined} type="auto" scrollbars="y">
+              <Stack gap="lg">
               <Card withBorder padding="lg">
                 <Badge variant="light" color="gray" mb="xs">
                   Предпросмотр
@@ -371,8 +397,9 @@ export function AnalyzerBuilderPage() {
                   onChange={(key, value) => setPreviewValues((prev) => ({ ...prev, [key]: value }))}
                 />
               </Card>
-              <AnalyzerResults result={previewResult} />
-            </Stack>
+                <AnalyzerResults result={previewResult} />
+              </Stack>
+            </ScrollArea>
           </div>
         </Grid.Col>
       </Grid>
