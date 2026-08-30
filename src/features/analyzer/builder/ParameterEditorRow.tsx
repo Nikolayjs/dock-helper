@@ -1,15 +1,61 @@
 import { ActionIcon, Alert, Card, Divider, Grid, Group, NumberInput, Select, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
 import { IconGripVertical, IconLock, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
 
-import { describeLockedParamRange } from '../customTypes';
-import type { CustomAgeBand, CustomLabParameter, CustomLabParameterOption } from '../customTypes';
+import type { CustomAgeBand, CustomLabParameter, CustomLabParameterOption, CustomRange } from '../customTypes';
 
 export interface DraftParameter extends CustomLabParameter {
   uid: string;
 }
 
+/** Строка, у которой норма может быть разделена по полу: сам показатель и любой его диапазон. */
+type SexedRow = CustomRange & { male?: CustomRange; female?: CustomRange };
+
+/** Порядок один во всех местах: мужчины первыми, как в самой норме (`SexRange`). */
+const SEXES = [
+  { field: 'male', title: 'Мужчины' },
+  { field: 'female', title: 'Женщины' },
+] as const;
+
 function emptyAgeBand(): CustomAgeBand {
   return { id: crypto.randomUUID() };
+}
+
+/** Пара полей «от/до» — одна и та же и для общей нормы, и для мужской, и для женской. */
+function RangePair({
+  range,
+  onChange,
+  labels,
+  size,
+  suffix,
+}: {
+  range: CustomRange | undefined;
+  onChange: (range: CustomRange) => void;
+  /** Подписи показываются только у первой строки: под ней поля стоят столбиком и подписаны ею же. */
+  labels: boolean;
+  size?: 'sm';
+  /** Для голоса диктора, когда подписи скрыты: «Норма от, мужчины». */
+  suffix: string;
+}) {
+  return (
+    <>
+      <NumberInput
+        label={labels ? 'Норма от' : undefined}
+        aria-label={`Норма от, ${suffix}`}
+        size={size}
+        style={{ flex: 1, minWidth: 0 }}
+        value={range?.min ?? ''}
+        onChange={(v) => onChange({ ...range, min: v === '' ? undefined : Number(v) })}
+      />
+      <NumberInput
+        label={labels ? 'Норма до' : undefined}
+        aria-label={`Норма до, ${suffix}`}
+        size={size}
+        style={{ flex: 1, minWidth: 0 }}
+        value={range?.max ?? ''}
+        onChange={(v) => onChange({ ...range, max: v === '' ? undefined : Number(v) })}
+      />
+    </>
+  );
 }
 
 interface ParameterEditorRowProps {
@@ -37,9 +83,32 @@ export function ParameterEditorRow({ parameter, onChange, onRemove, keyError }: 
   };
 
   const byAge = Boolean(parameter.ageBands && parameter.ageBands.length > 0);
+  const bySex = Boolean(parameter.bySex);
+  const hasRange = parameter.inputType === 'number' || parameter.inputType === 'derived';
 
   const toggleByAge = (enabled: boolean) => {
     onChange({ ...parameter, ageBands: enabled ? [emptyAgeBand()] : undefined });
+  };
+
+  /**
+   * Включение и выключение нормы по полу переносит уже введённые числа.
+   *
+   * Включаем — обе нормы начинаются с общей: чаще всего они отличаются одной границей, и заставлять
+   * набирать всё заново значило бы предлагать выбор «удобно или правильно». Выключаем — общей
+   * становится мужская: она стоит первой, её и видно на экране.
+   */
+  const toggleBySex = (enabled: boolean) => {
+    const move = <T extends SexedRow>(row: T): T =>
+      enabled
+        ? { ...row, male: { min: row.min, max: row.max }, female: { min: row.min, max: row.max } }
+        : { ...row, min: row.male?.min, max: row.male?.max, male: undefined, female: undefined };
+    const moved = move(parameter as SexedRow);
+    onChange({
+      ...parameter,
+      ...moved,
+      bySex: enabled || undefined,
+      ageBands: parameter.ageBands?.map((band) => ({ ...band, ...move(band) })),
+    });
   };
 
   const updateAgeBand = (index: number, band: CustomAgeBand) => {
@@ -152,34 +221,37 @@ export function ParameterEditorRow({ parameter, onChange, onRemove, keyError }: 
           </Grid.Col>
         )}
 
-        {(parameter.inputType === 'number' || parameter.inputType === 'derived') && parameter.rangeLocked && (
-          <Grid.Col span={12}>
-            <Alert variant="light" color="gray" icon={<IconLock size={16} />}>
-              <Text size="sm">Норма зависит от пола: {describeLockedParamRange(parameter)}</Text>
-              <Text size="xs" c="dimmed" mt={4}>
-                Такая структура нормы не редактируется в конструкторе — при сохранении останется без изменений.
-              </Text>
-            </Alert>
+        {hasRange && !byAge && !bySex && (
+          <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Group gap="xs" align="flex-end" wrap="nowrap">
+              <RangePair
+                range={parameter}
+                labels
+                suffix="общая"
+                onChange={(range) => onChange({ ...parameter, ...range })}
+              />
+            </Group>
           </Grid.Col>
         )}
 
-        {(parameter.inputType === 'number' || parameter.inputType === 'derived') && !parameter.rangeLocked && !byAge && (
-          <>
-            <Grid.Col span={{ base: 6, sm: 3 }}>
-              <NumberInput
-                label="Норма от"
-                value={parameter.min ?? ''}
-                onChange={(v) => onChange({ ...parameter, min: v === '' ? undefined : Number(v) })}
-              />
-            </Grid.Col>
-            <Grid.Col span={{ base: 6, sm: 3 }}>
-              <NumberInput
-                label="Норма до"
-                value={parameter.max ?? ''}
-                onChange={(v) => onChange({ ...parameter, max: v === '' ? undefined : Number(v) })}
-              />
-            </Grid.Col>
-          </>
+        {hasRange && !byAge && bySex && (
+          <Grid.Col span={12}>
+            <Stack gap={6}>
+              {SEXES.map(({ field, title }, index) => (
+                <Group key={field} gap="xs" align="flex-end" wrap="nowrap">
+                  <Text size="sm" w={92} style={{ flexShrink: 0 }} mb={6}>
+                    {title}
+                  </Text>
+                  <RangePair
+                    range={parameter[field]}
+                    labels={index === 0}
+                    suffix={title.toLowerCase()}
+                    onChange={(range) => onChange({ ...parameter, [field]: range })}
+                  />
+                </Group>
+              ))}
+            </Stack>
+          </Grid.Col>
         )}
 
         {parameter.inputType === 'number' && (
@@ -203,18 +275,26 @@ export function ParameterEditorRow({ parameter, onChange, onRemove, keyError }: 
           </>
         )}
 
-        {(parameter.inputType === 'number' || parameter.inputType === 'derived') && !parameter.rangeLocked && (
+        {hasRange && (
           <Grid.Col span={12}>
-            <Switch
-              label="Норма зависит от возраста"
-              description="Задайте несколько возрастных диапазонов вместо одной общей нормы"
-              checked={byAge}
-              onChange={(e) => toggleByAge(e.currentTarget.checked)}
-            />
+            <Group gap="xl" wrap="wrap">
+              <Switch
+                label="Норма зависит от возраста"
+                description="Задайте несколько возрастных диапазонов вместо одной общей нормы"
+                checked={byAge}
+                onChange={(e) => toggleByAge(e.currentTarget.checked)}
+              />
+              <Switch
+                label="Норма зависит от пола"
+                description="Отдельные границы для мужчин и женщин — их можно сочетать с возрастом"
+                checked={bySex}
+                onChange={(e) => toggleBySex(e.currentTarget.checked)}
+              />
+            </Group>
           </Grid.Col>
         )}
 
-        {(parameter.inputType === 'number' || parameter.inputType === 'derived') && !parameter.rangeLocked && byAge && (
+        {hasRange && byAge && (
           <Grid.Col span={12}>
             <Divider mb="sm" />
             <Text size="sm" fw={500} mb={6}>
@@ -224,7 +304,8 @@ export function ParameterEditorRow({ parameter, onChange, onRemove, keyError }: 
               {(parameter.ageBands ?? []).map((band, index) => {
                 const isLast = index === (parameter.ageBands?.length ?? 0) - 1;
                 return (
-                  <Group key={band.id} gap={4} wrap="nowrap" align="flex-end">
+                  <Stack key={band.id} gap={4}>
+                    <Group gap={4} wrap="nowrap" align="flex-end">
                     <NumberInput
                       label="Возраст от"
                       placeholder="0"
@@ -245,20 +326,15 @@ export function ParameterEditorRow({ parameter, onChange, onRemove, keyError }: 
                       value={band.maxAge ?? ''}
                       onChange={(v) => updateAgeBand(index, { ...band, maxAge: v === '' ? undefined : Number(v) })}
                     />
-                    <NumberInput
-                      label="Норма от"
-                      size="sm"
-                      style={{ flex: 1, minWidth: 0 }}
-                      value={band.min ?? ''}
-                      onChange={(v) => updateAgeBand(index, { ...band, min: v === '' ? undefined : Number(v) })}
-                    />
-                    <NumberInput
-                      label="Норма до"
-                      size="sm"
-                      style={{ flex: 1, minWidth: 0 }}
-                      value={band.max ?? ''}
-                      onChange={(v) => updateAgeBand(index, { ...band, max: v === '' ? undefined : Number(v) })}
-                    />
+                    {!bySex && (
+                      <RangePair
+                        range={band}
+                        labels
+                        size="sm"
+                        suffix="общая"
+                        onChange={(range) => updateAgeBand(index, { ...band, ...range })}
+                      />
+                    )}
                     <ActionIcon
                       variant="subtle"
                       color="red"
@@ -280,7 +356,28 @@ export function ParameterEditorRow({ parameter, onChange, onRemove, keyError }: 
                         <IconPlus size={16} />
                       </ActionIcon>
                     )}
-                  </Group>
+                    </Group>
+                    {/* Шесть числовых полей в одну строку не помещаются даже на широком экране:
+                        нормы по полу уходят под возраст, а не рядом с ним. */}
+                    {bySex && (
+                      <Stack gap={4} pl="md">
+                        {SEXES.map(({ field, title }, sexIndex) => (
+                          <Group key={field} gap="xs" align="flex-end" wrap="nowrap">
+                            <Text size="xs" c="dimmed" w={72} style={{ flexShrink: 0 }} mb={6}>
+                              {title}
+                            </Text>
+                            <RangePair
+                              range={band[field]}
+                              labels={index === 0 && sexIndex === 0}
+                              size="sm"
+                              suffix={`${title.toLowerCase()}, диапазон ${index + 1}`}
+                              onChange={(range) => updateAgeBand(index, { ...band, [field]: range })}
+                            />
+                          </Group>
+                        ))}
+                      </Stack>
+                    )}
+                  </Stack>
                 );
               })}
             </Stack>

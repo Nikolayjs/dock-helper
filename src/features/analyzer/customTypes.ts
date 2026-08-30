@@ -115,15 +115,22 @@ export interface CustomLabParameterOption {
   value: number;
 }
 
-export interface CustomAgeBand {
-  id: string;
-  minAge?: number;
-  maxAge?: number;
+/** Одна пара границ. Пустая граница — «не ограничено», а не ноль. */
+export interface CustomRange {
   min?: number;
   max?: number;
 }
 
-export interface CustomLabParameter {
+export interface CustomAgeBand extends CustomRange {
+  id: string;
+  minAge?: number;
+  maxAge?: number;
+  /** Заполнены вместо `min`/`max`, когда у показателя включена норма по полу. */
+  male?: CustomRange;
+  female?: CustomRange;
+}
+
+export interface CustomLabParameter extends CustomRange {
   key: string;
   label: string;
   /** Alternative names for matching an uploaded lab file; not shown anywhere in the form. */
@@ -133,8 +140,16 @@ export interface CustomLabParameter {
   step?: number;
   inputType: CustomParamInputType;
   options?: CustomLabParameterOption[];
-  min?: number;
-  max?: number;
+  /**
+   * Норма задана отдельно для мужчин и женщин.
+   *
+   * Тумблер, а не отдельный вид показателя: пол и возраст — два независимых признака одной и той же
+   * нормы, и включаться они могут по отдельности и вместе. Когда он включён, границы берутся из
+   * `male`/`female` (у показателя или у каждого возрастного диапазона), а `min`/`max` не читаются.
+   */
+  bySex?: boolean;
+  male?: CustomRange;
+  female?: CustomRange;
   ageBands?: CustomAgeBand[];
   lowLabel?: string;
   highLabel?: string;
@@ -143,10 +158,6 @@ export interface CustomLabParameter {
   /** Present only for inputType 'derived'. No formula-editing UI — preserved verbatim on save. */
   deriveFormula?: string;
   derivedNote?: string;
-  /** True when the stored range has a male/female split (as the whole range or within an age band) — the flat editor above can't represent that, so `rawRange`/`rawAgeBands` carry the untouched original instead. */
-  rangeLocked?: boolean;
-  rawRange?: BackendRangeValue;
-  rawAgeBands?: BackendAgeBand[];
 }
 
 export type PatternOperator = 'and' | 'or';
@@ -271,15 +282,33 @@ export function toLabTestDefinition(test: BackendLabTest): LabTestDefinition {
 // Builder mapper — backend shape <-> draft shape.
 // ---------------------------------------------------------------------------
 
-function isFlatRangeValue(range?: BackendRangeValue): boolean {
-  return !range || !('male' in range);
+function isSexRange(range?: BackendRangeValue): range is BackendSexRange {
+  return Boolean(range && 'male' in range);
 }
 
-function isFlatParameterRange(param: BackendLabParameter): boolean {
-  if (param.ageBands && param.ageBands.length > 0) {
-    return param.ageBands.every((band) => isFlatRangeValue(band.range));
-  }
-  return isFlatRangeValue(param.range);
+/**
+ * Есть ли у показателя разделение по полу — хоть где-нибудь.
+ *
+ * «Хоть где-нибудь» важно: возрастные диапазоны могли быть заведены вразнобой — часть с полом,
+ * часть без. Тумблер один на показатель, поэтому такой показатель открывается с включённым полом, а
+ * диапазонам без разделения обе границы заполняются прежним общим значением. Смысл при этом не
+ * меняется: «одна норма на всех» и «одинаковая норма у мужчин и женщин» — это одно и то же.
+ */
+function hasSexSplit(param: BackendLabParameter): boolean {
+  if (param.ageBands && param.ageBands.length > 0) return param.ageBands.some((band) => isSexRange(band.range));
+  return isSexRange(param.range);
+}
+
+/** Границы для мужчин и женщин из любой формы нормы: у общей они просто совпадают. */
+function splitBySex(range?: BackendRangeValue): { male: CustomRange; female: CustomRange } {
+  if (isSexRange(range)) return { male: { ...range.male }, female: { ...range.female } };
+  const flat = { min: range?.min, max: range?.max };
+  return { male: { ...flat }, female: { ...flat } };
+}
+
+/** Общие границы из любой формы нормы: у разделённой по полу берутся мужские — они стоят первыми. */
+function flatten(range?: BackendRangeValue): CustomRange {
+  return isSexRange(range) ? { ...range.male } : { min: range?.min, max: range?.max };
 }
 
 /** Плоское — это одно условие или группа, внутри которой нет вложенных групп. */
@@ -338,25 +367,22 @@ function hydrateParameter(param: BackendLabParameter): CustomLabParameter {
 
   if (param.inputType === 'select') return base;
 
-  if (!isFlatParameterRange(param)) {
-    return { ...base, rangeLocked: true, rawRange: param.range, rawAgeBands: param.ageBands };
-  }
+  const bySex = hasSexSplit(param);
 
   if (param.ageBands && param.ageBands.length > 0) {
     return {
       ...base,
+      bySex: bySex || undefined,
       ageBands: param.ageBands.map((band): CustomAgeBand => ({
         id: band.id,
         minAge: band.minAge,
         maxAge: band.maxAge,
-        min: (band.range as BackendLabRange).min,
-        max: (band.range as BackendLabRange).max,
+        ...(bySex ? splitBySex(band.range) : flatten(band.range)),
       })),
     };
   }
 
-  const flat = param.range as BackendLabRange | undefined;
-  return { ...base, min: flat?.min, max: flat?.max };
+  return { ...base, bySex: bySex || undefined, ...(bySex ? splitBySex(param.range) : flatten(param.range)) };
 }
 
 function draftParameterToPayload(param: CustomLabParameter): BackendLabParameter {
@@ -379,7 +405,10 @@ function draftParameterToPayload(param: CustomLabParameter): BackendLabParameter
 
   if (param.inputType === 'select') return { ...base, range: { min: 0, max: 0 } };
 
-  if (param.rangeLocked) return { ...base, range: param.rawRange, ageBands: param.rawAgeBands };
+  const toRange = (source: CustomRange & { male?: CustomRange; female?: CustomRange }): BackendRangeValue =>
+    param.bySex
+      ? { male: { min: source.male?.min, max: source.male?.max }, female: { min: source.female?.min, max: source.female?.max } }
+      : { min: source.min, max: source.max };
 
   if (param.ageBands && param.ageBands.length > 0) {
     return {
@@ -388,12 +417,12 @@ function draftParameterToPayload(param: CustomLabParameter): BackendLabParameter
         id: band.id,
         minAge: band.minAge,
         maxAge: band.maxAge,
-        range: { min: band.min, max: band.max },
+        range: toRange(band),
       })),
     };
   }
 
-  return { ...base, range: { min: param.min, max: param.max } };
+  return { ...base, range: toRange(param) };
 }
 
 function hydratePatternRule(rule: BackendPatternRule): CustomPatternRule {
@@ -448,28 +477,6 @@ export function labTestDraftToPayload(draft: LabTestDraft): CreateLabTestPayload
 // ---------------------------------------------------------------------------
 // Read-only summaries for locked parameters/rules.
 // ---------------------------------------------------------------------------
-
-function describeLabRange(range: BackendLabRange): string {
-  if (range.min !== undefined && range.max !== undefined) return `${range.min}–${range.max}`;
-  if (range.min !== undefined) return `от ${range.min}`;
-  if (range.max !== undefined) return `до ${range.max}`;
-  return '—';
-}
-
-function describeRangeValue(range?: BackendRangeValue): string {
-  if (!range) return '—';
-  if ('male' in range) return `М: ${describeLabRange(range.male)}; Ж: ${describeLabRange(range.female)}`;
-  return describeLabRange(range);
-}
-
-export function describeLockedParamRange(param: CustomLabParameter): string {
-  if (param.rawAgeBands && param.rawAgeBands.length > 0) {
-    return param.rawAgeBands
-      .map((band) => `${band.minAge ?? 0}–${band.maxAge ?? '∞'} лет: ${describeRangeValue(band.range)}`)
-      .join('; ');
-  }
-  return describeRangeValue(param.rawRange);
-}
 
 const STATUS_TEXT: Record<ParamStatus, string> = { low: 'ниже нормы', normal: 'в норме', high: 'выше нормы' };
 

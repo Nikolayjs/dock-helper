@@ -15,6 +15,7 @@ import {
   hydrateLabTest,
   labTestDraftToPayload,
   toLabTestDefinition,
+  type CustomRange,
   type LabTestDraft,
 } from '../features/analyzer/customTypes';
 import { LabTestForm } from '../features/analyzer/LabTestForm';
@@ -124,7 +125,14 @@ export function AnalyzerBuilderPage() {
       if (param.inputType === 'select' && !(param.options ?? []).some((o) => o.label.trim())) {
         list.push(`У показателя «${param.label || key}» нужен хотя бы один вариант выбора.`);
       }
-      if (param.inputType === 'number' && !param.ageBands?.length && param.min !== undefined && param.max !== undefined && param.min > param.max) {
+      // Проверяются те границы, которые показатель действительно использует: при норме по полу это
+      // мужская и женская пары, при общей — одна. Иначе перевёрнутая женская норма проходила бы молча.
+      const pairsOf = (row: { min?: number; max?: number; male?: CustomRange; female?: CustomRange }) =>
+        param.bySex ? [row.male, row.female] : [{ min: row.min, max: row.max }];
+      const inverted = (pairs: (CustomRange | undefined)[]) =>
+        pairs.some((r) => r?.min !== undefined && r.max !== undefined && r.min > r.max);
+
+      if (param.inputType === 'number' && !param.ageBands?.length && inverted(pairsOf(param))) {
         list.push(`У показателя «${param.label || key}» минимум нормы больше максимума.`);
       }
       if (param.inputType === 'number' && param.ageBands?.length) {
@@ -132,7 +140,7 @@ export function AnalyzerBuilderPage() {
           if (band.minAge !== undefined && band.maxAge !== undefined && band.minAge > band.maxAge) {
             list.push(`У показателя «${param.label || key}» в одном из возрастных диапазонов «возраст от» больше «возраст до».`);
           }
-          if (band.min !== undefined && band.max !== undefined && band.min > band.max) {
+          if (inverted(pairsOf(band))) {
             list.push(`У показателя «${param.label || key}» в одном из возрастных диапазонов минимум нормы больше максимума.`);
           }
         }
