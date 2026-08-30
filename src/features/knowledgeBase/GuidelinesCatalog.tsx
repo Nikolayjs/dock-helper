@@ -36,6 +36,9 @@ import type { KnowledgeDocumentSummary } from './types';
  * первый тег, а без тегов — «Без раздела», и она не теряется в фильтре.
  */
 
+import { SpecialtyFilterNotice, SpecialtyFilterSwitch } from '../specialties/SpecialtyFilterControls';
+import { useSpecialtyFilter } from '../specialties/useSpecialtyFilter';
+
 const ALL_SECTIONS = '__all__';
 const NO_SECTION = 'Без раздела';
 
@@ -70,6 +73,7 @@ interface GuidelinesCatalogProps {
 export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, onTagClick }: GuidelinesCatalogProps) {
   const [search, setSearch] = useState('');
   const [section, setSection] = useState<string>(ALL_SECTIONS);
+  const specialtyFilter = useSpecialtyFilter('guidelines');
   const isNarrow = useMediaQuery('(max-width: 62em)');
   const { sort, toggle } = useTableSort<GuidelineSortKey>(
     { key: 'title', direction: 'asc' },
@@ -85,7 +89,9 @@ export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, 
     return counts;
   }, [documents]);
 
-  const filtered = useMemo(() => {
+  // Считается дважды — со специальностью и без. Второй набор нужен, чтобы сказать, сколько
+  // рекомендаций отбор спрятал: молча показанный короткий список читается как весь справочник.
+  const withoutSpecialty = useMemo(() => {
     const query = search.trim().toLowerCase();
     return documents.filter((doc) => {
       if (section !== ALL_SECTIONS && sectionOf(doc) !== section) return false;
@@ -98,18 +104,35 @@ export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, 
     });
   }, [documents, search, section]);
 
+  const filtered = useMemo(
+    () =>
+      specialtyFilter.active
+        ? withoutSpecialty.filter((doc) => specialtyFilter.matches(sectionOf(doc)))
+        : withoutSpecialty,
+    [withoutSpecialty, specialtyFilter],
+  );
+
   const sorted = useMemo(() => sortRows(filtered, sort, sortValue), [filtered, sort]);
-  const isFiltering = search.trim().length > 0 || section !== ALL_SECTIONS;
+  const isFiltering = search.trim().length > 0 || section !== ALL_SECTIONS || specialtyFilter.active;
 
   return (
     <Stack gap="lg">
       <Group justify="space-between" align="flex-end" wrap="wrap">
-        <Text c="dimmed" size="sm">
-          {isFiltering
-            ? `Найдено: ${filtered.length} из ${documents.length}`
-            : `${documents.length} рекомендаций в справочнике`}
-        </Text>
+        <Stack gap={4}>
+          <Text c="dimmed" size="sm">
+            {isFiltering
+              ? `Найдено: ${filtered.length} из ${documents.length}`
+              : `${documents.length} рекомендаций в справочнике`}
+          </Text>
+          <SpecialtyFilterNotice
+            filter={specialtyFilter}
+            hidden={withoutSpecialty.length - filtered.length}
+            visible={filtered.length}
+            unit={['рекомендацию', 'рекомендации', 'рекомендаций']}
+          />
+        </Stack>
         <Group gap="sm" wrap="wrap">
+          <SpecialtyFilterSwitch filter={specialtyFilter} />
           <TextInput
             placeholder="Заболевание, синдром, тег…"
             leftSection={<IconSearch size={16} />}

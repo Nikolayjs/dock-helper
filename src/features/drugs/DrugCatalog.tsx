@@ -14,6 +14,8 @@ import { sortRows, useTableSort } from '../../lib/tableSort';
 import { buildDrugIndex, drugCategoryCounts, drugMatchesQuery, normalizeDrugName, resolveDrug } from './drugIndex';
 import { useDrugInteractions } from '../interactions/useDrugInteractions';
 import { QueryState } from '../../components/common/QueryState';
+import { SpecialtyFilterNotice, SpecialtyFilterSwitch } from '../specialties/SpecialtyFilterControls';
+import { useSpecialtyFilter } from '../specialties/useSpecialtyFilter';
 
 const ALL_CATEGORIES = '__all__';
 
@@ -25,6 +27,7 @@ export function DrugCatalog() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const specialtyFilter = useSpecialtyFilter('drugs');
 
   /**
    * На телефоне таблица из семи колонок разворачивается в 1200 пикселей и требует бокового
@@ -56,7 +59,15 @@ export function DrugCatalog() {
     return counts;
   }, [interactions, index]);
 
-  const filtered = useMemo(
+  /**
+   * Отбор считается дважды: со специальностью и без неё.
+   *
+   * Второй набор нужен не для показа, а для честности: только зная, сколько записей подошло бы без
+   * отбора, страница может сказать «скрыто 812 препаратов» вместо того, чтобы молча показать
+   * короткий список. Разница между двумя проходами по полутора тысячам строк — доли миллисекунды,
+   * а между «скрыто» и молчанием — доверие к результату.
+   */
+  const withoutSpecialty = useMemo(
     () =>
       drugs.filter(
         (drug) =>
@@ -66,12 +77,20 @@ export function DrugCatalog() {
     [drugs, search, category],
   );
 
+  const filtered = useMemo(
+    () =>
+      specialtyFilter.active
+        ? withoutSpecialty.filter((drug) => specialtyFilter.matches(drug.category.trim()))
+        : withoutSpecialty,
+    [withoutSpecialty, specialtyFilter],
+  );
+
   const sorted = useMemo(
     () => sortRows(filtered, sort, (drug, key) => drugSortValue(drug, key, interactionCounts, normalizeDrugName)),
     [filtered, sort, interactionCounts],
   );
 
-  const isFiltering = search.trim() !== '' || category !== ALL_CATEGORIES;
+  const isFiltering = search.trim() !== '' || category !== ALL_CATEGORIES || specialtyFilter.active;
 
   const handleDelete = (drug: DrugSummary) =>
     confirmDelete({
@@ -104,10 +123,19 @@ export function DrugCatalog() {
         )}
 
         <Group justify="space-between" align="flex-end" wrap="wrap">
-          <Text c="dimmed" size="sm">
-            {isFiltering ? `Найдено: ${filtered.length} из ${drugs.length}` : `${drugs.length} препаратов в справочнике`}
-          </Text>
+          <Stack gap={4}>
+            <Text c="dimmed" size="sm">
+              {isFiltering ? `Найдено: ${filtered.length} из ${drugs.length}` : `${drugs.length} препаратов в справочнике`}
+            </Text>
+            <SpecialtyFilterNotice
+              filter={specialtyFilter}
+              hidden={withoutSpecialty.length - filtered.length}
+              visible={filtered.length}
+              unit={['препарат', 'препарата', 'препаратов']}
+            />
+          </Stack>
           <Group gap="sm" wrap="wrap">
+            <SpecialtyFilterSwitch filter={specialtyFilter} />
             <TextInput
               placeholder="МНН, торговое название, группа…"
               leftSection={<IconSearch size={16} />}

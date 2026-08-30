@@ -9,6 +9,7 @@ import {
   Container,
   Group,
   Image,
+  Select,
   SimpleGrid,
   Stack,
   Text,
@@ -37,6 +38,7 @@ import {
 import { WallpaperPicker } from '../features/appearance/WallpaperPicker';
 import { useSidebarOrder } from '../components/layout/useSidebarOrder';
 import { updateProfile } from '../features/auth/authApi';
+import { useSpecialties } from '../features/specialties/useSpecialtyFilter';
 import { useAuth, useLogout, useUpdateAuthUser } from '../features/auth/AuthContext';
 import { getClinicSettings, setClinicSettings, type ClinicSettings } from '../features/patients/clinicSettings';
 import { getMembers, invite, type WorkspaceMember } from '../features/workspace/workspaceApi';
@@ -77,6 +79,7 @@ export function DoctorPage() {
 
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState(user.role);
+  const specialties = useSpecialties();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const signatureInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -117,6 +120,18 @@ export function DoctorPage() {
 
   const handleNameRoleBlur = () => {
     void updateProfile({ name, role }).then(updateAuthUser).catch((error: unknown) => showProfileError(error, 'Не удалось сохранить профиль'));
+  };
+
+  /**
+   * Специальность сохраняется сразу при выборе, а не по уходу с поля.
+   *
+   * Это `Select`, а не текст: события `blur` у него нет в том смысле, в каком оно есть у поля
+   * ввода, а выбор пункта — законченное действие. Снятие выбора уезжает как `null`.
+   */
+  const handleSpecialtyChange = (value: string | null) => {
+    void updateProfile({ specialty: value })
+      .then(updateAuthUser)
+      .catch((error: unknown) => showProfileError(error, 'Не удалось сохранить специальность'));
   };
 
   const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -202,6 +217,26 @@ export function DoctorPage() {
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" style={{ flex: 1, minWidth: 240 }}>
               <TextInput label="Имя" value={name} onChange={(e) => setName(e.currentTarget.value)} onBlur={handleNameRoleBlur} />
               <TextInput label="Должность" value={role} onChange={(e) => setRole(e.currentTarget.value)} onBlur={handleNameRoleBlur} />
+              {/* Специальность — не то же, что должность. Должность врач пишет себе сам, и она
+                  печатается в документах; специальность выбирается из списка, потому что по ней
+                  отбираются справочники, а свободный текст отобрать нечем. */}
+              <Select
+                label="Специальность"
+                placeholder="не выбрана"
+                description="По ней справочники могут показывать только то, что относится к вашей работе"
+                data={specialties.map((item) => ({ value: item.id, label: item.name }))}
+                value={user.specialty}
+                onChange={handleSpecialtyChange}
+                disabled={specialties.length === 0}
+                searchable
+                clearable
+                /* Повторное нажатие на свою же специальность её не снимает. У Mantine это
+                   поведение по умолчанию, и здесь оно ловушка: врач, открывший список посмотреть,
+                   что там есть, и нажавший на выбранное, молча остался бы без специальности —
+                   а увидел бы это только по исчезнувшему тумблеру на другой странице. Снять
+                   выбор можно крестиком, то есть намеренно. Поймано прогоном в браузере. */
+                allowDeselect={false}
+              />
             </SimpleGrid>
           </Group>
         </Card>

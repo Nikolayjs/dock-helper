@@ -17,6 +17,8 @@ export interface Icd10Child extends Icd10Entry {
  */
 export interface Icd10ListRow extends Icd10Entry {
   chapter: string;
+  /** Первый код блока — его неизменный ключ. По нему отбирает специальность врача. */
+  blockFrom: string;
   blockRange: string;
   blockName: string;
   hasNote: boolean;
@@ -35,6 +37,7 @@ export type Icd10ChildrenMap = Record<string, Icd10Child[]>;
  */
 export interface Icd10Row extends Icd10Entry {
   chapter: string;
+  blockFrom: string;
   blockRange: string;
   blockName: string;
   hasNote: boolean;

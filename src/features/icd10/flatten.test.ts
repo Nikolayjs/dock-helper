@@ -18,10 +18,12 @@ const rubric = (
   chapter: string,
   childCount: number,
   hasNote = false,
+  blockFrom = 'I20',
 ): Icd10ListRow => ({
   code,
   name,
   chapter,
+  blockFrom,
   blockRange: 'I20–I25',
   blockName: 'Ишемическая болезнь сердца',
   hasNote,
@@ -44,7 +46,13 @@ const CHILDREN: Icd10ChildrenMap = {
   J20: [{ code: 'J20.9', name: 'Острый бронхит неуточнённый', hasNote: false }],
 };
 
-const base = { query: '', chapter: null, onlyWithNote: false, expanded: new Set<string>() };
+const base = {
+  query: '',
+  chapter: null,
+  onlyWithNote: false,
+  expanded: new Set<string>(),
+  specialtyBlocks: null,
+};
 
 describe('нераскрытый список', () => {
   it('состоит из одних рубрик, даже когда подрубрики уже загружены', () => {
@@ -174,6 +182,42 @@ describe('фильтры', () => {
   it('фильтры складываются', () => {
     const rows = flattenIcd10(ROWS, CHILDREN, { ...base, chapter: 'IX', query: 'повторный' });
     expect(rows.map((row) => row.code)).toEqual(['I22', 'I22.0']);
+  });
+});
+
+describe('отбор по специальности врача', () => {
+  const РАЗНЫЕ_БЛОКИ: Icd10ListRow[] = [
+    rubric('I21', 'Острый инфаркт миокарда', 'IX', 2, true, 'I20'),
+    rubric('J20', 'Острый бронхит', 'X', 1, false, 'J20'),
+  ];
+
+  it('оставляет только рубрики своих блоков', () => {
+    const rows = flattenIcd10(РАЗНЫЕ_БЛОКИ, CHILDREN, { ...base, specialtyBlocks: new Set(['I20']) });
+    expect(rows.map((row) => row.code)).toEqual(['I21']);
+  });
+
+  it('подрубрика едет вместе со своей рубрикой: блок у них один', () => {
+    const rows = flattenIcd10(РАЗНЫЕ_БЛОКИ, CHILDREN, {
+      ...base,
+      specialtyBlocks: new Set(['I20']),
+      expanded: new Set(['I21']),
+    });
+    expect(rows.map((row) => row.code)).toEqual(['I21', 'I21.0', 'I21.4']);
+  });
+
+  it('отбор складывается с поиском, а не отменяет его', () => {
+    // Найденное в чужом блоке прячется — ровно поэтому страница обязана сказать, сколько скрыла.
+    const rows = flattenIcd10(РАЗНЫЕ_БЛОКИ, CHILDREN, {
+      ...base,
+      query: 'бронхит',
+      specialtyBlocks: new Set(['I20']),
+    });
+    expect(rows).toHaveLength(0);
+  });
+
+  it('пустой набор блоков прячет всё, а `null` — ничего', () => {
+    expect(flattenIcd10(РАЗНЫЕ_БЛОКИ, CHILDREN, { ...base, specialtyBlocks: new Set() })).toHaveLength(0);
+    expect(flattenIcd10(РАЗНЫЕ_БЛОКИ, CHILDREN, { ...base, specialtyBlocks: null })).toHaveLength(2);
   });
 });
 

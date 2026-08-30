@@ -11,6 +11,8 @@ import { Icd10List } from './Icd10List';
 import { countTotal, flattenIcd10 } from './flatten';
 import type { Icd10Row } from './types';
 import { Icd10Unavailable, useIcd10Chapters, useIcd10Children, useIcd10List } from './useIcd10';
+import { SpecialtyFilterNotice, SpecialtyFilterSwitch } from '../specialties/SpecialtyFilterControls';
+import { useSpecialtyFilter } from '../specialties/useSpecialtyFilter';
 
 const ALL_CHAPTERS = '__all__';
 
@@ -35,6 +37,7 @@ export function Icd10Catalog() {
   const [chapter, setChapter] = useState<string>(ALL_CHAPTERS);
   const [onlyWithNote, setOnlyWithNote] = useState(false);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const specialtyFilter = useSpecialtyFilter('icd');
 
   /**
    * Уточнения запрашиваются, как только они кому-то понадобились, и дальше живут весь сеанс.
@@ -74,15 +77,38 @@ export function Icd10Catalog() {
     [rows, sort],
   );
 
+  /**
+   * Разворачивается дважды — со специальностью и без неё.
+   *
+   * Второй набор на экран не попадает: он нужен, чтобы сказать, сколько кодов отбор спрятал.
+   * Классификация — единственное место, где цена молчания максимальна: спрятанных кодов здесь
+   * двенадцать тысяч, и пустой ответ на «сахарный диабет» у кардиолога читается как «такого кода
+   * нет», а не как следствие включённого тумблера.
+   */
+  const options = useMemo(
+    () => ({
+      query: search,
+      chapter: chapter === ALL_CHAPTERS ? null : chapter,
+      onlyWithNote,
+      expanded,
+    }),
+    [search, chapter, onlyWithNote, expanded],
+  );
+
+  const withoutSpecialty = useMemo(
+    () => flattenIcd10(sortedRubrics, children, { ...options, specialtyBlocks: null }),
+    [sortedRubrics, children, options],
+  );
+
   const sorted = useMemo(
     () =>
-      flattenIcd10(sortedRubrics, children, {
-        query: search,
-        chapter: chapter === ALL_CHAPTERS ? null : chapter,
-        onlyWithNote,
-        expanded,
-      }),
-    [sortedRubrics, children, search, chapter, onlyWithNote, expanded],
+      specialtyFilter.active
+        ? flattenIcd10(sortedRubrics, children, {
+            ...options,
+            specialtyBlocks: new Set(specialtyFilter.specialty?.icdBlocks ?? []),
+          })
+        : withoutSpecialty,
+    [sortedRubrics, children, options, specialtyFilter, withoutSpecialty],
   );
 
   const open = (row: Icd10Row) => navigate(`/icd10/${encodeURIComponent(row.code)}`);
@@ -174,6 +200,9 @@ export function Icd10Catalog() {
             onChange={(e) => setOnlyWithNote(e.currentTarget.checked)}
             label="Только со справкой"
           />
+          <Group mb={8}>
+            <SpecialtyFilterSwitch filter={specialtyFilter} />
+          </Group>
           {!filtering &&
             (expanded.size > 0 ? (
               <Button
@@ -201,6 +230,12 @@ export function Icd10Catalog() {
             <Text size="sm" c="dimmed">
               {sorted.length === total ? `Кодов: ${total}` : `Показано кодов: ${sorted.length} из ${total}`}
             </Text>
+            <SpecialtyFilterNotice
+              filter={specialtyFilter}
+              hidden={withoutSpecialty.length - sorted.length}
+              visible={sorted.length}
+              unit={['код', 'кода', 'кодов']}
+            />
             {/* Пока уточнения едут, отбор идёт по одним рубрикам — и об этом надо сказать. Список,
                 молча показывающий половину справочника, читается как полный ответ. */}
             {childrenLoading && (

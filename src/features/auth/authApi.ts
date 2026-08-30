@@ -50,7 +50,9 @@ export async function me(token: string): Promise<AuthUser> {
   return (await response.json()) as AuthUser;
 }
 
-export type UpdateProfileInput = Partial<Pick<AuthUser, 'name' | 'role' | 'avatarDataUrl' | 'signatureDataUrl'>>;
+export type UpdateProfileInput = Partial<
+  Pick<AuthUser, 'name' | 'role' | 'avatarDataUrl' | 'signatureDataUrl' | 'specialty'>
+>;
 
 /** Reuses httpRepository's `request` (bearer auth already attached) — unlike login/register/me, this only ever runs after boot, once a token is already set. */
 export function updateProfile(input: UpdateProfileInput): Promise<AuthUser> {

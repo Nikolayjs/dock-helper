@@ -27,6 +27,14 @@ export interface FlattenOptions {
   onlyWithNote: boolean;
   /** Рубрики, раскрытые врачом вручную. */
   expanded: ReadonlySet<string>;
+  /**
+   * Оставить только блоки специальности врача. `null` — отбор выключен.
+   *
+   * Отбирается **рубрика целиком, вместе с уточнениями**: подрубрика лежит в том же блоке, что и
+   * её рубрика, и разойтись они не могут. Проверять каждую подрубрику отдельно значило бы
+   * двенадцать тысяч лишних проверок ради ответа, который известен строкой выше.
+   */
+  specialtyBlocks: ReadonlySet<string> | null;
 }
 
 const matches = (query: string, code: string, name: string) =>
@@ -48,6 +56,7 @@ export function flattenIcd10(
 
   for (const rubric of rows) {
     if (options.chapter && rubric.chapter !== options.chapter) continue;
+    if (options.specialtyBlocks && !options.specialtyBlocks.has(rubric.blockFrom)) continue;
 
     const rubricMatchesQuery = !query || matches(query, rubric.code, rubric.name);
     const rubricPassesNote = !options.onlyWithNote || rubric.hasNote;
@@ -73,6 +82,7 @@ export function flattenIcd10(
       code: rubric.code,
       name: rubric.name,
       chapter: rubric.chapter,
+      blockFrom: rubric.blockFrom,
       blockRange: rubric.blockRange,
       blockName: rubric.blockName,
       hasNote: rubric.hasNote,
@@ -86,6 +96,7 @@ export function flattenIcd10(
         code: child.code,
         name: child.name,
         chapter: rubric.chapter,
+        blockFrom: rubric.blockFrom,
         blockRange: rubric.blockRange,
         blockName: rubric.blockName,
         hasNote: child.hasNote,
