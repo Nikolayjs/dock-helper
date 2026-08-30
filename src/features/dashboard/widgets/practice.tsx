@@ -1,4 +1,4 @@
-import { DonutChart } from '../LazyCharts';
+import { DonutChart } from '../../../components/common/LazyCharts';
 import { Badge, Button, Group, SegmentedControl, Stack, Table, Text } from '@mantine/core';
 import dayjs from 'dayjs';
 import { Link } from 'react-router-dom';

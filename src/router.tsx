@@ -47,6 +47,7 @@ const DocumentViewPage = lazyPage(() => import('./pages/DocumentViewPage'), 'Doc
 const DocumentEditorPage = lazyPage(() => import('./pages/DocumentEditorPage'), 'DocumentEditorPage');
 const DocumentTemplateEditorPage = lazyPage(() => import('./pages/DocumentTemplateEditorPage'), 'DocumentTemplateEditorPage');
 const ScanTemplatePage = lazyPage(() => import('./pages/ScanTemplatePage'), 'ScanTemplatePage');
+const LabResultViewPage = lazyPage(() => import('./features/labResults/LabResultViewPage'), 'LabResultViewPage');
 const DispensaryEditorPage = lazyPage(() => import('./pages/DispensaryEditorPage'), 'DispensaryEditorPage');
 const DispensaryStatsPage = lazyPage(() => import('./pages/DispensaryStatsPage'), 'DispensaryStatsPage');
 const GuidelinesPage = lazyPage(() => import('./pages/GuidelinesPage'), 'GuidelinesPage');
@@ -241,6 +242,7 @@ export const router = createBrowserRouter(
           <Route path="/patients/:id" element={<PatientViewPage />} />
           <Route path="/patients/:id/edit" element={<PatientEditorPage />} />
           <Route path="/patients/:id/documents/:visitId" element={<PrintableDocumentPage />} />
+          <Route path="/patients/:patientId/analyses/:id" element={<LabResultViewPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

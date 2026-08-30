@@ -7,7 +7,7 @@
  * is a column chart in band order, never sorted by size, because the shape of the distribution *is*
  * the answer. Sex is two or three parts of one whole, which is the one case a donut earns.
  */
-import { BarChart, DonutChart } from './LazyCharts';
+import { BarChart, DonutChart } from '../../components/common/LazyCharts';
 import { Group, SegmentedControl, Stack, Text } from '@mantine/core';
 
 import { RankedBarList, type BarItem } from '../../components/common/RankedBarList';

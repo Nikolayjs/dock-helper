@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Tabs, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconEdit, IconEraser, IconFileUpload, IconPlus } from '@tabler/icons-react';
+import { IconClipboardPlus, IconEdit, IconEraser, IconFileUpload, IconPlus } from '@tabler/icons-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { analyzeTest } from '../features/analyzer/analyzerEngine';
@@ -15,6 +15,9 @@ import type { ParsedAnalyte } from '../features/analyzer/import/parseLabValues';
 import { LabTestForm } from '../features/analyzer/LabTestForm';
 import type { Sex } from '../features/analyzer/types';
 import { useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
+import { SaveToChartModal } from '../features/labResults/SaveToChartModal';
+import { panelValues } from '../features/labResults/panels';
+import type { FilledPanel } from '../features/labResults/panels';
 
 export function AnalyzerPage() {
   const navigate = useNavigate();
@@ -50,6 +53,22 @@ export function AnalyzerPage() {
   }, [patient]);
   const [valuesByTest, setValuesByTest] = useState<Record<string, Record<string, number | undefined>>>({});
   const [importOpen, setImportOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+
+  /**
+   * Панели, в которых что-то набрано, — то, что вообще можно сохранить в карту.
+   *
+   * Считается по **всем** вкладкам, а не по открытой: файл из лаборатории обычно покрывает и общий
+   * анализ крови, и биохимию сразу, и сохранение одной открытой вкладки потеряло бы остальные
+   * молча — на экране в этот момент видна одна.
+   */
+  const filledPanels = useMemo<FilledPanel[]>(
+    () =>
+      allTests
+        .map((test) => ({ test, values: valuesByTest[test.id] ?? {} }))
+        .filter((panel) => panelValues(panel).length > 0),
+    [allTests, valuesByTest],
+  );
 
   const activeTestId = testId ?? allTests[0]?.id;
   const currentTest = allTests.find((t) => t.id === activeTestId);
@@ -176,6 +195,15 @@ export function AnalyzerPage() {
               Изменить
             </Button>
           )}
+          {/* Разобранный анализ до этого жил в состоянии страницы и исчезал при первом же переходе:
+              врач получал толкование, но не мог ни вернуться к нему завтра, ни сравнить с прошлым. */}
+          <Button
+            leftSection={<IconClipboardPlus size={16} />}
+            onClick={() => setSaveOpen(true)}
+            disabled={filledPanels.length === 0}
+          >
+            Сохранить в карту
+          </Button>
           <Button variant="light" color="gray" leftSection={<IconEraser size={16} />} onClick={handleClear} disabled={!currentTest}>
             Очистить
           </Button>
@@ -211,6 +239,16 @@ export function AnalyzerPage() {
           </Grid.Col>
         </Grid>
       )}
+
+      <SaveToChartModal
+        opened={saveOpen}
+        onClose={() => setSaveOpen(false)}
+        panels={filledPanels}
+        activeTestId={activeTestId}
+        sex={sex}
+        age={age}
+        patientId={patientId}
+      />
 
       <LabFileImportModal
         opened={importOpen}

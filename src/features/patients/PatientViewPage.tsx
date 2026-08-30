@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { ActionIcon, Avatar, Badge, Button, Card, Container, Group, Menu, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconClipboardHeart, IconClockExclamation, IconEdit, IconFileText, IconFlask2, IconPlus, IconPrinter, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconClipboardHeart, IconClockExclamation, IconEdit, IconFileText, IconPlus, IconPrinter, IconSettings, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { DispensaryCard } from './DispensaryCard';
 import { PageSection } from '../../components/common/PageSection';
 import { PatientDocuments } from '../documents/PatientDocuments';
+import { PatientLabResults } from '../labResults/PatientLabResults';
+import { useLabResults } from '../labResults/useLabResults';
 import { useDocumentTemplates } from './documents/useDocumentTemplates';
 import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from './referralUtils';
 import type { PatientVisit } from './types';
@@ -17,7 +19,7 @@ import type { VisitInput } from './usePatients';
 import { calcAge, formatAge, getInitials, getReminderStatus } from './utils';
 import { VisitForm } from './VisitForm';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
-import { observationsWarning, visitsWarning } from './deleteWarnings';
+import { labResultsWarning, observationsWarning, visitsWarning } from './deleteWarnings';
 import { hideVisit } from './hideNested';
 import { BackButton } from '../../components/common/BackButton';
 
@@ -39,6 +41,7 @@ export function PatientViewPage() {
   const { records: dispensaryRecords, deleteRecord: deleteDispensaryRecord } = useDispensary();
   const confirmDelete = useDeleteWithConfirm();
   const { templates } = useDocumentTemplates();
+  const { results: labResults } = useLabResults();
   const patient = patients.find((p) => p.id === id);
 
   const [visitEditor, setVisitEditor] = useState<PatientVisit | 'new' | null>(null);
@@ -60,12 +63,15 @@ export function PatientViewPage() {
   const reminderStatus = patient.reminderDate ? getReminderStatus(patient.reminderDate) : null;
   const sortedVisits = [...patient.visits].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   const patientDispensaryRecords = dispensaryRecords.filter((r) => r.patientId === patient.id);
+  const ownLabResults = labResults.filter((r) => r.patientId === patient.id);
 
   const handleDeletePatient = () =>
     confirmDelete({
       what: 'пациента',
       name: patient.fullName,
-      alsoRemoves: visitsWarning(patient.visits.length),
+      alsoRemoves: [visitsWarning(patient.visits.length), labResultsWarning(ownLabResults.length)]
+        .filter(Boolean)
+        .join(' ') || undefined,
       notice: 'Пациент удалён',
       queryKey: PATIENTS_KEY,
       id: patient.id,
@@ -150,16 +156,6 @@ export function PatientViewPage() {
                   {patient.reminderNote ? ` — ${patient.reminderNote}` : ''}
                 </Badge>
               )}
-              {/* Пол и возраст уезжают в анализатор адресом: без них возрастные нормы не работают,
-                  а набирать их руками на каждый анализ — та самая помеха, из-за которой не набирают. */}
-              <Button
-                size="xs"
-                variant="light"
-                leftSection={<IconFlask2 size={14} />}
-                onClick={() => navigate(`/analyzer?patientId=${patient.id}`, { state: { from: `/patients/${patient.id}` } })}
-              >
-                Интерпретировать анализы
-              </Button>
             </Group>
           </Group>
         </Card>
@@ -206,6 +202,10 @@ export function PatientViewPage() {
             </Stack>
           )}
         </PageSection>
+
+        {/* Анализы стоят выше документов и визитов: с ними приходят на приём, и первое, о чём
+            спрашивают, — что изменилось с прошлого раза. */}
+        <PatientLabResults patientId={patient.id} />
 
         <PatientDocuments patientId={patient.id} />
 

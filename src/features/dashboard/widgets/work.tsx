@@ -1,4 +1,4 @@
-import { BarChart } from '../LazyCharts';
+import { BarChart } from '../../../components/common/LazyCharts';
 import { Button, SegmentedControl, Text } from '@mantine/core';
 import { Link } from 'react-router-dom';
 

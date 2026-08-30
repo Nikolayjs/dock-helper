@@ -870,6 +870,85 @@ const customLabTests = [
 ];
 
 /**
+ * Сохранённые в карты анализы.
+ *
+ * У Егоровой три бланка МНО подряд — иначе динамику показателя показать не на чем, а она здесь
+ * главное: одно значение отвечает «нормально ли это», ряд — «становится лучше или хуже». Пол и
+ * возраст лежат в самой записи, как и на бою: по ним брались нормы, и возраст считается от
+ * сегодняшнего дня, а не записан числом.
+ */
+const age = (birthDate: string) => today.diff(dayjs(birthDate), 'year');
+
+const labResults = [
+  {
+    id: 'lr1',
+    patientId: 'p1',
+    analyzerId: 'lt2',
+    analyzerTitle: 'Контроль антикоагуляции (демо)',
+    takenAt: d(-75),
+    sex: 'female',
+    ageYears: age('1958-03-14'),
+    values: [
+      { key: 'inr', label: 'МНО', unit: '', value: 2.4 },
+      { key: 'pt', label: 'Протромбиновое время', unit: 'с', value: 14.2 },
+    ],
+    note: 'В целевом диапазоне.',
+    createdAt: t(-75),
+    updatedAt: t(-75),
+  },
+  {
+    id: 'lr2',
+    patientId: 'p1',
+    analyzerId: 'lt2',
+    analyzerTitle: 'Контроль антикоагуляции (демо)',
+    takenAt: d(-40),
+    sex: 'female',
+    ageYears: age('1958-03-14'),
+    values: [
+      { key: 'inr', label: 'МНО', unit: '', value: 1.7 },
+      { key: 'pt', label: 'Протромбиновое время', unit: 'с', value: 12.1 },
+    ],
+    note: 'Пропускала приём — доза не менялась.',
+    createdAt: t(-40),
+    updatedAt: t(-40),
+  },
+  {
+    id: 'lr3',
+    patientId: 'p1',
+    analyzerId: 'lt2',
+    analyzerTitle: 'Контроль антикоагуляции (демо)',
+    takenAt: d(-12),
+    sex: 'female',
+    ageYears: age('1958-03-14'),
+    values: [
+      { key: 'inr', label: 'МНО', unit: '', value: 2.6 },
+      { key: 'pt', label: 'Протромбиновое время', unit: 'с', value: 15.4 },
+    ],
+    note: '',
+    createdAt: t(-12),
+    updatedAt: t(-12),
+  },
+  {
+    id: 'lr4',
+    patientId: 'p2',
+    analyzerId: 'lt1',
+    analyzerTitle: 'Липидограмма (демо)',
+    takenAt: d(-5),
+    sex: 'male',
+    ageYears: age('1971-11-02'),
+    values: [
+      { key: 'chol', label: 'Общий холестерин', unit: 'ммоль/л', value: 6.1 },
+      { key: 'ldl', label: 'ЛПНП', unit: 'ммоль/л', value: 4.2 },
+      { key: 'hdl', label: 'ЛПВП', unit: 'ммоль/л', value: 0.9 },
+      { key: 'tg', label: 'Триглицериды', unit: 'ммоль/л', value: 2.4 },
+    ],
+    note: 'Натощак.',
+    createdAt: t(-5),
+    updatedAt: t(-5),
+  },
+];
+
+/**
  * Собирается заново на каждый вход в демо: даты должны быть свежими.
  *
  * Копия через JSON — не перестраховка: хранилище демо правится на месте, и без копии правка
@@ -896,6 +975,7 @@ export function createDemoData(): Record<string, Record<string, unknown>[]> {
       '/calculators': calculators,
       '/calculator-categories': calculatorCategories,
       '/custom-lab-tests': customLabTests,
+      '/lab-results': labResults,
       '/questionnaires': [],
       '/library': [],
       '/news-feed-sources': [],
