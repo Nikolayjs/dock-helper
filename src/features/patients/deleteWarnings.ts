@@ -16,15 +16,25 @@ function plural(count: number, one: string, few: string, many: string): string {
   return many;
 }
 
+/**
+ * «удалится» или «удалятся» — глагол склоняется вместе с числом.
+ *
+ * Ровно та же причина, по которой склоняется существительное: «удалятся 1 препарат» читается так,
+ * будто строку собрала машина, а диалог здесь ровно для того и стоит, чтобы его прочли.
+ */
+function willRemove(count: number): string {
+  return count % 10 === 1 && count % 100 !== 11 ? 'удалится' : 'удалятся';
+}
+
 /** Undefined when there is nothing extra to warn about — the dialog then says only what it must. */
 export function visitsWarning(count: number): string | undefined {
   if (count === 0) return undefined;
-  return `Вместе с пациентом удалятся ${count} ${plural(count, 'визит', 'визита', 'визитов')}.`;
+  return `Вместе с пациентом ${willRemove(count)} ${count} ${plural(count, 'визит', 'визита', 'визитов')}.`;
 }
 
 export function observationsWarning(count: number): string | undefined {
   if (count === 0) return undefined;
-  return `Вместе с картой удалятся ${count} ${plural(count, 'осмотр', 'осмотра', 'осмотров')}.`;
+  return `Вместе с картой ${willRemove(count)} ${count} ${plural(count, 'осмотр', 'осмотра', 'осмотров')}.`;
 }
 
 /**
@@ -36,5 +46,11 @@ export function observationsWarning(count: number): string | undefined {
  */
 export function labResultsWarning(count: number): string | undefined {
   if (count === 0) return undefined;
-  return `Вместе с пациентом удалятся ${count} ${plural(count, 'сохранённый анализ', 'сохранённых анализа', 'сохранённых анализов')}.`;
+  return `Вместе с пациентом ${willRemove(count)} ${count} ${plural(count, 'сохранённый анализ', 'сохранённых анализа', 'сохранённых анализов')}.`;
+}
+
+/** Список постоянной терапии уходит вместе с пациентом по той же причине, что и анализы. */
+export function medicationsWarning(count: number): string | undefined {
+  if (count === 0) return undefined;
+  return `Вместе с пациентом ${willRemove(count)} ${count} ${plural(count, 'препарат', 'препарата', 'препаратов')} постоянной терапии.`;
 }

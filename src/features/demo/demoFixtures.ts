@@ -949,6 +949,19 @@ const labResults = [
 ];
 
 /**
+ * Постоянная терапия. У Егоровой она подобрана так, чтобы проверка взаимодействий **что-то нашла**:
+ * варфарин и «Кардиомагнил» — торговое название ацетилсалициловой кислоты, на которую в фикстуре
+ * есть правило. Демо, где кнопка проверки открывает пустой результат, показывает не продукт.
+ */
+const patientMedications = [
+  { id: 'pm1', patientId: 'p1', name: 'Варфарин', dose: '2,5 мг вечером', note: 'Целевое МНО 2,0–3,0', createdAt: t(-300), updatedAt: t(-300) },
+  { id: 'pm2', patientId: 'p1', name: 'Кардиомагнил', dose: '75 мг утром', note: 'Назначен кардиологом', createdAt: t(-200), updatedAt: t(-200) },
+  { id: 'pm3', patientId: 'p1', name: 'Периндоприл', dose: '4 мг утром', note: '', createdAt: t(-120), updatedAt: t(-120) },
+  { id: 'pm4', patientId: 'p2', name: 'Метформин', dose: '1000 мг вечером', note: '', createdAt: t(-90), updatedAt: t(-90) },
+  { id: 'pm5', patientId: 'p2', name: 'Аторвастатин', dose: '20 мг вечером', note: '', createdAt: t(-90), updatedAt: t(-90) },
+];
+
+/**
  * Собирается заново на каждый вход в демо: даты должны быть свежими.
  *
  * Копия через JSON — не перестраховка: хранилище демо правится на месте, и без копии правка
@@ -976,6 +989,7 @@ export function createDemoData(): Record<string, Record<string, unknown>[]> {
       '/calculator-categories': calculatorCategories,
       '/custom-lab-tests': customLabTests,
       '/lab-results': labResults,
+      '/patient-medications': patientMedications,
       '/questionnaires': [],
       '/library': [],
       '/news-feed-sources': [],

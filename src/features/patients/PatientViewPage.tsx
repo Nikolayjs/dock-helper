@@ -9,6 +9,8 @@ import { DispensaryCard } from './DispensaryCard';
 import { PageSection } from '../../components/common/PageSection';
 import { PatientDocuments } from '../documents/PatientDocuments';
 import { PatientLabResults } from '../labResults/PatientLabResults';
+import { PatientMedications } from '../medications/PatientMedications';
+import { usePatientMedications } from '../medications/usePatientMedications';
 import { useLabResults } from '../labResults/useLabResults';
 import { useDocumentTemplates } from './documents/useDocumentTemplates';
 import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from './referralUtils';
@@ -19,7 +21,7 @@ import type { VisitInput } from './usePatients';
 import { calcAge, formatAge, getInitials, getReminderStatus } from './utils';
 import { VisitForm } from './VisitForm';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
-import { labResultsWarning, observationsWarning, visitsWarning } from './deleteWarnings';
+import { labResultsWarning, medicationsWarning, observationsWarning, visitsWarning } from './deleteWarnings';
 import { hideVisit } from './hideNested';
 import { BackButton } from '../../components/common/BackButton';
 
@@ -42,6 +44,7 @@ export function PatientViewPage() {
   const confirmDelete = useDeleteWithConfirm();
   const { templates } = useDocumentTemplates();
   const { results: labResults } = useLabResults();
+  const { medications } = usePatientMedications();
   const patient = patients.find((p) => p.id === id);
 
   const [visitEditor, setVisitEditor] = useState<PatientVisit | 'new' | null>(null);
@@ -64,14 +67,20 @@ export function PatientViewPage() {
   const sortedVisits = [...patient.visits].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   const patientDispensaryRecords = dispensaryRecords.filter((r) => r.patientId === patient.id);
   const ownLabResults = labResults.filter((r) => r.patientId === patient.id);
+  const ownMedications = medications.filter((m) => m.patientId === patient.id);
 
   const handleDeletePatient = () =>
     confirmDelete({
       what: 'пациента',
       name: patient.fullName,
-      alsoRemoves: [visitsWarning(patient.visits.length), labResultsWarning(ownLabResults.length)]
-        .filter(Boolean)
-        .join(' ') || undefined,
+      alsoRemoves:
+        [
+          visitsWarning(patient.visits.length),
+          labResultsWarning(ownLabResults.length),
+          medicationsWarning(ownMedications.length),
+        ]
+          .filter(Boolean)
+          .join(' ') || undefined,
       notice: 'Пациент удалён',
       queryKey: PATIENTS_KEY,
       id: patient.id,
@@ -203,8 +212,10 @@ export function PatientViewPage() {
           )}
         </PageSection>
 
-        {/* Анализы стоят выше документов и визитов: с ними приходят на приём, и первое, о чём
-            спрашивают, — что изменилось с прошлого раза. */}
+        {/* Терапия и анализы стоят выше документов и визитов: с ними приходят на приём, и первое,
+            о чём заходит разговор, — что пациент уже принимает и что изменилось с прошлого раза. */}
+        <PatientMedications patientId={patient.id} />
+
         <PatientLabResults patientId={patient.id} />
 
         <PatientDocuments patientId={patient.id} />
