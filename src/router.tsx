@@ -72,7 +72,6 @@ const PlannerPage = lazyPage(() => import('./pages/PlannerPage'), 'PlannerPage')
 const LibraryPage = lazyPage(() => import('./pages/LibraryPage'), 'LibraryPage');
 const BookViewPage = lazyPage(() => import('./pages/BookViewPage'), 'BookViewPage');
 const BookReaderPage = lazyPage(() => import('./pages/BookReaderPage'), 'BookReaderPage');
-const ComingSoonPage = lazyPage(() => import('./pages/ComingSoonPage'), 'ComingSoonPage');
 const NewsPage = lazyPage(() => import('./pages/NewsPage'), 'NewsPage');
 const NewsReaderPage = lazyPage(() => import('./pages/NewsReaderPage'), 'NewsReaderPage');
 const NotFoundPage = lazyPage(() => import('./pages/NotFoundPage'), 'NotFoundPage');
@@ -242,8 +241,6 @@ export const router = createBrowserRouter(
           <Route path="/patients/:id" element={<PatientViewPage />} />
           <Route path="/patients/:id/edit" element={<PatientEditorPage />} />
           <Route path="/patients/:id/documents/:visitId" element={<PrintableDocumentPage />} />
-          <Route path="/schedule" element={<ComingSoonPage title="Расписание" />} />
-          <Route path="/messages" element={<ComingSoonPage title="Сообщения" />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

@@ -138,8 +138,6 @@ const PAGE_META: PageMetaEntry[] = [
   { match: (p) => p.startsWith('/patients/dispensary/'), title: 'Карта диспансерного учёта' },
   { match: (p) => p.startsWith('/patients/') && p.endsWith('/edit'), title: 'Редактирование пациента' },
   { match: (p) => p.startsWith('/patients/'), title: 'Пациент' },
-  { match: (p) => p.startsWith('/schedule'), title: 'Расписание' },
-  { match: (p) => p.startsWith('/messages'), title: 'Сообщения' },
 ];
 
 function getPageMeta(pathname: string): PageMetaEntry {

@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
 
-export type SidebarSection = 'main' | 'knowledge' | 'soon';
+export type SidebarSection = 'main' | 'knowledge';
 
 type SidebarOrder = Record<SidebarSection, string[]>;
 
 const STORAGE_KEY = 'medassist:sidebar-order';
-const EMPTY_ORDER: SidebarOrder = { main: [], knowledge: [], soon: [] };
+const EMPTY_ORDER: SidebarOrder = { main: [], knowledge: [] };
 
 function readOrder(): SidebarOrder {
   try {
@@ -15,7 +15,6 @@ function readOrder(): SidebarOrder {
     return {
       main: Array.isArray(parsed.main) ? parsed.main : [],
       knowledge: Array.isArray(parsed.knowledge) ? parsed.knowledge : [],
-      soon: Array.isArray(parsed.soon) ? parsed.soon : [],
     };
   } catch {
     return EMPTY_ORDER;
@@ -56,7 +55,7 @@ export function useSidebarOrder() {
     setOrder(EMPTY_ORDER);
   }, []);
 
-  const hasCustomOrder = order.main.length > 0 || order.knowledge.length > 0 || order.soon.length > 0;
+  const hasCustomOrder = order.main.length > 0 || order.knowledge.length > 0;
 
   return { order, setSectionOrder, resetOrder, hasCustomOrder };
 }

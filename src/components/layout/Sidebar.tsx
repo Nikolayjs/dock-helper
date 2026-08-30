@@ -16,20 +16,18 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Avatar, Badge, Box, Divider, Group, ScrollArea, Stack, Text, ThemeIcon, Tooltip, UnstyledButton } from "@mantine/core";
+import { Avatar, Box, Divider, Group, ScrollArea, Stack, Text, ThemeIcon, Tooltip, UnstyledButton } from "@mantine/core";
 import {
   IconArticle,
   IconBook2,
   IconVocabulary,
   IconBooks,
   IconCalculator,
-  IconCalendarEvent,
   IconCalendarStats,
   IconFileText,
   IconGripVertical,
   IconLayoutDashboard,
   IconLayoutKanban,
-  IconMessageCircle,
   IconMicroscope,
   IconNews,
   IconNotes,
@@ -48,7 +46,6 @@ interface NavItemData {
   label: string;
   path: string;
   icon: typeof IconLayoutDashboard;
-  tag?: { label: string; color: string };
 }
 
 const mainNav: NavItemData[] = [
@@ -70,21 +67,6 @@ const knowledgeNav: NavItemData[] = [
   { label: "Статьи", path: "/articles", icon: IconArticle },
   { label: "Диагностика", path: "/diagnostics", icon: IconZoomQuestion },
   { label: "Библиотека", path: "/library", icon: IconBooks },
-];
-
-const soonNav: NavItemData[] = [
-  {
-    label: "Расписание",
-    path: "/schedule",
-    icon: IconCalendarEvent,
-    tag: { label: "скоро", color: "gray" },
-  },
-  {
-    label: "Сообщения",
-    path: "/messages",
-    icon: IconMessageCircle,
-    tag: { label: "скоро", color: "gray" },
-  },
 ];
 
 /** Nav items whose section stays highlighted on any sub-route (viewing/editing an item, "/new"...),
@@ -133,11 +115,6 @@ function NavItem({ item, onNavigate, iconOnly }: { item: NavItemData; onNavigate
               {item.label}
             </Text>
           </Group>
-          {item.tag && (
-            <Badge size="xs" variant="light" color={item.tag.color} radius="sm">
-              {item.tag.label}
-            </Badge>
-          )}
         </Group>
       )}
     </UnstyledButton>
@@ -245,7 +222,6 @@ export function Sidebar({ onNavigate, collapsed, onStartResize, onToggleCollapse
 
   const orderedMain = applyStoredOrder(mainNav, order.main);
   const orderedKnowledge = applyStoredOrder(knowledgeNav, order.knowledge);
-  const orderedSoon = applyStoredOrder(soonNav, order.soon);
 
   return (
     <Stack justify="space-between" h="100%" py="md" gap={0} style={{ position: "relative" }}>
@@ -254,8 +230,6 @@ export function Sidebar({ onNavigate, collapsed, onStartResize, onToggleCollapse
           <SortableNavSection title="Основное" section="main" items={orderedMain} onReorder={setSectionOrder} onNavigate={onNavigate} iconOnly={collapsed} />
           {collapsed && <Divider />}
           <SortableNavSection title="База знаний" section="knowledge" items={orderedKnowledge} onReorder={setSectionOrder} onNavigate={onNavigate} iconOnly={collapsed} />
-          {collapsed && <Divider />}
-          <SortableNavSection title="Скоро" section="soon" items={orderedSoon} onReorder={setSectionOrder} onNavigate={onNavigate} iconOnly={collapsed} />
         </Stack>
       </ScrollArea>
 
