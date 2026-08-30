@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActionIcon, Badge, Card, Grid, Group, NumberInput, Select, Stack, Text } from '@mantine/core';
+import { ActionIcon, Badge, Card, Grid, Group, NumberInput, Select, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCalculator, IconPlus } from '@tabler/icons-react';
 
 import { evaluateFormula } from '../../lib/formulaEngine';
@@ -59,6 +59,14 @@ export function CalculatorForm({ definition, onAddPreset }: CalculatorFormProps)
     });
   }, [result, definition.interpretation]);
 
+  /**
+   * Цвет плашки — цвет толкования, а не калькулятора.
+   *
+   * У результата без толкования (у половины калькуляторов его нет) цвета быть не должно вовсе:
+   * «серый» здесь честнее фирменного, который означал бы что-то там, где означать нечего.
+   */
+  const accent = matchedRange?.color ?? 'gray';
+
   return (
     <Stack gap="lg">
       {(onAddPreset || (definition.presets && definition.presets.length > 0)) && (
@@ -111,33 +119,36 @@ export function CalculatorForm({ definition, onAddPreset }: CalculatorFormProps)
         ))}
       </Grid>
 
+      {/*
+        Плашка результата — ступень под карточкой, а не заливка фирменным цветом.
+
+        Заливка `brand-light` во всю ширину читалась как чужая плита: под обоями она вдобавок
+        спорила с их цветом, а сам цвет ничего не значил — он одинаков и у нормы, и у ожирения.
+        Теперь поверхность нейтральная (`--app-stripe-bg` — та же ступень, что у чередующихся строк
+        таблицы и наведения), а цвет достался тому, что его заслуживает: **полосе слева и значку по
+        толкованию результата**. Ровно так же устроены карточки заключений анализатора.
+      */}
       <Card
         withBorder
         padding="lg"
         style={{
-          backgroundColor: 'var(--mantine-color-brand-light)',
-          borderColor: 'var(--mantine-color-brand-light-hover)',
+          backgroundColor: 'var(--app-stripe-bg)',
+          borderLeft: `3px solid var(--mantine-color-${accent}-6)`,
         }}
       >
         <Group justify="space-between" align="flex-start">
           <Group gap="sm" align="flex-start">
-            <Card
-              padding={10}
-              radius="md"
-              withBorder
-              style={{
-                backgroundColor: 'var(--mantine-color-body)',
-                borderColor: 'var(--mantine-color-brand-light-hover)',
-              }}
-            >
-              <IconCalculator size={20} color="var(--mantine-color-brand-6)" />
-            </Card>
+            <ThemeIcon size={38} radius="md" variant="light" color={accent}>
+              <IconCalculator size={20} />
+            </ThemeIcon>
             <div>
               <Text size="sm" c="dimmed" fw={500}>
                 {definition.resultLabel}
               </Text>
               <Group gap={6} align="baseline">
-                <Text size="2rem" fw={700} style={{ color: 'var(--mantine-color-brand-light-color)' }}>
+                {/* Число набрано обычным цветом текста: оно и так самое крупное на плашке, а
+                    цветом здесь говорит толкование — значок, полоса и значок-подпись справа. */}
+                <Text size="2rem" fw={700}>
                   {error ? '—' : result !== null ? result.toFixed(definition.decimals) : '—'}
                 </Text>
                 {definition.resultUnit && !error && result !== null && (
