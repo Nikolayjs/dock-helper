@@ -57,7 +57,6 @@ export function KnowledgeTagPage() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onTagClick={(nextTag) => navigate(`/knowledge/tag/${encodeURIComponent(nextTag)}`)}
-          showGraphLink={false}
         />
       </Stack>
     </Container>

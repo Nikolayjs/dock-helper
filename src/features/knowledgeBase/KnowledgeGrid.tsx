@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, Group, SimpleGrid, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { IconAffiliate, IconPlus, IconSearch } from '@tabler/icons-react';
-import { Link } from 'react-router-dom';
+import { IconPlus, IconSearch } from '@tabler/icons-react';
 
 import { DocumentCard } from './DocumentCard';
 import type { KnowledgeDocumentSummary } from './types';
@@ -18,7 +17,6 @@ interface KnowledgeGridProps {
   onEdit: (doc: KnowledgeDocumentSummary) => void;
   onDelete: (doc: KnowledgeDocumentSummary) => void;
   onTagClick?: (tag: string) => void;
-  showGraphLink?: boolean;
 }
 
 export function KnowledgeGrid({
@@ -33,7 +31,6 @@ export function KnowledgeGrid({
   onEdit,
   onDelete,
   onTagClick,
-  showGraphLink = true,
 }: KnowledgeGridProps) {
   const [search, setSearch] = useState('');
 
@@ -61,11 +58,6 @@ export function KnowledgeGrid({
           w={280}
         />
         <Group gap="sm">
-          {showGraphLink && (
-            <Button component={Link} to="/knowledge/graph" variant="light" color="gray" leftSection={<IconAffiliate size={18} />}>
-              Граф связей
-            </Button>
-          )}
           {onAdd && (
             <Button leftSection={<IconPlus size={18} />} onClick={onAdd}>
               {addLabel}

@@ -56,17 +56,3 @@ export function useKnowledgeDocument(id: string | undefined) {
   return { document: query.data ?? null, isLoading: query.isLoading, isError: query.isError };
 }
 
-/**
- * Все документы вместе с текстами — только для графа связей.
- *
- * Рёбра графа строятся по ссылкам `[[Название]]` внутри документов, а значит текст ему нужен.
- * Отдельный ключ кэша, чтобы тяжёлый ответ не подменял собой лёгкий список на остальных страницах.
- */
-export function useAllDocumentsWithContent() {
-  const query = useQuery({
-    queryKey: ['knowledge-documents', 'full'],
-    queryFn: () => request<KnowledgeDocument[]>('/knowledge-documents?full=1'),
-  });
-
-  return { documents: query.data ?? [], isLoading: query.isLoading };
-}

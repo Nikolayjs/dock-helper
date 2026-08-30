@@ -18,7 +18,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Avatar, Badge, Box, Divider, Group, ScrollArea, Stack, Text, ThemeIcon, Tooltip, UnstyledButton } from "@mantine/core";
 import {
-  IconAffiliate,
   IconArticle,
   IconBook2,
   IconBooks,
@@ -71,7 +70,6 @@ const knowledgeNav: NavItemData[] = [
   { label: "Статьи", path: "/articles", icon: IconArticle },
   { label: "Диагностика", path: "/diagnostics", icon: IconZoomQuestion },
   { label: "Библиотека", path: "/library", icon: IconBooks },
-  { label: "Граф знаний", path: "/knowledge/graph", icon: IconAffiliate },
 ];
 
 const soonNav: NavItemData[] = [

@@ -123,11 +123,10 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     ] as T;
   }
 
-  // ── База знаний: список без текстов, полный текст — по id или по ?full=1 ──────────────────────
+  // ── База знаний: список без текстов, полный текст — по id ────────────────────────────────────
   if (segments[0] === 'knowledge-documents' && method === 'GET') {
     const docs = listOf('/knowledge-documents');
     if (seg(1)) return byId(docs, seg(1)) as T;
-    if (query.includes('full=1')) return docs as T;
     return docs.map(({ content: _content, ...rest }) => rest) as T;
   }
 

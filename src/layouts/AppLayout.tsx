@@ -68,11 +68,6 @@ const PAGE_META: PageMetaEntry[] = [
   },
   { match: (p) => p === '/news/read', title: 'Статья' },
   {
-    match: (p) => p === '/knowledge/graph',
-    title: 'Граф знаний',
-    subtitle: 'Связи между рекомендациями и статьями',
-  },
-  {
     match: (p) => p.startsWith('/knowledge/tag/'),
     title: (p) => `Тег: ${decodeURIComponent(p.split('/').pop() ?? '')}`,
     subtitle: 'Рекомендации и статьи с этим тегом',

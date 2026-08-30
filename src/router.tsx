@@ -50,7 +50,6 @@ const ScanTemplatePage = lazyPage(() => import('./pages/ScanTemplatePage'), 'Sca
 const DispensaryEditorPage = lazyPage(() => import('./pages/DispensaryEditorPage'), 'DispensaryEditorPage');
 const DispensaryStatsPage = lazyPage(() => import('./pages/DispensaryStatsPage'), 'DispensaryStatsPage');
 const GuidelinesPage = lazyPage(() => import('./pages/GuidelinesPage'), 'GuidelinesPage');
-const KnowledgeGraphPage = lazyPage(() => import('./pages/KnowledgeGraphPage'), 'KnowledgeGraphPage');
 const KnowledgeTagPage = lazyPage(() => import('./pages/KnowledgeTagPage'), 'KnowledgeTagPage');
 const GuidelineViewPage = lazyPage(() => import('./pages/GuidelineViewPage'), 'GuidelineViewPage');
 const GuidelineEditorPage = lazyPage(() => import('./pages/GuidelineEditorPage'), 'GuidelineEditorPage');
@@ -162,7 +161,6 @@ export const router = createBrowserRouter(
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/news" element={<NewsPage />} />
           <Route path="/news/read" element={<NewsReaderPage />} />
-          <Route path="/knowledge/graph" element={<KnowledgeGraphPage />} />
           <Route path="/knowledge/tag/:tag" element={<KnowledgeTagPage />} />
           <Route path="/guidelines" element={<GuidelinesPage />} />
           <Route path="/guidelines/new" element={<GuidelineEditorPage />} />

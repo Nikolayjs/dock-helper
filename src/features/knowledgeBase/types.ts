@@ -18,7 +18,7 @@ export interface KnowledgeDocumentSummary {
   updatedAt: string;
 }
 
-/** Полный документ: приходит только с `GET /knowledge-documents/:id` и со списком `?full=1`. */
+/** Полный документ: приходит только с `GET /knowledge-documents/:id`. */
 export interface KnowledgeDocument extends KnowledgeDocumentSummary {
   content: string;
 }

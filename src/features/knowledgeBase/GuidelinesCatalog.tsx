@@ -13,8 +13,7 @@ import {
   TextInput,
   ThemeIcon,
 } from '@mantine/core';
-import { IconAffiliate, IconBook2, IconEdit, IconPlus, IconSearch, IconTrash, IconX } from '@tabler/icons-react';
-import { Link } from 'react-router-dom';
+import { IconBook2, IconEdit, IconPlus, IconSearch, IconTrash, IconX } from '@tabler/icons-react';
 
 import { SortableTh } from '../../components/common/SortableTh';
 import { useIncrementalList } from '../../lib/useIncrementalList';
@@ -152,9 +151,6 @@ export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, 
             allowDeselect={false}
             w={280}
           />
-          <Button component={Link} to="/knowledge/graph" variant="default" leftSection={<IconAffiliate size={18} />}>
-            Граф связей
-          </Button>
           <Button leftSection={<IconPlus size={18} />} onClick={onAdd}>
             Добавить рекомендацию
           </Button>
