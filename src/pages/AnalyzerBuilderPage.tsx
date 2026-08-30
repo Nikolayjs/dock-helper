@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Alert, Badge, Button, Card, Container, Grid, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
@@ -100,11 +100,24 @@ export function AnalyzerBuilderPage() {
     }
   }, [editingTest, hydrated]);
 
-  const paramKeys = parameters.map((p) => p.key.trim()).filter(Boolean);
-  const paramOptions = parameters
-    .filter((p) => p.key.trim())
-    .map((p) => ({ key: p.key.trim(), label: p.label || p.key }));
-  const paramLabelByKey = Object.fromEntries(parameters.map((p) => [p.key, p.label || p.key]));
+  /**
+   * Списки, выведенные из показателей, обязаны быть мемоизированы — иначе мемоизация строк не
+   * работает вовсе.
+   *
+   * `paramOptions` уходит пропсом в **каждое** правило: новый массив на каждый рендер означал, что
+   * `memo` у строки правила не совпадал никогда. Замер на ОАК с 21 правилом: одна цифра, набранная
+   * в предпросмотре справа, давала 531 правку DOM в карточках правил — то есть перерисовку всех
+   * трёхсот с лишним полей ради значения, к которому они не имеют отношения.
+   */
+  const paramKeys = useMemo(() => parameters.map((p) => p.key.trim()).filter(Boolean), [parameters]);
+  const paramOptions = useMemo(
+    () => parameters.filter((p) => p.key.trim()).map((p) => ({ key: p.key.trim(), label: p.label || p.key })),
+    [parameters],
+  );
+  const paramLabelByKey = useMemo(
+    () => Object.fromEntries(parameters.map((p) => [p.key, p.label || p.key])),
+    [parameters],
+  );
 
   const errors = useMemo(() => {
     const list: string[] = [];
@@ -202,6 +215,30 @@ export function AnalyzerBuilderPage() {
    * не считается ничего: пересчёт на каждый кадр перерисовывал страницу с тремя десятками карточек
    * показателей и давал те самые фризы.
    */
+  /**
+   * Обработчики объявлены один раз на всю страницу — это условие мемоизации строк.
+   *
+   * Со стрелкой прямо в разметке (`onChange={(next) => setParameters(...)}`) у каждой из трёх
+   * десятков строк на каждый рендер появлялся новый пропс, и `memo` не спасал бы вовсе: одна цифра,
+   * набранная в предпросмотре, перерисовывала весь редактор. Обновление функциональное, поэтому
+   * зависимостей у обработчиков нет.
+   */
+  const updateParameter = useCallback((next: DraftParameter) => {
+    setParameters((prev) => prev.map((p) => (p.uid === next.uid ? next : p)));
+  }, []);
+  const removeParameter = useCallback((uid: string) => {
+    setParameters((prev) => prev.filter((p) => p.uid !== uid));
+  }, []);
+  const updateRule = useCallback((next: DraftPatternRule) => {
+    setRules((prev) => prev.map((r) => (r.uid === next.uid ? next : r)));
+  }, []);
+  const removeRule = useCallback((uid: string) => {
+    setRules((prev) => prev.filter((r) => r.uid !== uid));
+  }, []);
+  const changePreviewValue = useCallback((key: string, value: number | undefined) => {
+    setPreviewValues((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
   const previewRef = useRef<HTMLDivElement>(null);
   /**
    * Прилипает предпросмотр только там, где он стоит **рядом** с формой.
@@ -298,8 +335,8 @@ export function AnalyzerBuilderPage() {
                   <ParameterEditorRow
                     key={param.uid}
                     parameter={param}
-                    onChange={(next) => setParameters((prev) => prev.map((p) => (p.uid === next.uid ? next : p)))}
-                    onRemove={() => setParameters((prev) => prev.filter((p) => p.uid !== param.uid))}
+                    onChange={updateParameter}
+                    onRemove={removeParameter}
                   />
                 ))}
               </Stack>
@@ -324,8 +361,8 @@ export function AnalyzerBuilderPage() {
                     rule={rule}
                     paramOptions={paramOptions}
                     lockedSummary={rule.locked && rule.rawRoot ? describePatternNode(rule.rawRoot, (key) => paramLabelByKey[key] ?? key) : undefined}
-                    onChange={(next) => setRules((prev) => prev.map((r) => (r.uid === next.uid ? next : r)))}
-                    onRemove={() => setRules((prev) => prev.filter((r) => r.uid !== rule.uid))}
+                    onChange={updateRule}
+                    onRemove={removeRule}
                   />
                 ))}
               </Stack>
@@ -426,20 +463,29 @@ export function AnalyzerBuilderPage() {
                     values={previewValues}
                     computedValues={previewResult.values}
                     statuses={previewResult.statuses}
-                    onChange={(key, value) => setPreviewValues((prev) => ({ ...prev, [key]: value }))}
+                    onChange={changePreviewValue}
                   />
                 </ScrollArea>
               </Card>
               {/*
-                Заключения занимают ровно свою высоту — `0 0 auto`, а не `0 1 auto`.
+                Заключения занимают ровно свою высоту — `0 0 auto`, а не `0 1 auto`, — и **место им
+                отдаёт предпросмотр**, а не наоборот.
 
                 Со сжатием их карточку резало так же, как раньше резало предпросмотр: пустое
-                состояние «Введите показатели анализа» высотой 245 px ужималось до 85 и обрывалось
-                на полуслове. Место в колонке отдаёт предпросмотр — ему есть что прокручивать, а
-                короткому блоку сжиматься некуда. Потолок в 40 % остаётся на случай разбора с
-                десятком совпавших правил: иначе он выдавил бы сам предпросмотр.
+                состояние высотой 245 px ужималось до 85 и обрывалось на полуслове.
+
+                Потолок в 55 % — это признание того, что экран конечен: при длинном разборе
+                прокручивается либо форма, либо заключения, и делить их поровну честнее, чем отдать
+                всё одному. Больше половины отходит заключениям, потому что ради них предпросмотр и
+                открывают; форме остаётся её шапка и несколько строк, а остальное она прокручивает
+                у себя. Замер на «гемоглобин 12, эритроциты 12»: заключения 425 px против 309 до
+                правки, карточка предпросмотра 328 — обе живые.
               */}
-              <ScrollArea style={sideBySide ? { flex: '0 0 auto', minHeight: 0, maxHeight: '40%' } : undefined} type="auto" scrollbars="y">
+              <ScrollArea
+                style={sideBySide ? { flex: '0 0 auto', minHeight: 0, maxHeight: '55%' } : undefined}
+                type="auto"
+                scrollbars="y"
+              >
                 <AnalyzerResults result={previewResult} />
               </ScrollArea>
           </div>

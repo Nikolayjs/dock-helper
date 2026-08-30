@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ActionIcon, Alert, Card, Grid, Group, Select, SegmentedControl, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
 import { IconGripVertical, IconLock, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
 
@@ -19,7 +20,8 @@ interface PatternRuleEditorRowProps {
   /** Precomputed human-readable summary of `rule.rawRoot`, shown instead of the condition editor when `rule.locked`. */
   lockedSummary?: string;
   onChange: (rule: DraftPatternRule) => void;
-  onRemove: () => void;
+  /** Принимает `uid`, чтобы обработчик был один на все строки — иначе мемоизация не работает. */
+  onRemove: (uid: string) => void;
 }
 
 const SEVERITY_OPTIONS = [
@@ -68,7 +70,7 @@ function switchSubject(condition: PatternCondition, value: string | null): Patte
     : { id: condition.id, kind: 'param', paramKey: value, status: 'high', negate: condition.negate };
 }
 
-export function PatternRuleEditorRow({ rule, paramOptions, lockedSummary, onChange, onRemove }: PatternRuleEditorRowProps) {
+function PatternRuleEditorRowView({ rule, paramOptions, lockedSummary, onChange, onRemove }: PatternRuleEditorRowProps) {
   const updateCondition = (index: number, condition: PatternCondition) => {
     const conditions = [...rule.conditions];
     conditions[index] = condition;
@@ -92,7 +94,7 @@ export function PatternRuleEditorRow({ rule, paramOptions, lockedSummary, onChan
             Правило
           </Text>
         </Group>
-        <ActionIcon color="red" variant="subtle" onClick={onRemove} radius="md">
+        <ActionIcon color="red" variant="subtle" onClick={() => onRemove(rule.uid)} radius="md">
           <IconTrash size={16} />
         </ActionIcon>
       </Group>
@@ -221,3 +223,11 @@ export function PatternRuleEditorRow({ rule, paramOptions, lockedSummary, onChan
     </Card>
   );
 }
+
+/**
+ * Строка мемоизирована: в анализе бывает три десятка показателей, и каждая строка — это два десятка
+ * полей Mantine. Без этого любая правка **где угодно на странице** (в том числе цифра, набранная в
+ * предпросмотре справа) перерисовывала все шестьсот полей разом. Условие мемоизации — постоянные
+ * обработчики: они объявлены один раз на всю страницу, а строка называет себя сама (`uid`).
+ */
+export const PatternRuleEditorRow = memo(PatternRuleEditorRowView);

@@ -16,17 +16,22 @@ interface LabTestFormProps {
 export function LabTestForm({ test, sex, age, values, computedValues, statuses, onChange }: LabTestFormProps) {
   return (
     <Grid>
+      {/*
+        Колонка сетки — внутри мемоизированного поля, а не вокруг него.
+
+        Снаружи она сводила мемоизацию на нет: сама колонка перерисовывалась на каждую набранную
+        цифру, и тридцать колонок Mantine стоили столько же, сколько поля, которые они обёртывают.
+      */}
       {test.parameters.map((param) => (
-        <Grid.Col key={param.key} span={{ base: 12, sm: 6 }}>
-          <LabParameterInput
-            param={param}
-            sex={sex}
-            age={age}
-            value={param.inputType === 'derived' ? computedValues[param.key] : values[param.key]}
-            status={statuses[param.key]}
-            onChange={(value) => onChange(param.key, value)}
-          />
-        </Grid.Col>
+        <LabParameterInput
+          key={param.key}
+          param={param}
+          sex={sex}
+          age={age}
+          value={param.inputType === 'derived' ? computedValues[param.key] : values[param.key]}
+          status={statuses[param.key]}
+          onChange={onChange}
+        />
       ))}
     </Grid>
   );

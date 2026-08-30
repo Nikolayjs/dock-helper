@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ActionIcon, Alert, Card, Divider, Grid, Group, NumberInput, Select, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
 import { IconGripVertical, IconLock, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
 
@@ -61,11 +62,12 @@ function RangePair({
 interface ParameterEditorRowProps {
   parameter: DraftParameter;
   onChange: (parameter: DraftParameter) => void;
-  onRemove: () => void;
+  /** Принимает `uid`, чтобы обработчик был один на все строки — иначе мемоизация не работает. */
+  onRemove: (uid: string) => void;
   keyError?: string;
 }
 
-export function ParameterEditorRow({ parameter, onChange, onRemove, keyError }: ParameterEditorRowProps) {
+function ParameterEditorRowView({ parameter, onChange, onRemove, keyError }: ParameterEditorRowProps) {
   const updateOption = (index: number, option: CustomLabParameterOption) => {
     const options = [...(parameter.options ?? [])];
     options[index] = option;
@@ -135,7 +137,7 @@ export function ParameterEditorRow({ parameter, onChange, onRemove, keyError }: 
             Показатель
           </Text>
         </Group>
-        <ActionIcon color="red" variant="subtle" onClick={onRemove} radius="md">
+        <ActionIcon color="red" variant="subtle" onClick={() => onRemove(parameter.uid)} radius="md">
           <IconTrash size={16} />
         </ActionIcon>
       </Group>
@@ -467,3 +469,11 @@ export function ParameterEditorRow({ parameter, onChange, onRemove, keyError }: 
     </Card>
   );
 }
+
+/**
+ * Строка мемоизирована: в анализе бывает три десятка показателей, и каждая строка — это два десятка
+ * полей Mantine. Без этого любая правка **где угодно на странице** (в том числе цифра, набранная в
+ * предпросмотре справа) перерисовывала все шестьсот полей разом. Условие мемоизации — постоянные
+ * обработчики: они объявлены один раз на всю страницу, а строка называет себя сама (`uid`).
+ */
+export const ParameterEditorRow = memo(ParameterEditorRowView);

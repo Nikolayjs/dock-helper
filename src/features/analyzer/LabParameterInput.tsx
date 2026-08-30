@@ -1,4 +1,5 @@
-import { Badge, Group, NumberInput, Select, Text } from '@mantine/core';
+import { memo } from 'react';
+import { Badge, Grid, Group, NumberInput, Select, Text } from '@mantine/core';
 
 import { getParamRange } from './types';
 import type { LabParameter, ParamStatus, Sex } from './types';
@@ -9,7 +10,14 @@ interface LabParameterInputProps {
   age: number | undefined;
   value: number | undefined;
   status: ParamStatus | undefined;
-  onChange: (value: number | undefined) => void;
+  /**
+   * Ключ передаётся обратно, чтобы обработчик был **один на всю форму**.
+   *
+   * Со стрелкой на каждую строку (`(v) => onChange(param.key, v)`) у каждого поля на каждый набор
+   * появлялся новый пропс, и мемоизация не работала бы вовсе: одна набранная цифра перерисовывала
+   * все тридцать полей анализа.
+   */
+  onChange: (key: string, value: number | undefined) => void;
 }
 
 function formatRange(param: LabParameter, sex: Sex, age: number | undefined): string | null {
@@ -22,7 +30,7 @@ function formatRange(param: LabParameter, sex: Sex, age: number | undefined): st
   return null;
 }
 
-export function LabParameterInput({ param, sex, age, value, status, onChange }: LabParameterInputProps) {
+function LabParameterInputView({ param, sex, age, value, status, onChange }: LabParameterInputProps) {
   const rangeText = formatRange(param, sex, age);
   const statusColor = status === 'high' ? 'red' : status === 'low' ? 'blue' : undefined;
   const statusLabel =
@@ -50,7 +58,7 @@ export function LabParameterInput({ param, sex, age, value, status, onChange }: 
         placeholder="Не указано"
         data={param.options?.map((o) => ({ label: o.label, value: String(o.value) })) ?? []}
         value={value === undefined ? null : String(value)}
-        onChange={(v) => onChange(v === null ? undefined : Number(v))}
+        onChange={(v) => onChange(param.key, v === null ? undefined : Number(v))}
         radius="md"
         styles={borderStyle}
       />
@@ -82,9 +90,28 @@ export function LabParameterInput({ param, sex, age, value, status, onChange }: 
       decimalScale={param.decimals}
       step={param.step ?? 1}
       value={value ?? ''}
-      onChange={(v) => onChange(v === '' ? undefined : Number(v))}
+      onChange={(v) => onChange(param.key, v === '' ? undefined : Number(v))}
       radius="md"
       styles={borderStyle}
     />
   );
 }
+
+/** Колонка сетки живёт здесь, внутри мемоизации: снаружи она перерисовывалась бы на каждую цифру. */
+function LabParameterCell(props: LabParameterInputProps) {
+  return (
+    <Grid.Col span={{ base: 12, sm: 6 }}>
+      <LabParameterInputView {...props} />
+    </Grid.Col>
+  );
+}
+
+/**
+ * Поле мемоизировано, и это не микрооптимизация.
+ *
+ * В анализе бывает три десятка показателей, а набранная цифра меняет значение ровно у одного из
+ * них — и статус ещё у нескольких производных. Без `memo` каждое нажатие перерисовывало все поля
+ * разом; в конструкторе, где рядом ещё три десятка карточек редактора, это и было теми «ужасными
+ * фризами», на которые пожаловался врач.
+ */
+export const LabParameterInput = memo(LabParameterCell);
