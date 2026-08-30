@@ -81,7 +81,7 @@ export function Icd10ViewPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <BackButton fallback={{ to: '/icd10', label: 'К справочнику МКБ-10' }} />
+        <BackButton fallback={{ to: '/reference?tab=icd10', label: 'К справочнику МКБ-10' }} />
 
         <ReadingSheet>
           <Group gap="xs" mb={8}>

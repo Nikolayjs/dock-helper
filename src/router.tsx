@@ -51,7 +51,8 @@ const DispensaryEditorPage = lazyPage(() => import('./pages/DispensaryEditorPage
 const DispensaryStatsPage = lazyPage(() => import('./pages/DispensaryStatsPage'), 'DispensaryStatsPage');
 const GuidelinesPage = lazyPage(() => import('./pages/GuidelinesPage'), 'GuidelinesPage');
 const KnowledgeTagPage = lazyPage(() => import('./pages/KnowledgeTagPage'), 'KnowledgeTagPage');
-const AbbreviationsPage = lazyPage(() => import('./pages/AbbreviationsPage'), 'AbbreviationsPage');
+const ReferencePage = lazyPage(() => import('./pages/ReferencePage'), 'ReferencePage');
+const DiseaseViewPage = lazyPage(() => import('./features/diseases/DiseaseViewPage'), 'DiseaseViewPage');
 const GuidelineViewPage = lazyPage(() => import('./pages/GuidelineViewPage'), 'GuidelineViewPage');
 const GuidelineEditorPage = lazyPage(() => import('./pages/GuidelineEditorPage'), 'GuidelineEditorPage');
 const QuestionnairesPage = lazyPage(() => import('./pages/QuestionnairesPage'), 'QuestionnairesPage');
@@ -63,7 +64,6 @@ const ArticleEditorPage = lazyPage(() => import('./pages/ArticleEditorPage'), 'A
 const AnalyzerPage = lazyPage(() => import('./pages/AnalyzerPage'), 'AnalyzerPage');
 const AnalyzerBuilderPage = lazyPage(() => import('./pages/AnalyzerBuilderPage'), 'AnalyzerBuilderPage');
 const DrugsPage = lazyPage(() => import('./pages/DrugsPage'), 'DrugsPage');
-const Icd10Page = lazyPage(() => import('./pages/Icd10Page'), 'Icd10Page');
 const Icd10ViewPage = lazyPage(() => import('./pages/Icd10ViewPage'), 'Icd10ViewPage');
 const DrugViewPage = lazyPage(() => import('./pages/DrugViewPage'), 'DrugViewPage');
 const DrugEditorPage = lazyPage(() => import('./pages/DrugEditorPage'), 'DrugEditorPage');
@@ -147,7 +147,7 @@ export const router = createBrowserRouter(
 
           {/* Код в адресе содержит точку (`I21.0`), и это единственный сегмент приложения, где
               она встречается: роутер к ней безразличен, а вот `encodeURIComponent` обязателен. */}
-          <Route path="/icd10" element={<Icd10Page />} />
+          {/* Список МКБ-10 переехал во вкладку справочника; карточка кода осталась своей страницей. */}
           <Route path="/icd10/:code" element={<Icd10ViewPage />} />
           <Route path="/planner" element={<PlannerPage />} />
           <Route path="/doctor" element={<DoctorPage />} />
@@ -163,7 +163,32 @@ export const router = createBrowserRouter(
           <Route path="/news" element={<NewsPage />} />
           <Route path="/news/read" element={<NewsReaderPage />} />
           <Route path="/knowledge/tag/:tag" element={<KnowledgeTagPage />} />
-          <Route path="/reference/abbreviations" element={<AbbreviationsPage />} />
+          <Route path="/reference" element={<ReferencePage />} />
+          <Route path="/reference/diseases/:id" element={<DiseaseViewPage />} />
+          {/* Прежние адреса разделов — вместе со строкой запроса: ссылка на код МКБ с параметрами
+              не должна терять их по дороге. */}
+          <Route
+            path="/reference/abbreviations"
+            element={
+              <RedirectTo
+                build={(_params, search) => {
+                  search.set('tab', 'abbreviations');
+                  return withSearch('/reference', search);
+                }}
+              />
+            }
+          />
+          <Route
+            path="/icd10"
+            element={
+              <RedirectTo
+                build={(_params, search) => {
+                  search.set('tab', 'icd10');
+                  return withSearch('/reference', search);
+                }}
+              />
+            }
+          />
           <Route path="/guidelines" element={<GuidelinesPage />} />
           <Route path="/guidelines/new" element={<GuidelineEditorPage />} />
           <Route path="/guidelines/:id" element={<GuidelineViewPage />} />

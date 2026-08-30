@@ -68,9 +68,14 @@ const PAGE_META: PageMetaEntry[] = [
   },
   { match: (p) => p === '/news/read', title: 'Статья' },
   {
-    match: (p) => p === '/reference/abbreviations',
-    title: 'Справочник: аббревиатуры',
-    subtitle: 'Сокращения из выписок, направлений и бланков анализов',
+    match: (p) => p.startsWith('/reference/diseases/'),
+    title: 'Заболевание',
+    subtitle: 'Синонимы, код МКБ-10 и где читать подробно',
+  },
+  {
+    match: (p) => p === '/reference',
+    title: 'Справочник',
+    subtitle: 'Заболевания, аббревиатуры и классификация МКБ-10',
   },
   {
     match: (p) => p.startsWith('/knowledge/tag/'),
