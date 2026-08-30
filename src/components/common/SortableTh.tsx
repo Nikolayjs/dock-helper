@@ -3,6 +3,7 @@ import { Group, Table, Text, UnstyledButton } from '@mantine/core';
 import { IconArrowsSort, IconSortAscending, IconSortDescending } from '@tabler/icons-react';
 
 import type { SortState } from '../../lib/tableSort';
+import classes from './SortableTh.module.css';
 
 /**
  * A column header that sorts the table when clicked.
@@ -30,6 +31,7 @@ export function SortableTh<K extends string>({ column, sort, onSort, children, w
   return (
     <Table.Th w={w} miw={miw} p={0}>
       <UnstyledButton
+        className={classes.button}
         onClick={() => onSort(column)}
         px="sm"
         py="xs"

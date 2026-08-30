@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
-import { Alert, Button, Card, Group, Select, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Alert, Box, Button, Group, Select, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconCategory, IconInfoCircle, IconPill, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +13,7 @@ import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { sortRows, useTableSort } from '../../lib/tableSort';
 import { buildDrugIndex, drugCategoryCounts, drugMatchesQuery, normalizeDrugName, resolveDrug } from './drugIndex';
 import { useDrugInteractions } from '../interactions/useDrugInteractions';
+import { CatalogPanel } from '../../components/common/CatalogPanel';
 import { QueryState } from '../../components/common/QueryState';
 import { SpecialtyFilterNotice, SpecialtyFilterSwitch } from '../specialties/SpecialtyFilterControls';
 import { useSpecialtyFilter } from '../specialties/useSpecialtyFilter';
@@ -122,7 +123,9 @@ export function DrugCatalog() {
           </Alert>
         )}
 
-        <Group justify="space-between" align="flex-end" wrap="wrap">
+        <CatalogPanel
+          header={
+            <Group justify="space-between" align="flex-end" wrap="wrap">
           <Stack gap={4}>
             <Text c="dimmed" size="sm">
               {isFiltering ? `Найдено: ${filtered.length} из ${drugs.length}` : `${drugs.length} препаратов в справочнике`}
@@ -166,11 +169,12 @@ export function DrugCatalog() {
               Добавить препарат
             </Button>
           </Group>
-        </Group>
-
+            </Group>
+          }
+        >
         <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="справочник">
           {filtered.length === 0 ? (
-            <Card withBorder padding="xl">
+            <Box p="xl">
               <Stack align="center" gap="sm" py="xl">
                 <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                   {isFiltering ? <IconX size={24} /> : <IconPill size={24} />}
@@ -182,9 +186,9 @@ export function DrugCatalog() {
                     : 'Добавьте препараты, которые назначаете чаще всего — вместе с торговыми названиями, под которыми их знают пациенты.'}
                 </Text>
               </Stack>
-            </Card>
+            </Box>
           ) : (
-            <Card withBorder padding={0}>
+            <>
               {isNarrow ? (
                 <DrugList
                   drugs={sorted}
@@ -205,9 +209,10 @@ export function DrugCatalog() {
                   onDelete={handleDelete}
                 />
               )}
-            </Card>
+            </>
           )}
         </QueryState>
+        </CatalogPanel>
       </Stack>
 
       <DrugCategoriesModal

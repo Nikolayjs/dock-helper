@@ -75,6 +75,20 @@
   opacity: 1;
 }
 
+/*
+ * Своё кольцо вместо браузерного.
+ *
+ * Ручка — обычный `div`, которому dnd-kit ставит `tabindex`, и класса Mantine на ней нет: браузер
+ * рисовал ей собственную обводку `1px auto` чёрным пунктиром — единственную такую во всём
+ * приложении. Оставить ручку в порядке обхода при этом нужно: сенсор клавиатуры подключён, и
+ * порядок пунктов можно менять без мыши, а без фокуса на ручке это невозможно.
+ */
+.dragHandle:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 1px;
+  border-radius: var(--mantine-radius-xs);
+}
+
 .resizeHandle {
   position: absolute;
   top: 0;

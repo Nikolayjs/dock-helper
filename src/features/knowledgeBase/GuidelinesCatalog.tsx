@@ -3,8 +3,8 @@ import { useMediaQuery } from '@mantine/hooks';
 import {
   ActionIcon,
   Badge,
+  Box,
   Button,
-  Card,
   Group,
   Select,
   Stack,
@@ -35,6 +35,7 @@ import type { KnowledgeDocumentSummary } from './types';
  * первый тег, а без тегов — «Без раздела», и она не теряется в фильтре.
  */
 
+import { CatalogPanel } from '../../components/common/CatalogPanel';
 import { SpecialtyFilterNotice, SpecialtyFilterSwitch } from '../specialties/SpecialtyFilterControls';
 import { useSpecialtyFilter } from '../specialties/useSpecialtyFilter';
 
@@ -115,8 +116,9 @@ export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, 
   const isFiltering = search.trim().length > 0 || section !== ALL_SECTIONS || specialtyFilter.active;
 
   return (
-    <Stack gap="lg">
-      <Group justify="space-between" align="flex-end" wrap="wrap">
+    <CatalogPanel
+      header={
+        <Group justify="space-between" align="flex-end" wrap="wrap">
         <Stack gap={4}>
           <Text c="dimmed" size="sm">
             {isFiltering
@@ -155,10 +157,11 @@ export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, 
             Добавить рекомендацию
           </Button>
         </Group>
-      </Group>
-
+        </Group>
+      }
+    >
       {sorted.length === 0 ? (
-        <Card withBorder padding="xl">
+        <Box p="xl">
           <Stack align="center" gap="sm" py="xl">
             <ThemeIcon size={48} radius="xl" variant="light" color="gray">
               {isFiltering ? <IconX size={24} /> : <IconBook2 size={24} />}
@@ -170,9 +173,9 @@ export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, 
                 : 'Добавьте протокол, чек-лист или конспект рекомендаций с форматированным текстом.'}
             </Text>
           </Stack>
-        </Card>
+        </Box>
       ) : (
-        <Card withBorder padding={0}>
+        <>
           {isNarrow ? (
             <GuidelineList documents={sorted} onOpen={onOpen} />
           ) : (
@@ -186,9 +189,9 @@ export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, 
               onTagClick={onTagClick}
             />
           )}
-        </Card>
+        </>
       )}
-    </Stack>
+    </CatalogPanel>
   );
 }
 

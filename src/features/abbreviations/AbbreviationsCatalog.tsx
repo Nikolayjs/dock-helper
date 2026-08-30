@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { ActionIcon, Badge, Button, Card, Group, Select, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { ActionIcon, Badge, Box, Button, Group, Select, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconEdit, IconPlus, IconSearch, IconTrash, IconX } from '@tabler/icons-react';
 
 import { DataTable } from '../../components/common/DataTable';
 import type { DataColumn } from '../../components/common/DataTable';
+import { CatalogPanel } from '../../components/common/CatalogPanel';
 import { QueryState } from '../../components/common/QueryState';
 import { sortRows, useTableSort } from '../../lib/tableSort';
 import { useIncrementalList } from '../../lib/useIncrementalList';
@@ -225,8 +226,9 @@ export function AbbreviationsCatalog() {
 
   return (
     <>
-      <Stack gap="lg">
-        <Group justify="space-between" align="flex-end" wrap="wrap">
+      <CatalogPanel
+        header={
+          <Group justify="space-between" align="flex-end" wrap="wrap">
           <Text c="dimmed" size="sm">
             {isFiltering
               ? `Найдено: ${sorted.length} из ${abbreviations.length}`
@@ -257,11 +259,12 @@ export function AbbreviationsCatalog() {
               Добавить
             </Button>
           </Group>
-        </Group>
-
+          </Group>
+        }
+      >
         <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="справочник сокращений">
           {sorted.length === 0 ? (
-            <Card withBorder padding="xl">
+            <Box p="xl">
               <Stack align="center" gap="sm" py="xl">
                 <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                   <IconX size={24} />
@@ -275,9 +278,9 @@ export function AbbreviationsCatalog() {
                   Добавить сокращение
                 </Button>
               </Stack>
-            </Card>
+            </Box>
           ) : (
-            <Card withBorder padding={0}>
+            <>
               {isNarrow ? (
                 <AbbreviationList rows={sorted} ambiguity={ambiguity} onEdit={openEdit} onDelete={handleDelete} />
               ) : (
@@ -290,10 +293,10 @@ export function AbbreviationsCatalog() {
                   minWidth={960}
                 />
               )}
-            </Card>
+            </>
           )}
         </QueryState>
-      </Stack>
+      </CatalogPanel>
 
       <AbbreviationForm
         opened={formOpen}

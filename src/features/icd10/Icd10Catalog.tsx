@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Button, Card, Group, Loader, Select, Stack, Switch, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Alert, Box, Button, Group, Loader, Select, Stack, Switch, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconFold, IconFoldDown, IconInfoCircle, IconListSearch, IconSearch, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
+import { CatalogPanel } from '../../components/common/CatalogPanel';
 import { QueryState } from '../../components/common/QueryState';
 import { sortRows, useTableSort } from '../../lib/tableSort';
 import { ICD10_SORT_KEYS, Icd10Table, icd10SortValue, type Icd10SortKey } from './Icd10Table';
@@ -174,8 +175,9 @@ export function Icd10Catalog() {
         карточка показывает место кода в классификации и соседние коды.
       </Alert>
 
-      <Card withBorder padding="md">
-        <Group gap="sm" wrap="wrap" align="flex-end">
+      <CatalogPanel
+        header={
+          <Group gap="sm" wrap="wrap" align="flex-end">
           <TextInput
             flex="1 1 260px"
             label="Поиск"
@@ -218,12 +220,14 @@ export function Icd10Catalog() {
                 Раскрыть все
               </Button>
             ))}
-        </Group>
-      </Card>
-
+          </Group>
+        }
+      >
       <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="справочник МКБ-10">
         <>
-          <Group gap={8}>
+          {/* Счётчик внутри панели, а не в её шапке: он считает загруженное, и до прихода списка
+              показывал бы «Кодов: 0» — верное число неверного набора. */}
+          <Group gap={8} px="md" pt="sm" pb="xs">
             <ThemeIcon variant="light" color="gray" size={22} radius="sm">
               <IconListSearch size={13} />
             </ThemeIcon>
@@ -248,10 +252,8 @@ export function Icd10Catalog() {
             )}
           </Group>
 
-          {/* Таблица лежит на сплошной подложке, как справочник препаратов: под обоями строки без
-              неё читаются прямо по фотографии. `padding={0}` — таблица сама держит свои отступы. */}
           {sorted.length === 0 ? (
-            <Card withBorder padding="xl">
+            <Box p="xl">
               <Stack align="center" gap="sm" py="xl">
                 <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                   <IconX size={24} />
@@ -262,9 +264,9 @@ export function Icd10Catalog() {
                   снять фильтр по классу.
                 </Text>
               </Stack>
-            </Card>
+            </Box>
           ) : (
-            <Card withBorder padding={0}>
+            <>
               {isNarrow ? (
                 <Icd10List rows={sorted} onOpen={open} onToggle={toggleExpanded} onRowClick={rowClick} />
               ) : (
@@ -277,10 +279,11 @@ export function Icd10Catalog() {
                   onRowClick={rowClick}
                 />
               )}
-            </Card>
+            </>
           )}
         </>
       </QueryState>
+      </CatalogPanel>
     </Stack>
   );
 }

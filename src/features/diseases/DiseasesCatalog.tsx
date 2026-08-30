@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { ActionIcon, Badge, Button, Card, Group, Select, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { ActionIcon, Badge, Box, Button, Group, Select, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconChevronRight, IconEdit, IconPlus, IconSearch, IconTrash, IconX } from '@tabler/icons-react';
 
 import { DataTable } from '../../components/common/DataTable';
 import type { DataColumn } from '../../components/common/DataTable';
+import { CatalogPanel } from '../../components/common/CatalogPanel';
 import { QueryState } from '../../components/common/QueryState';
 import { sortRows, useTableSort } from '../../lib/tableSort';
 import { useIncrementalList } from '../../lib/useIncrementalList';
@@ -163,9 +164,8 @@ export function DiseasesCatalog({ onOpen, onEdit }: Props) {
     },
   ];
 
-  return (
-    <Stack gap="lg">
-        <Group justify="space-between" align="flex-end" wrap="wrap">
+  const header = (
+    <Group justify="space-between" align="flex-end" wrap="wrap">
           <Text c="dimmed" size="sm">
             {isFiltering ? `Найдено: ${sorted.length} из ${diseases.length}` : `${diseases.length} заболеваний в справочнике`}
           </Text>
@@ -191,11 +191,14 @@ export function DiseasesCatalog({ onOpen, onEdit }: Props) {
               Добавить
             </Button>
           </Group>
-        </Group>
+    </Group>
+  );
 
-        <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="справочник заболеваний">
-          {sorted.length === 0 ? (
-            <Card withBorder padding="xl">
+  return (
+    <CatalogPanel header={header}>
+      <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="справочник заболеваний">
+        {sorted.length === 0 ? (
+            <Box p="xl">
               <Stack align="center" gap="sm" py="xl">
                 <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                   <IconX size={24} />
@@ -208,27 +211,23 @@ export function DiseasesCatalog({ onOpen, onEdit }: Props) {
                 <Button variant="light" leftSection={<IconPlus size={16} />} onClick={openNew}>
                   Добавить заболевание
                 </Button>
-              </Stack>
-            </Card>
-          ) : (
-            <Card withBorder padding={0}>
-              {isNarrow ? (
-                <DiseaseList rows={sorted} onOpen={onOpen} />
-              ) : (
-                <DataTable
-                  rows={sorted}
-                  columns={columns}
-                  rowKey={(row) => row.id}
-                  sort={sort}
-                  onSort={toggle}
-                  onRowClick={onOpen}
-                  minWidth={920}
-                />
-              )}
-            </Card>
-          )}
+            </Stack>
+          </Box>
+        ) : isNarrow ? (
+          <DiseaseList rows={sorted} onOpen={onOpen} />
+        ) : (
+          <DataTable
+            rows={sorted}
+            columns={columns}
+            rowKey={(row) => row.id}
+            sort={sort}
+            onSort={toggle}
+            onRowClick={onOpen}
+            minWidth={920}
+          />
+        )}
       </QueryState>
-    </Stack>
+    </CatalogPanel>
   );
 }
 
