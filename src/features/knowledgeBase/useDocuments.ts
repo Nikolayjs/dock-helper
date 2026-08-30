@@ -8,7 +8,10 @@ import type { KnowledgeDocument, KnowledgeDocumentSummary, KnowledgeKind } from 
 /** Кэш, которым владеет этот хук. Экспортируется, чтобы удаление могло спрятать строку на время отмены. */
 export const QUERY_KEY = ['knowledge-documents'];
 
-export type DocumentInput = Pick<KnowledgeDocument, 'kind' | 'title' | 'summary' | 'content' | 'tags' | 'author'>;
+export type DocumentInput = Pick<
+  KnowledgeDocument,
+  'kind' | 'title' | 'summary' | 'content' | 'tags' | 'coverDataUrl' | 'author'
+>;
 
 // Правка документа меняет и список, и его собственный кэш: список отдаётся без текста, поэтому без
 // второго ключа страница просмотра показывала бы старое тело.

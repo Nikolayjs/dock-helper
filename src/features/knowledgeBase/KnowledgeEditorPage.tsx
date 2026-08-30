@@ -72,7 +72,14 @@ export function KnowledgeEditorPage({
     >
       {/* Подложка: без неё подписи полей и текст формы лежат прямо на обоях. */}
       <ReadingSheet>
-        <DocumentForm initialDocument={editingDoc ?? undefined} onSubmit={handleSubmit} onCancel={() => navigate(backTo)} contentMinHeight={EDITOR_MIN_HEIGHT} />
+        <DocumentForm
+          initialDocument={editingDoc ?? undefined}
+          onSubmit={handleSubmit}
+          onCancel={() => navigate(backTo)}
+          contentMinHeight={EDITOR_MIN_HEIGHT}
+          /* Обложка нужна там, где есть карточка с превью: рекомендации показываются таблицей. */
+          withCover={kind === 'article'}
+        />
       </ReadingSheet>
     </RecordEditorPage>
   );

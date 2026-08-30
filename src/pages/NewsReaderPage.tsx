@@ -4,6 +4,7 @@ import { notifications } from '@mantine/notifications';
 import { IconBookmark, IconBookmarkFilled, IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
 
+import { firstImageSrc, isSafeImageSrc, makeCover } from '../features/knowledgeBase/cover';
 import { useDocuments } from '../features/knowledgeBase/useDocuments';
 import { useArticleFullText } from '../features/newsFeed/useArticleFullText';
 import './articleContent.css';
@@ -42,12 +43,20 @@ export function NewsReaderPage() {
   const handleSaveAsArticle = async () => {
     setIsSaving(true);
     try {
+      const content =
+        article?.contentHtml || `<p><a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></p>`;
+      // Обложкой становится картинка самой новости: сначала та, которую лента объявила заглавной,
+      // потом первая в тексте — то же правило, что в редакторе. Здесь это ссылка на чужой сайт, и
+      // она уходит в базу ссылкой: перекодировать её нечем, а весит она свою сотню байт.
+      const leadImage = isSafeImageSrc(article?.leadImage) ? (article?.leadImage ?? null) : null;
+      const firstImage = leadImage ?? firstImageSrc(content);
       await addDocument({
         kind: 'article',
         title: article?.title || title,
         summary: article?.textContent ? truncate(article.textContent, SUMMARY_MAX_LENGTH) : '',
-        content: article?.contentHtml || `<p><a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></p>`,
+        content,
         tags: source ? [source] : [],
+        coverDataUrl: firstImage ? await makeCover(firstImage) : null,
         author: article?.byline || source || 'Новостная лента',
       });
       setSavedUrl(url);

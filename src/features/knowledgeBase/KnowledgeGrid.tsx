@@ -79,7 +79,10 @@ export function KnowledgeGrid({
           </Stack>
         </Card>
       ) : (
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+        /* Карточка высотой по своему содержимому, а не по соседке: с обложками ряд стал смешанным,
+           и растянутая карточка статьи без картинки превращалась в пустой прямоугольник в рост
+           чужого снимка. Ровный низ ряда стоит дороже, чем он даёт. */
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" style={{ alignItems: 'start' }}>
           {sorted.map((doc) => (
             <DocumentCard
               key={doc.id}

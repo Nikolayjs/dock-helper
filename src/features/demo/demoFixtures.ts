@@ -656,6 +656,9 @@ const guideline = (id: string, title: string, summary: string, tags: string[], b
   tags,
   author: 'Клинические рекомендации',
   content: body,
+  // Фикстура повторяет контракт целиком: карточка списка читает обложку, и поля, забытого в
+  // фикстуре, хватило бы, чтобы страница упала на первом же `null`-е не там, где ждали.
+  coverDataUrl: null,
   createdAt: t(-200),
   updatedAt: t(-200),
 });
