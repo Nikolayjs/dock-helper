@@ -24,8 +24,7 @@ import { QUERY_KEY as LAB_TESTS_KEY, useCustomAnalyzers } from '../features/anal
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { useMediaQuery } from '@mantine/hooks';
 import { FormActions } from '../components/common/FormActions';
-import { useStickyFitHeight } from '../components/common/useStickyFitHeight';
-import { STICKY_TOP } from '../layouts/shellMetrics';
+import { useScreenFitHeight } from '../components/common/useScreenFitHeight';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
 import { useSaveAction } from '../components/common/useSaveAction';
 
@@ -250,11 +249,21 @@ export function AnalyzerBuilderPage() {
    */
   const sideBySide = useMediaQuery('(min-width: 75em)', true, { getInitialValueInEffect: false });
   // `ready` обязателен: до прихода записи страница показывает загрузку и блока не рисует вовсе.
-  const previewHeight = useStickyFitHeight(previewRef, {
+  const screenLeft = useScreenFitHeight(previewRef, {
     gap: 16,
     min: 320,
     ready: sideBySide && (!isEditMode || hydrated),
   });
+  /**
+   * Карточке предпросмотра — 70 % свободного экрана, заключениям — сколько попросят.
+   *
+   * Раньше колонка целиком равнялась экрану и делилась внутри себя: заключения при этом всегда
+   * упирались в свой потолок и обрывались на полуслове, а любое введённое значение меняло высоты
+   * обеих карточек. Теперь высота задана **только форме** — ей есть что прокручивать, и предел ей
+   * нужен, — а заключения растут естественно и уезжают вместе со страницей. Оборванных карточек не
+   * остаётся вовсе: прокручивается страница, а не блок внутри блока.
+   */
+  const previewHeight = screenLeft ? Math.round(screenLeft * 0.7) : null;
 
   const guard = useUnsavedGuard(useDirtyValue({ title, shortTitle, description, parameters, rules }, hydrated));
 
@@ -394,43 +403,21 @@ export function AnalyzerBuilderPage() {
 
         <Grid.Col span={{ base: 12, lg: 5 }}>
           {/*
-            Предпросмотр прилипший и со своей прокруткой — он нужен на виду, пока правят показатели.
+            Предпросмотр не прикреплён к экрану, и это следствие того, что заключения растут
+            свободно: прикреплённая карточка осталась бы висеть на месте, а разбор уезжал бы **под
+            неё** — он идёт следующим в потоке и рисуется ниже. Прокручивается страница целиком.
 
-            **Прокручивается содержимое карточки, а не карточка.** Сначала было наоборот: обе
-            карточки лежали внутри области прокрутки, и карточка предпросмотра, будучи выше окна,
-            обрезалась её краем — вместо карточки со скруглёнными углами выходил прямоугольник,
-            уходящий за край. Теперь высоту получает сама карточка, а прокручивается список
-            показателей внутри неё: карточка остаётся карточкой в любом положении.
-
-            Полоса прокрутки — `ScrollArea`, а не `overflow: auto`: родная отнимала у блока 10 px и
-            рисовалась **справа от карточки**, прямо на обоях, отдельной чертой. У `ScrollArea` она
-            лежит поверх содержимого, внутри поверхности, — как в сайдбаре и в поиске по шапке.
+            Прокрутка внутри осталась ровно одна — список показателей внутри карточки формы. Полоса
+            у неё `ScrollArea`, а не родная: родная отнимала бы у блока 10 px и рисовалась справа от
+            карточки, прямо на обоях, отдельной чертой.
           */}
-          <div
-            ref={previewRef}
-            style={{
-              position: sideBySide ? 'sticky' : undefined,
-              top: sideBySide ? `calc(${STICKY_TOP} + 16px)` : undefined,
-              height: sideBySide ? (previewHeight ?? undefined) : undefined,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--mantine-spacing-lg)',
-            }}
-          >
-              {/*
-                Доли колонки жёсткие: 60 % предпросмотру, 40 % заключениям (просвет между ними —
-                отсюда `- 10px` у каждой). Раньше заключения занимали свою высоту, а предпросмотр
-                забирал остаток — и обе карточки прыгали на каждую набранную цифру: разбор то
-                вырастал, то сжимался, и вместе с ним ездила форма. Постоянная высота дороже пары
-                десятков пикселей пустоты внизу и стоит того: работать в поле, которое меняет
-                размер под курсором, нельзя.
-              */}
+          <Stack gap="lg" ref={previewRef}>
               <Card
                 withBorder
                 padding="lg"
                 style={
-                  sideBySide
-                    ? { flex: '0 0 calc(60% - 10px)', minHeight: 0, display: 'flex', flexDirection: 'column' }
+                  sideBySide && previewHeight
+                    ? { height: previewHeight, display: 'flex', flexDirection: 'column' }
                     : undefined
                 }
               >
@@ -483,19 +470,10 @@ export function AnalyzerBuilderPage() {
                   />
                 </ScrollArea>
               </Card>
-              {/*
-                Заключениям — постоянные 40 % колонки: и когда их нет (пустое состояние), и когда
-                разбор длиннее экрана. Раньше блок занимал свою высоту, и предпросмотр над ним
-                менял размер вслед за каждым введённым значением.
-              */}
-              <ScrollArea
-                style={sideBySide ? { flex: '0 0 calc(40% - 10px)', minHeight: 0 } : undefined}
-                type="auto"
-                scrollbars="y"
-              >
-                <AnalyzerResults result={previewResult} />
-              </ScrollArea>
-          </div>
+              {/* Заключения растут естественно и прокручиваются вместе со страницей: своей прокрутки
+                  у них нет, поэтому и обрывать их нечему. */}
+              <AnalyzerResults result={previewResult} />
+          </Stack>
         </Grid.Col>
       </Grid>
     </Container>
