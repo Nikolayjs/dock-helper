@@ -37,7 +37,7 @@ export function ReferencePage() {
 
   return (
     <Container size="xl" px={0}>
-      <Tabs value={tab} onChange={setTab} keepMounted={false}>
+      <Tabs variant="pills" value={tab} onChange={setTab} keepMounted={false}>
         <Tabs.List mb="lg">
           <Tabs.Tab value="diseases" leftSection={<IconStethoscope size={16} />}>
             Заболевания

@@ -44,7 +44,7 @@ export function DocumentsSectionPage() {
 
   return (
     <Container size="xl" px={0}>
-      <Tabs value={tab} onChange={switchTab} mb="lg">
+      <Tabs variant="pills" value={tab} onChange={switchTab} mb="lg">
         <Tabs.List>
           <Tabs.Tab
             value="documents"

@@ -43,7 +43,7 @@ export function DrugsSectionPage() {
 
   return (
     <Container size="xl" px={0}>
-      <Tabs value={tab} onChange={switchTab} mb="lg">
+      <Tabs variant="pills" value={tab} onChange={switchTab} mb="lg">
         <Tabs.List>
           {/* Без счётчиков: полторы тысячи препаратов и тысяча правил — числа, от которых врач
               ничего не делает иначе, а в круглом значке они к тому же не помещаются («1..»).
