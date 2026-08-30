@@ -261,6 +261,24 @@ body {
     padding: 0 !important;
   }
 
+  /*
+   * Прокручиваемая оболочка на бумаге не прокручивается.
+   *
+   * В режиме `static` прокручивается корень AppShell: у него своя высота в экран и `overflow: auto`.
+   * На принтер уходит ровно то, что помещается в эту коробку, — то есть **первый экран**, а
+   * остальное обрезано. Замер: документ Word высотой 4547 px печатался одной страницей.
+   *
+   * Правило нарочно ограничено отчётами. У печати «на один лист» всё остальное только *спрятано*
+   * (`visibility: hidden`), но место в раскладке занимает; распустив там высоту, мы получили бы
+   * страницу с документом и пачку пустых листов следом.
+   */
+  body:has(.printable-report) #app-shell-scroll-root,
+  body:has(.printable-report) .mantine-AppShell-main {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
   /* Таблица отчёта на бумаге не прокручивается — она переносится на следующую страницу. */
   .printable-report [class*='ScrollContainer'],
   .printable-report [style*='overflow'] {
