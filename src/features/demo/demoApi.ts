@@ -130,6 +130,14 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     return docs.map(({ content: _content, ...rest }) => rest) as T;
   }
 
+  // ── Справочник сокращений: разделы отдаются списком, а не как запись с id «sections» ─────────
+  // Своя ветка обязательна ровно по той же причине, что у `/drugs/search`: без неё общий разбор
+  // прочитал бы «sections» как идентификатор и отдал «запись не найдена», то есть форма добавления
+  // осталась бы без списка разделов.
+  if (pathname === '/abbreviations/sections' && method === 'GET') {
+    return [...new Set(collection('/abbreviations').map((row) => String(row.category ?? '')))].filter(Boolean) as T;
+  }
+
   // ── Поиск препарата для строки в шапке ───────────────────────────────────────────────────────
   // Своя ветка обязательна: без неё `/drugs/search` разобрался бы как карточка с id «search» и
   // отдал бы «запись не найдена» — то есть поиск в демо молча ничего не находил бы.

@@ -51,6 +51,7 @@ const DispensaryEditorPage = lazyPage(() => import('./pages/DispensaryEditorPage
 const DispensaryStatsPage = lazyPage(() => import('./pages/DispensaryStatsPage'), 'DispensaryStatsPage');
 const GuidelinesPage = lazyPage(() => import('./pages/GuidelinesPage'), 'GuidelinesPage');
 const KnowledgeTagPage = lazyPage(() => import('./pages/KnowledgeTagPage'), 'KnowledgeTagPage');
+const AbbreviationsPage = lazyPage(() => import('./pages/AbbreviationsPage'), 'AbbreviationsPage');
 const GuidelineViewPage = lazyPage(() => import('./pages/GuidelineViewPage'), 'GuidelineViewPage');
 const GuidelineEditorPage = lazyPage(() => import('./pages/GuidelineEditorPage'), 'GuidelineEditorPage');
 const QuestionnairesPage = lazyPage(() => import('./pages/QuestionnairesPage'), 'QuestionnairesPage');
@@ -162,6 +163,7 @@ export const router = createBrowserRouter(
           <Route path="/news" element={<NewsPage />} />
           <Route path="/news/read" element={<NewsReaderPage />} />
           <Route path="/knowledge/tag/:tag" element={<KnowledgeTagPage />} />
+          <Route path="/reference/abbreviations" element={<AbbreviationsPage />} />
           <Route path="/guidelines" element={<GuidelinesPage />} />
           <Route path="/guidelines/new" element={<GuidelineEditorPage />} />
           <Route path="/guidelines/:id" element={<GuidelineViewPage />} />
