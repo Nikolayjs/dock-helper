@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Alert, Anchor, Badge, Button, Card, Container, Group, Loader, Modal, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconEdit, IconInfoCircle, IconStethoscope } from '@tabler/icons-react';
+import { IconAlertTriangle, IconEdit, IconInfoCircle, IconStethoscope } from '@tabler/icons-react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { CalculatorForm } from '../features/calculators/CalculatorForm';
 import { createDraftPreset, PresetEditorRow, type DraftPreset } from '../features/calculators/builder/PresetEditorRow';
 import { autofillFromPatient } from '../features/calculators/patientAutofill';
+import type { Autofill } from '../features/calculators/patientAutofill';
 import { SaveToVisitModal } from '../features/calculators/SaveToVisitModal';
 import { useCalculators } from '../features/calculators/useCalculators';
 import { CREATININE, latestValueByName } from '../features/labResults/latestValue';
@@ -34,8 +35,8 @@ export function CalculatorRunPage() {
 
   const definition = calculators.find((calc) => calc.id === id);
 
-  const filled = useMemo(() => {
-    if (!definition || !patient) return [];
+  const autofill = useMemo<Autofill>(() => {
+    if (!definition || !patient) return { filled: [], missing: [] };
     const creatinine = latestValueByName(
       results.filter((result) => result.patientId === patient.id),
       CREATININE,
@@ -81,7 +82,15 @@ export function CalculatorRunPage() {
   return (
     <Container size="md" px={0}>
       <div style={{ marginBottom: 'var(--mantine-spacing-lg)' }}>
-        <BackButton fallback={{ to: '/calculators', label: 'К списку калькуляторов' }} />
+        {/* Пациент едет и в «назад»: кнопка внутри страницы вела на голый список, и выбранный
+            пациент терялся — в отличие от кнопки браузера, которая его сохраняла. Две разные на вид
+            дороги обязаны вести в одно и то же место. */}
+        <BackButton
+          fallback={{
+            to: patientId ? `/calculators?patientId=${patientId}` : '/calculators',
+            label: 'К списку калькуляторов',
+          }}
+        />
       </div>
 
       <Card withBorder padding="xl">
@@ -111,26 +120,41 @@ export function CalculatorRunPage() {
           {/* Подставленное называется вслух — иначе врач не узнает, что вес приехал из карточки, и
               не проверит, когда его измеряли. Ровно та же причина, по которой анализатор пишет,
               для какого возраста взяты нормы. */}
-          {patient && filled.length > 0 && (
+          {patient && autofill.filled.length > 0 && (
             <Alert variant="light" color="gray" icon={<IconInfoCircle size={18} />}>
               Заполнено из карточки{' '}
               <Anchor component={Link} to={`/patients/${patient.id}`} state={{ from: `/calculators/${definition.id}` }}>
                 {patient.fullName}
               </Anchor>
-              : {filled.map((item) => `${item.label.toLowerCase()} ${item.display}${item.note ? ` (${item.note})` : ''}`).join(', ')}.
-              Поправьте, если что-то изменилось.
+              :{' '}
+              {autofill.filled
+                .map((item) => `${item.label.toLowerCase()} ${item.display}${item.note ? ` (${item.note})` : ''}`)
+                .join(', ')}
+              . Поправьте, если что-то изменилось.
             </Alert>
           )}
-          {patient && filled.length === 0 && (
-            <Alert variant="light" color="gray" icon={<IconInfoCircle size={18} />}>
-              В карточке {patient.fullName} нет значений, подходящих этому калькулятору, — заполните поля вручную.
+
+          {/* Чего в карточке нет — сказано отдельно и жёлтым, а сами поля очищены.
+              Иначе заводское значение поля (у клиренса это «88 мкмоль/л») выглядело бы взятым из
+              карты: калькулятор считал по нему результат и предлагал записать его в визит. */}
+          {patient && autofill.missing.length > 0 && (
+            <Alert variant="light" color="yellow" icon={<IconAlertTriangle size={18} />}>
+              В карточке {patient.fullName} нет:{' '}
+              {autofill.missing
+                .map((item) => `${item.label.toLowerCase()}${item.note ? ` (${item.note})` : ''}`)
+                .join(', ')}
+              .{' '}
+              {autofill.missing.length === 1
+                ? 'Поле оставлено пустым — введите значение вручную, иначе считать не по чему.'
+                : 'Поля оставлены пустыми — введите значения вручную, иначе считать не по чему.'}
             </Alert>
           )}
 
           <CalculatorForm
             definition={definition}
             onAddPreset={() => setDraftPreset(createDraftPreset())}
-            initialValues={Object.fromEntries(filled.map((item) => [item.fieldKey, item.value]))}
+            initialValues={Object.fromEntries(autofill.filled.map((item) => [item.fieldKey, item.value]))}
+            clearedKeys={autofill.missing.map((item) => item.fieldKey)}
             onSaveResult={patient ? setResultLine : undefined}
           />
         </Stack>

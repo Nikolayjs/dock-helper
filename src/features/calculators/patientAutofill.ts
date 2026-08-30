@@ -29,6 +29,29 @@ export interface FilledField {
   note?: string;
 }
 
+/**
+ * Поле, которое **должно** было заполниться из карточки, но не смогло.
+ *
+ * Такое поле очищается, а не остаётся со значением по умолчанию, и это исправленная ошибка, а не
+ * придирка. У пациента, которому креатинин никто не сдавал, калькулятор клиренса показывал
+ * заводские «88 мкмоль/л» и **считал по ним результат** — 67 мл/мин, «незначительное снижение», — а
+ * над этим стояла плашка «заполнено из карточки». То есть приложение выдавало клиническое число,
+ * взявшееся ниоткуда, и предлагало записать его в визит.
+ */
+export interface MissingField {
+  fieldKey: string;
+  label: string;
+  /** `absent` — в карточке этого нет; `outOfRange` — есть, но не годится этому калькулятору. */
+  reason: 'absent' | 'outOfRange';
+  /** Для `outOfRange`: что именно не подошло. */
+  note?: string;
+}
+
+export interface Autofill {
+  filled: FilledField[];
+  missing: MissingField[];
+}
+
 const normalise = (text: string) => text.toLowerCase().replace(/ё/g, 'е').trim();
 
 /**
@@ -56,32 +79,53 @@ const FEMALE_OPTION = /^ж|^жен/;
  * Молча подставленное число здесь опаснее, чем в анализаторе: калькулятор считает дозу, и врач,
  * не знающий, что вес приехал из карточки, не проверит, когда его измеряли.
  *
- * Значение, не попавшее в границы поля, **не подставляется вовсе**: детская доза с потолком 100 кг
- * при взрослом весе 110 кг иначе молча ужалась бы до сотни, а с ней и результат.
+ * Ровно поэтому наружу отдаётся и **список незаполненного**: поле, которое должно было приехать из
+ * карточки и не приехало, страница очищает. Оставленное заводское значение — то же самое молчаливое
+ * подставление, только хуже: оно выглядит как взятое из карты.
+ *
+ * Значение, не попавшее в границы поля, тоже считается незаполненным: детская доза с потолком 60 кг
+ * при взрослом весе 96 кг иначе молча ужалась бы до потолка, а с ней и результат.
  */
-export function autofillFromPatient(fields: CalculatorField[], facts: PatientFacts): FilledField[] {
+export function autofillFromPatient(fields: CalculatorField[], facts: PatientFacts): Autofill {
   const filled: FilledField[] = [];
+  const missing: MissingField[] = [];
 
   for (const field of fields) {
     const key = normalise(field.key);
     const label = normalise(field.label);
     const matcher = MATCHERS.find((candidate) => candidate.test(key, label));
+    // Поле не про пациента (АД, частота дыхания) — его значение по умолчанию остаётся как было.
     if (!matcher) continue;
 
     if (matcher.fact === 'sex') {
       // Пол в калькуляторе — это множитель, а не слово: подходящий вариант ищется по подписи.
-      if (!facts.sex || field.type !== 'select') continue;
-      const wanted = facts.sex === 'male' ? MALE_OPTION : FEMALE_OPTION;
-      const option = field.options?.find((candidate) => wanted.test(normalise(candidate.label)));
-      if (!option) continue;
+      const wanted = facts.sex === 'male' ? MALE_OPTION : facts.sex === 'female' ? FEMALE_OPTION : null;
+      const option = wanted && field.type === 'select'
+        ? field.options?.find((candidate) => wanted.test(normalise(candidate.label)))
+        : undefined;
+      if (!option) {
+        missing.push({ fieldKey: field.key, label: field.label, reason: 'absent' });
+        continue;
+      }
       filled.push({ fieldKey: field.key, label: field.label, value: option.value, display: option.label });
       continue;
     }
 
     const fact = facts[matcher.fact];
     const value = typeof fact === 'number' ? fact : fact && typeof fact === 'object' ? fact.value : null;
-    if (value === null || !Number.isFinite(value)) continue;
-    if ((field.min !== undefined && value < field.min) || (field.max !== undefined && value > field.max)) continue;
+    if (value === null || !Number.isFinite(value)) {
+      missing.push({ fieldKey: field.key, label: field.label, reason: 'absent' });
+      continue;
+    }
+    if ((field.min !== undefined && value < field.min) || (field.max !== undefined && value > field.max)) {
+      missing.push({
+        fieldKey: field.key,
+        label: field.label,
+        reason: 'outOfRange',
+        note: `в карточке ${withUnit(value, field.unit)}, калькулятор принимает ${withUnit(field.min ?? 0, field.unit)}–${withUnit(field.max ?? 0, field.unit)}`,
+      });
+      continue;
+    }
 
     filled.push({
       fieldKey: field.key,
@@ -95,5 +139,5 @@ export function autofillFromPatient(fields: CalculatorField[], facts: PatientFac
     });
   }
 
-  return filled;
+  return { filled, missing };
 }

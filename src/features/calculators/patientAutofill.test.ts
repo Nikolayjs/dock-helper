@@ -28,7 +28,7 @@ const clearance: CalculatorField[] = [
 
 describe('заполнение калькулятора из карточки', () => {
   it('раскладывает возраст, вес, креатинин и пол по своим полям', () => {
-    expect(autofillFromPatient(clearance, FACTS).map((f) => [f.fieldKey, f.value])).toEqual([
+    expect(autofillFromPatient(clearance, FACTS).filled.map((f) => [f.fieldKey, f.value])).toEqual([
       ['age', 68],
       ['weight', 78.5],
       ['creatinine', 118],
@@ -38,7 +38,7 @@ describe('заполнение калькулятора из карточки', 
 
   // Пол в калькуляторе — множитель, а не слово: вариант ищется по подписи.
   it('пол мужской берёт свой множитель', () => {
-    const filled = autofillFromPatient(clearance, { ...FACTS, sex: 'male' });
+    const { filled } = autofillFromPatient(clearance, { ...FACTS, sex: 'male' });
     expect(filled.find((f) => f.fieldKey === 'sexFactor')?.value).toBe(1.23);
   });
 
@@ -48,7 +48,7 @@ describe('заполнение калькулятора из карточки', 
       { key: 'f1', label: 'Вес пациента', type: 'number' },
       { key: 'f2', label: 'Рост', type: 'number' },
     ];
-    expect(autofillFromPatient(own, FACTS).map((f) => [f.fieldKey, f.value])).toEqual([
+    expect(autofillFromPatient(own, FACTS).filled.map((f) => [f.fieldKey, f.value])).toEqual([
       ['f1', 78.5],
       ['f2', 162],
     ]);
@@ -57,12 +57,12 @@ describe('заполнение калькулятора из карточки', 
   // Иначе взрослый вес молча ужался бы до детского потолка, а с ним и результат.
   it('значение за границами поля не подставляется вовсе', () => {
     const paediatric: CalculatorField[] = [{ key: 'weight', label: 'Вес ребёнка', type: 'number', min: 1, max: 60 }];
-    expect(autofillFromPatient(paediatric, FACTS)).toEqual([]);
+    expect(autofillFromPatient(paediatric, FACTS).filled).toEqual([]);
   });
 
   it('чего в карточке нет — не подставляется', () => {
     const empty: PatientFacts = { ageYears: null, sex: null, heightCm: null, weightKg: null, creatinine: null };
-    expect(autofillFromPatient(clearance, empty)).toEqual([]);
+    expect(autofillFromPatient(clearance, empty).filled).toEqual([]);
   });
 
   it('поля не про пациента не трогаются', () => {
@@ -70,24 +70,63 @@ describe('заполнение калькулятора из карточки', 
       { key: 'sbp', label: 'Систолическое АД', type: 'number' },
       { key: 'dbp', label: 'Диастолическое АД', type: 'number' },
     ];
-    expect(autofillFromPatient(bp, FACTS)).toEqual([]);
+    expect(autofillFromPatient(bp, FACTS).filled).toEqual([]);
   });
 
   it('у креатинина рядом со значением едет дата бланка', () => {
-    const filled = autofillFromPatient(clearance, FACTS).find((f) => f.fieldKey === 'creatinine');
+    const filled = autofillFromPatient(clearance, FACTS).filled.find((f) => f.fieldKey === 'creatinine');
     expect(filled?.note).toContain('2026');
     expect(filled?.display).toBe('118 мкмоль/л');
   });
 
   // «Пол 1,04» не сообщает врачу ровно ничего: множитель — не слово.
   it('у списка подставленное называется подписью варианта, а не числом', () => {
-    const filled = autofillFromPatient(clearance, FACTS).find((f) => f.fieldKey === 'sexFactor');
+    const filled = autofillFromPatient(clearance, FACTS).filled.find((f) => f.fieldKey === 'sexFactor');
     expect(filled?.display).toBe('Женский');
     expect(filled?.value).toBe(1.04);
   });
 
   it('числа называются по-русски, с запятой и единицей', () => {
-    const filled = autofillFromPatient(clearance, FACTS).find((f) => f.fieldKey === 'weight');
+    const filled = autofillFromPatient(clearance, FACTS).filled.find((f) => f.fieldKey === 'weight');
     expect(filled?.display).toBe('78,5 кг');
+  });
+});
+
+/**
+ * Незаполненное — половина ответа, и без неё была настоящая ошибка.
+ *
+ * У пациента, которому креатинин никто не сдавал, калькулятор клиренса показывал заводские
+ * «88 мкмоль/л» и считал по ним результат, а над этим стояла плашка «заполнено из карточки».
+ */
+describe('чего в карточке не нашлось', () => {
+  it('называется поимённо, чтобы страница очистила эти поля', () => {
+    const noCreatinine = { ...FACTS, creatinine: null };
+    const { filled, missing } = autofillFromPatient(clearance, noCreatinine);
+    expect(filled.map((f) => f.fieldKey)).toEqual(['age', 'weight', 'sexFactor']);
+    expect(missing).toEqual([{ fieldKey: 'creatinine', label: 'Креатинин крови', reason: 'absent' }]);
+  });
+
+  it('пустая карточка оставляет незаполненными все поля про пациента', () => {
+    const empty: PatientFacts = { ageYears: null, sex: null, heightCm: null, weightKg: null, creatinine: null };
+    expect(autofillFromPatient(clearance, empty).missing.map((f) => f.fieldKey)).toEqual([
+      'age',
+      'weight',
+      'creatinine',
+      'sexFactor',
+    ]);
+  });
+
+  // Иначе заводские 20 кг детской дозы посчитались бы за взрослого.
+  it('значение за границами поля названо вместе с причиной', () => {
+    const paediatric: CalculatorField[] = [{ key: 'weight', label: 'Вес ребёнка', type: 'number', unit: 'кг', min: 1, max: 60 }];
+    const { missing } = autofillFromPatient(paediatric, FACTS);
+    expect(missing[0]).toMatchObject({ fieldKey: 'weight', reason: 'outOfRange' });
+    expect(missing[0].note).toContain('78,5 кг');
+  });
+
+  // Поле не про пациента калькулятор заполняет сам, и трогать его незачем.
+  it('чужие поля незаполненными не считаются', () => {
+    const bp: CalculatorField[] = [{ key: 'sbp', label: 'Систолическое АД', type: 'number' }];
+    expect(autofillFromPatient(bp, FACTS).missing).toEqual([]);
   });
 });

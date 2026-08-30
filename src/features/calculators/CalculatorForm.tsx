@@ -18,6 +18,14 @@ interface CalculatorFormProps {
    * набранное врачом затиралось бы у него на глазах.
    */
   initialValues?: Record<string, number>;
+  /**
+   * Поля, которые **должны** были приехать из карточки, но не приехали.
+   *
+   * Очищаются, а не остаются со значением по умолчанию. Заводские «88 мкмоль/л» у пациента, которому
+   * креатинин никто не сдавал, — это клиническое число, взявшееся ниоткуда: калькулятор по нему
+   * честно считал клиренс и предлагал записать результат в визит.
+   */
+  clearedKeys?: string[];
   /** Записать результат в визит. Есть только там, где известен пациент; в предпросмотре конструктора — нет. */
   onSaveResult?: (line: string) => void;
 }
@@ -25,16 +33,18 @@ interface CalculatorFormProps {
 function buildInitialValues(
   definition: CalculatorDefinition,
   overrides?: Record<string, number>,
+  cleared?: string[],
 ): Record<string, number | ''> {
   const values: Record<string, number | ''> = {};
   for (const field of definition.fields) {
     values[field.key] = field.defaultValue ?? (field.type === 'select' ? field.options?.[0]?.value ?? '' : '');
   }
+  for (const key of cleared ?? []) values[key] = '';
   return { ...values, ...overrides };
 }
 
-export function CalculatorForm({ definition, onAddPreset, initialValues, onSaveResult }: CalculatorFormProps) {
-  const [values, setValues] = useState<Record<string, number | ''>>(() => buildInitialValues(definition, initialValues));
+export function CalculatorForm({ definition, onAddPreset, initialValues, clearedKeys, onSaveResult }: CalculatorFormProps) {
+  const [values, setValues] = useState<Record<string, number | ''>>(() => buildInitialValues(definition, initialValues, clearedKeys));
   const [presetId, setPresetId] = useState<string | null>(null);
 
   const applyPreset = (id: string | null) => {
