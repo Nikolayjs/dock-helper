@@ -1,4 +1,4 @@
-import { Badge, Container, Tabs, Text } from '@mantine/core';
+import { Badge, Container, Tabs } from '@mantine/core';
 import { IconFileText, IconRubberStamp } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -75,13 +75,13 @@ export function DocumentsSectionPage() {
         </Tabs.List>
       </Tabs>
 
-      <Text size="sm" c="dimmed" mb="lg">
-        {tab === 'documents'
-          ? 'Направления, справки и реестры, которые вы пишете сами. Скачиваются в Word и Excel.'
-          : 'Заготовки с подстановками: печатаются для выбранного пациента и его последнего визита.'}
-      </Text>
-
-      {tab === 'documents' ? <DocumentList /> : <DocumentTemplatesPage />}
+      {/* Пояснение уехало внутрь панели соответствующей вкладки: отдельной строкой оно лежало на
+          фоне страницы, а собственной карточкой стояло бы второй плитой над такой же. */}
+      {tab === 'documents' ? (
+        <DocumentList hint="Направления, справки и реестры, которые вы пишете сами. Скачиваются в Word и Excel." />
+      ) : (
+        <DocumentTemplatesPage hint="Заготовки с подстановками: печатаются для выбранного пациента и его последнего визита." />
+      )}
     </Container>
   );
 }

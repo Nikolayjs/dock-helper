@@ -1,5 +1,5 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
-import { Alert, Badge, Button, Card, Collapse, Container, Group, SegmentedControl, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Alert, Badge, Box, Button, Card, Collapse, Container, Group, SegmentedControl, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconAdjustmentsHorizontal, IconChartBar, IconClipboardHeart, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -23,6 +23,7 @@ import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from '../features/patients
 import { QUERY_KEY as PATIENTS_KEY, usePatients } from '../features/patients/usePatients';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { observationsWarning, visitsWarning } from '../features/patients/deleteWarnings';
+import { CatalogPanel } from '../components/common/CatalogPanel';
 import { QueryState } from '../components/common/QueryState';
 
 const DISCLAIMER_KEY = 'medassist:patients-disclaimer-dismissed';
@@ -152,8 +153,10 @@ export function PatientsPage() {
         </Tabs>
 
         {tab === 'all' ? (
-          <>
-            <Group justify="space-between" align="flex-end" wrap="wrap">
+          <CatalogPanel
+            header={
+              <Stack gap="md">
+                <Group justify="space-between" align="flex-end" wrap="wrap">
               <Text c="dimmed" size="sm">
                 {/* Shows the narrowed count as well as the total, so an unexpectedly short list is
                     explained by the toolbar rather than looking like missing data. */}
@@ -204,17 +207,19 @@ export function PatientsPage() {
                   Добавить пациента
                 </Button>
               </Group>
-            </Group>
+                </Group>
 
-            <Collapse expanded={filtersOpen}>
-              <Card withBorder padding="md">
-                <PatientFilters value={filters} onChange={setFilters} />
-              </Card>
-            </Collapse>
-
+                {/* Фильтры внутри шапки, а не отдельной карточкой между ней и таблицей: они и есть
+                    часть панели управления списком. */}
+                <Collapse expanded={filtersOpen}>
+                  <PatientFilters value={filters} onChange={setFilters} />
+                </Collapse>
+              </Stack>
+            }
+          >
             <QueryState isLoading={patientsLoading} error={patientsError} onRetry={refetchPatients} what="пациентов">
               {sorted.length === 0 ? (
-                <Card withBorder padding="xl">
+                <Box p="xl">
                   <Stack align="center" gap="sm" py="xl">
                     <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                       {search.trim() ? <IconX size={24} /> : <IconUsers size={24} />}
@@ -226,21 +231,19 @@ export function PatientsPage() {
                         : 'Добавьте пациента, чтобы вести историю визитов, диагнозы и короткие заметки.'}
                     </Text>
                   </Stack>
-                </Card>
+                </Box>
               ) : (
-                <Card withBorder padding={0}>
-                  <PatientTable
-                    patients={sorted}
-                    sort={patientSort.sort}
-                    onSort={patientSort.toggle}
-                    onOpen={(patient) => navigate(`/patients/${patient.id}`)}
-                    onEdit={(patient) => navigate(`/patients/${patient.id}/edit`)}
-                    onDelete={handleDelete}
-                  />
-                </Card>
+                <PatientTable
+                  patients={sorted}
+                  sort={patientSort.sort}
+                  onSort={patientSort.toggle}
+                  onOpen={(patient) => navigate(`/patients/${patient.id}`)}
+                  onEdit={(patient) => navigate(`/patients/${patient.id}/edit`)}
+                  onDelete={handleDelete}
+                />
               )}
             </QueryState>
-          </>
+          </CatalogPanel>
         ) : (
           <>
             <Group justify="space-between" align="flex-end" wrap="wrap">

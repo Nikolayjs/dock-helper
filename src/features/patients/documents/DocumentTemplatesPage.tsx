@@ -3,6 +3,7 @@ import { ActionIcon, Alert, Button, Card, Group, Modal, Select, SimpleGrid, Stac
 import { IconFileText, IconFileOff, IconInfoCircle, IconPhotoScan, IconPlus, IconPrinter, IconSearch } from '@tabler/icons-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { CatalogToolbar } from '../../../components/common/CatalogPanel';
 import { stripHtml } from '../../notes/textPreview';
 import { usePatients } from '../usePatients';
 import { isDemoSession } from '../../demo/demoSession';
@@ -16,7 +17,7 @@ function latestVisitId(patientId: string, patients: ReturnType<typeof usePatient
   return [...patient.visits].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0].id;
 }
 
-export function DocumentTemplatesPage() {
+export function DocumentTemplatesPage({ hint }: { hint?: string }) {
   const navigate = useNavigate();
   const { templates, isLoading } = useDocumentTemplates();
   const { patients } = usePatients();
@@ -67,6 +68,13 @@ export function DocumentTemplatesPage() {
 
   return (
     <Stack gap="lg">
+      <CatalogToolbar>
+      <Stack gap="sm">
+        {hint && (
+          <Text size="sm" c="dimmed">
+            {hint}
+          </Text>
+        )}
       <Group justify="space-between" wrap="wrap" gap="md">
         <TextInput
           placeholder="Поиск бланка…"
@@ -93,6 +101,8 @@ export function DocumentTemplatesPage() {
           </Button>
         </Group>
       </Group>
+      </Stack>
+      </CatalogToolbar>
 
       {!isLoading && filtered.length === 0 && (
         <Card withBorder padding="xl">

@@ -4,6 +4,8 @@ import { IconEdit, IconFileText, IconFileSpreadsheet, IconPlus, IconSearch, Icon
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
+import { CatalogToolbar } from '../../components/common/CatalogPanel';
+
 import { stripHtml } from '../notes/textPreview';
 import { usePatients } from '../patients/usePatients';
 import { KIND_LABEL, type DoctorDocument } from './types';
@@ -24,7 +26,7 @@ function preview(doc: DoctorDocument): string {
   return stripHtml(doc.content) || 'Без текста';
 }
 
-export function DocumentList() {
+export function DocumentList({ hint }: { hint?: string }) {
   const navigate = useNavigate();
   const { documents, isLoading, deleteDocument } = useDoctorDocuments();
   const { patients } = usePatients();
@@ -73,6 +75,13 @@ export function DocumentList() {
 
   return (
     <Stack gap="lg">
+      <CatalogToolbar>
+      <Stack gap="sm">
+        {hint && (
+          <Text size="sm" c="dimmed">
+            {hint}
+          </Text>
+        )}
       <Group justify="space-between" wrap="wrap" gap="md">
         <Group gap="sm" wrap="wrap">
           <TextInput
@@ -115,6 +124,8 @@ export function DocumentList() {
           </Menu.Dropdown>
         </Menu>
       </Group>
+      </Stack>
+      </CatalogToolbar>
 
       {!isLoading && filtered.length === 0 && (
         <Card withBorder padding="xl">

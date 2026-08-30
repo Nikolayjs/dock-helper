@@ -3,6 +3,8 @@ import { Button, Card, Container, Group, SimpleGrid, Stack, Text, TextInput, The
 import { IconCalculatorOff, IconPlus, IconSearch } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
+import { CatalogToolbar } from '../components/common/CatalogPanel';
+
 import { CalculatorCard } from '../features/calculators/CalculatorCard';
 import { CALCULATOR_CATEGORIES } from '../features/calculators/types';
 import { useCalculators } from '../features/calculators/useCalculators';
@@ -36,16 +38,16 @@ export function CalculatorsPage() {
 
   return (
     <Container size="xl" px={0}>
-      <Group justify="space-between" align="flex-end" mb="lg" wrap="wrap">
-        <div>
+      <CatalogToolbar>
+        <Group justify="space-between" align="flex-end" wrap="wrap">
           <Text c="dimmed" size="sm">
             {calculators.length} калькуляторов доступно
           </Text>
-        </div>
-        <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/calculators/new')}>
-          Создать калькулятор
-        </Button>
-      </Group>
+          <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/calculators/new')}>
+            Создать калькулятор
+          </Button>
+        </Group>
+      </CatalogToolbar>
 
       <Group justify="space-between" mb="lg" wrap="wrap" gap="md">
         <Tabs value={category} onChange={(v) => setCategory(v ?? 'all')} variant="pills">

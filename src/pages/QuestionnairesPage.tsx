@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Card, Container, Group, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Alert, Button, Box, Container, Group, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconInfoCircle, IconPlus, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
+import { CatalogPanel } from '../components/common/CatalogPanel';
 import { QUESTIONNAIRE_SORT_KEYS, QuestionnaireTable, questionnaireSortValue, type QuestionnaireSortKey } from '../features/diagnostics/QuestionnaireTable';
 import { sortRows, useTableSort } from '../lib/tableSort';
 import type { Questionnaire } from '../features/diagnostics/types';
@@ -48,7 +49,9 @@ export function QuestionnairesPage() {
           как в «Акинаторе», только по дифференциальной диагностике.
         </Alert>
 
-        <Group justify="space-between" align="flex-end" wrap="wrap">
+        <CatalogPanel
+          header={
+            <Group justify="space-between" align="flex-end" wrap="wrap">
           <Text c="dimmed" size="sm">
             {questionnaires.length === 0 ? 'Пока нет анкет' : `${questionnaires.length} анкет создано`}
           </Text>
@@ -64,10 +67,11 @@ export function QuestionnairesPage() {
               Создать анкету
             </Button>
           </Group>
-        </Group>
-
+            </Group>
+          }
+        >
         {filtered.length === 0 ? (
-          <Card withBorder padding="xl">
+          <Box p="xl">
             <Stack align="center" gap="sm" py="xl">
               <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                 {search.trim() ? <IconX size={24} /> : <IconStethoscope size={24} />}
@@ -79,19 +83,18 @@ export function QuestionnairesPage() {
                   : 'Создайте первую анкету дифференциальной диагностики — особенно полезно для редких заболеваний, которые легко упустить.'}
               </Text>
             </Stack>
-          </Card>
+          </Box>
         ) : (
-          <Card withBorder padding={0}>
-            <QuestionnaireTable
-              questionnaires={sorted}
-              sort={sort}
-              onSort={toggle}
-              onOpen={(q) => navigate(`/diagnostics/${q.id}`)}
-              onEdit={(q) => navigate(`/diagnostics/${q.id}/edit`)}
-              onDelete={handleDelete}
-            />
-          </Card>
+          <QuestionnaireTable
+            questionnaires={sorted}
+            sort={sort}
+            onSort={toggle}
+            onOpen={(q) => navigate(`/diagnostics/${q.id}`)}
+            onEdit={(q) => navigate(`/diagnostics/${q.id}/edit`)}
+            onDelete={handleDelete}
+          />
         )}
+        </CatalogPanel>
       </Stack>
     </Container>
   );
