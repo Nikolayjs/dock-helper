@@ -27,6 +27,8 @@ export function CalculatorsPage() {
     });
   }, [calculators, search, category]);
 
+  const isFiltering = search.trim() !== '' || category !== 'all';
+
   const usedCategories = useMemo(() => {
     const present = new Set(calculators.map((calc) => calc.category));
     const known = CALCULATOR_CATEGORIES.filter((c) => present.has(c));
@@ -38,36 +40,45 @@ export function CalculatorsPage() {
 
   return (
     <Container size="xl" px={0}>
+      {/* Одна панель на всё: счётчик, поиск, кнопка и разделы. Отдельной карточкой сверху счётчик
+          с кнопкой занимали целую полосу экрана ради одной строки текста. */}
       <CatalogToolbar>
-        <Group justify="space-between" align="flex-end" wrap="wrap">
-          <Text c="dimmed" size="sm">
-            {calculators.length} калькуляторов доступно
-          </Text>
-          <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/calculators/new')}>
-            Создать калькулятор
-          </Button>
-        </Group>
+        <Stack gap="sm">
+          <Group justify="space-between" align="flex-end" wrap="wrap" gap="md">
+            <Text c="dimmed" size="sm">
+              {/* Пока ничего не отобрано, число ни о чём не говорит — но как только врач ищет или
+                  выбрал раздел, «сколько из скольких» объясняет короткий список. */}
+              {isFiltering
+                ? `Найдено: ${filtered.length} из ${calculators.length}`
+                : `${calculators.length} калькуляторов доступно`}
+            </Text>
+            <Group gap="sm" wrap="wrap">
+              <TextInput
+                placeholder="Поиск калькулятора…"
+                leftSection={<IconSearch size={16} />}
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                w={260}
+              />
+              <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/calculators/new')}>
+                Создать калькулятор
+              </Button>
+            </Group>
+          </Group>
+
+          <Tabs value={category} onChange={(v) => setCategory(v ?? 'all')} variant="pills">
+            <Tabs.List>
+              <Tabs.Tab value="all">Все</Tabs.Tab>
+              {usedCategories.map((c) => (
+                <Tabs.Tab key={c} value={c}>
+                  {c}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs>
+        </Stack>
       </CatalogToolbar>
 
-      <Group justify="space-between" mb="lg" wrap="wrap" gap="md">
-        <Tabs value={category} onChange={(v) => setCategory(v ?? 'all')} variant="pills">
-          <Tabs.List>
-            <Tabs.Tab value="all">Все</Tabs.Tab>
-            {usedCategories.map((c) => (
-              <Tabs.Tab key={c} value={c}>
-                {c}
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-        </Tabs>
-        <TextInput
-          placeholder="Поиск калькулятора…"
-          leftSection={<IconSearch size={16} />}
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-          w={260}
-        />
-      </Group>
 
       <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="калькуляторы">
         {filtered.length === 0 ? (
