@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import {
   ActionIcon,
   Badge,
   Box,
   Button,
   Card,
+  Drawer,
   Group,
   SegmentedControl,
   Select,
@@ -15,7 +16,10 @@ import {
   Textarea,
   Tooltip,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
+
+import { SCROLL_ROOT_ID } from '../../../components/layout/scrollRoot';
 
 import { PLACEHOLDERS } from './templateTypes';
 import { LayoutDocument } from './LayoutDocument';
@@ -51,6 +55,20 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
   const dragRef = useRef<{ mode: DragMode; startX: number; startY: number; start: TemplateLayoutBlock } | null>(null);
 
   const selected = layout.blocks.find((b) => b.id === selectedId) ?? null;
+
+  /**
+   * На узком экране свойства блока живут в нижней шторке, а не в панели под холстом.
+   *
+   * Порог тот же, что у раскладки в `layoutEditor.module.css`: выше него холст и панель стоят в
+   * ряд и видны одновременно, ниже — панель уезжает под холст. Замер на телефоне: страница
+   * редактора 1893 px при окне 844, то есть панель свойств лежит экраном ниже холста. Правка
+   * блока превращалась в «коснулся — прокрутил вниз — правишь вслепую — прокрутил обратно».
+   *
+   * Шторка выбрана не ради красоты: вкладка или обычное модальное окно закрыли бы холст целиком, а
+   * блок правят, **глядя на него**. Поэтому у шторки нет ни затемнения, ни блокировки прокрутки —
+   * это панель, а не модальное окно: холст над ней остаётся видимым и рабочим.
+   */
+  const sideBySide = useMediaQuery('(min-width: 62em)', true, { getInitialValueInEffect: false });
 
   const updateBlock = useCallback(
     (id: string, patch: Partial<TemplateLayoutBlock>) => {
@@ -117,6 +135,22 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
   };
 
   /** Inserts a token at the caret, so it lands where the doctor is actually looking. */
+  /**
+   * Открывая шторку, подводим выбранный блок к верхней четверти экрана.
+   *
+   * Иначе блок, выбранный в нижней половине бланка, оказывается ровно под шторкой — то есть правка
+   * снова идёт вслепую, только теперь без прокрутки. Считается один раз на смену выбора, а не на
+   * прокрутке: тут нечего слушать.
+   */
+  useEffect(() => {
+    if (sideBySide || !selectedId) return;
+    const hit = document.querySelector<HTMLElement>(`[data-layout-block="${selectedId}"]`);
+    const root = document.getElementById(SCROLL_ROOT_ID);
+    if (!hit || !root) return;
+    const offset = hit.getBoundingClientRect().top - window.innerHeight * 0.22;
+    if (Math.abs(offset) > 24) root.scrollBy({ top: offset, behavior: 'smooth' });
+  }, [selectedId, sideBySide]);
+
   const insertToken = (token: string) => {
     if (!selected) return;
     const field = textareaRef.current;
@@ -181,6 +215,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
               return (
                 <div
                   key={`hit-${block.id}`}
+                  data-layout-block={block.id}
                   onPointerDown={beginDrag(block, 'move')}
                   style={{
                     position: 'absolute',
@@ -246,8 +281,63 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
         </Group>
       </Stack>
 
-      <Card withBorder padding="md" className={classes.panel}>
-        {!selected ? (
+      {sideBySide ? (
+        <Card withBorder padding="md" className={classes.panel}>
+          <BlockInspector
+            selected={selected}
+            textareaRef={textareaRef}
+            onUpdate={updateBlock}
+            onRemove={removeSelected}
+            onInsertToken={insertToken}
+          />
+        </Card>
+      ) : (
+        <Drawer
+          opened={selected !== null}
+          onClose={() => setSelectedId(null)}
+          position="bottom"
+          size="62%"
+          title="Свойства блока"
+          padding="md"
+          // Ни затемнения, ни захвата фокуса, ни блокировки прокрутки: холст над шторкой должен
+          // остаться видимым и рабочим — ради этого шторка и выбрана вместо модального окна.
+          withOverlay={false}
+          trapFocus={false}
+          lockScroll={false}
+          closeOnClickOutside={false}
+          styles={{ content: { boxShadow: 'var(--mantine-shadow-xl)' } }}
+        >
+          <BlockInspector
+            selected={selected}
+            textareaRef={textareaRef}
+            onUpdate={updateBlock}
+            onRemove={removeSelected}
+            onInsertToken={insertToken}
+            withHeading={false}
+          />
+        </Drawer>
+      )}
+    </div>
+  );
+}
+
+interface BlockInspectorProps {
+  selected: TemplateLayoutBlock | null;
+  /** У шторки заголовок свой, и второе слово «Блок» под ним было бы повтором. */
+  withHeading?: boolean;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  onUpdate: (id: string, patch: Partial<TemplateLayoutBlock>) => void;
+  onRemove: () => void;
+  onInsertToken: (token: string) => void;
+}
+
+/**
+ * Свойства блока — один набор полей на оба места: панель под холстом на широком экране и нижняя
+ * шторка на узком. Правка бланка не должна зависеть от того, с чего врач открыл страницу, поэтому
+ * урезанного варианта для телефона нет.
+ */
+function BlockInspector({ selected, textareaRef, onUpdate, onRemove, onInsertToken, withHeading = true }: BlockInspectorProps) {
+  return !selected ? (
           <Stack gap="xs" py="lg">
             <Text fw={600} size="sm">
               Блок не выбран
@@ -260,9 +350,13 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
         ) : (
           <Stack gap="md">
             <Group justify="space-between">
-              <Text fw={600} size="sm">
-                Блок
-              </Text>
+              {withHeading ? (
+                <Text fw={600} size="sm">
+                  Блок
+                </Text>
+              ) : (
+                <div />
+              )}
               <Group gap={6}>
                 {selected.confidence !== null && (
                   <Tooltip label="Уверенность распознавания">
@@ -275,7 +369,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
                     </Badge>
                   </Tooltip>
                 )}
-                <ActionIcon variant="subtle" color="red" onClick={removeSelected} aria-label="Удалить блок">
+                <ActionIcon variant="subtle" color="red" onClick={onRemove} aria-label="Удалить блок">
                   <IconTrash size={16} />
                 </ActionIcon>
               </Group>
@@ -288,7 +382,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
               minRows={2}
               maxRows={8}
               value={selected.text}
-              onChange={(e) => updateBlock(selected.id, { text: e.currentTarget.value })}
+              onChange={(e) => onUpdate(selected.id, { text: e.currentTarget.value })}
             />
 
             <div>
@@ -303,7 +397,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
                     variant="light"
                     color="gray"
                     style={{ cursor: 'pointer' }}
-                    onClick={() => insertToken(placeholder.token)}
+                    onClick={() => onInsertToken(placeholder.token)}
                   >
                     {placeholder.label}
                   </Badge>
@@ -320,7 +414,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
                 max={12}
                 step={0.1}
                 value={selected.fontSizePct}
-                onChange={(v) => updateBlock(selected.id, { fontSizePct: v })}
+                onChange={(v) => onUpdate(selected.id, { fontSizePct: v })}
                 label={(v) => v.toFixed(1)}
               />
             </div>
@@ -334,18 +428,16 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
                 { value: 'right', label: 'Справа' },
               ]}
               value={selected.align}
-              onChange={(v) => updateBlock(selected.id, { align: v as TemplateLayoutBlock['align'] })}
+              onChange={(v) => onUpdate(selected.id, { align: v as TemplateLayoutBlock['align'] })}
             />
 
             <Switch
               size="sm"
               label="Полужирный"
               checked={selected.bold}
-              onChange={(e) => updateBlock(selected.id, { bold: e.currentTarget.checked })}
+              onChange={(e) => onUpdate(selected.id, { bold: e.currentTarget.checked })}
             />
-          </Stack>
-        )}
-      </Card>
-    </div>
+    </Stack>
   );
 }
+
