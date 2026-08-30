@@ -1,12 +1,18 @@
-import { useState } from 'react';
-import { Badge, Button, Card, Container, Group, Loader, Modal, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { useMemo, useState } from 'react';
+import { Alert, Anchor, Badge, Button, Card, Container, Group, Loader, Modal, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconEdit, IconStethoscope } from '@tabler/icons-react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { IconEdit, IconInfoCircle, IconStethoscope } from '@tabler/icons-react';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { CalculatorForm } from '../features/calculators/CalculatorForm';
 import { createDraftPreset, PresetEditorRow, type DraftPreset } from '../features/calculators/builder/PresetEditorRow';
+import { autofillFromPatient } from '../features/calculators/patientAutofill';
+import { SaveToVisitModal } from '../features/calculators/SaveToVisitModal';
 import { useCalculators } from '../features/calculators/useCalculators';
+import { CREATININE, latestValueByName } from '../features/labResults/latestValue';
+import { useLabResults } from '../features/labResults/useLabResults';
+import { usePatients } from '../features/patients/usePatients';
+import { calcAge } from '../features/patients/utils';
 import { BackButton } from '../components/common/BackButton';
 
 export function CalculatorRunPage() {
@@ -14,8 +20,44 @@ export function CalculatorRunPage() {
   const navigate = useNavigate();
   const { calculators, isLoading, updateCalculator } = useCalculators();
   const [draftPreset, setDraftPreset] = useState<DraftPreset | null>(null);
+  const [resultLine, setResultLine] = useState<string | null>(null);
+
+  /**
+   * Пациент приезжает адресом (`?patientId=`) — из его карточки и из списка калькуляторов,
+   * открытого оттуда же. Без него страница работает как раньше: калькулятор сам по себе.
+   */
+  const [searchParams] = useSearchParams();
+  const patientId = searchParams.get('patientId');
+  const { patients, isLoading: patientsLoading } = usePatients();
+  const { results, isLoading: resultsLoading } = useLabResults();
+  const patient = patientId ? patients.find((item) => item.id === patientId) : undefined;
 
   const definition = calculators.find((calc) => calc.id === id);
+
+  const filled = useMemo(() => {
+    if (!definition || !patient) return [];
+    const creatinine = latestValueByName(
+      results.filter((result) => result.patientId === patient.id),
+      CREATININE,
+    );
+    return autofillFromPatient(definition.fields, {
+      ageYears: calcAge(patient.birthDate),
+      sex: patient.sex,
+      heightCm: patient.heightCm,
+      weightKg: patient.weightKg,
+      creatinine: creatinine ? { value: creatinine.value, takenAt: creatinine.takenAt } : null,
+    });
+  }, [definition, patient, results]);
+
+  // Форма берёт подставленное один раз, при монтировании: пока карточка и бланки едут, рисовать её
+  // нельзя — иначе подстановка опоздала бы и пришлось бы перетирать уже набранное врачом.
+  if (patientId && (patientsLoading || resultsLoading)) {
+    return (
+      <Group justify="center" py="xl">
+        <Loader />
+      </Group>
+    );
+  }
 
   if (!definition) {
     if (isLoading) {
@@ -66,9 +108,35 @@ export function CalculatorRunPage() {
         </Group>
 
         <Stack gap="lg">
-          <CalculatorForm definition={definition} onAddPreset={() => setDraftPreset(createDraftPreset())} />
+          {/* Подставленное называется вслух — иначе врач не узнает, что вес приехал из карточки, и
+              не проверит, когда его измеряли. Ровно та же причина, по которой анализатор пишет,
+              для какого возраста взяты нормы. */}
+          {patient && filled.length > 0 && (
+            <Alert variant="light" color="gray" icon={<IconInfoCircle size={18} />}>
+              Заполнено из карточки{' '}
+              <Anchor component={Link} to={`/patients/${patient.id}`} state={{ from: `/calculators/${definition.id}` }}>
+                {patient.fullName}
+              </Anchor>
+              : {filled.map((item) => `${item.label.toLowerCase()} ${item.display}${item.note ? ` (${item.note})` : ''}`).join(', ')}.
+              Поправьте, если что-то изменилось.
+            </Alert>
+          )}
+          {patient && filled.length === 0 && (
+            <Alert variant="light" color="gray" icon={<IconInfoCircle size={18} />}>
+              В карточке {patient.fullName} нет значений, подходящих этому калькулятору, — заполните поля вручную.
+            </Alert>
+          )}
+
+          <CalculatorForm
+            definition={definition}
+            onAddPreset={() => setDraftPreset(createDraftPreset())}
+            initialValues={Object.fromEntries(filled.map((item) => [item.fieldKey, item.value]))}
+            onSaveResult={patient ? setResultLine : undefined}
+          />
         </Stack>
       </Card>
+
+      {patient && <SaveToVisitModal patient={patient} line={resultLine} onClose={() => setResultLine(null)} />}
 
       <Modal opened={draftPreset !== null} onClose={() => setDraftPreset(null)} title="Новый пресет" radius="lg" size="lg" centered>
         {draftPreset && (

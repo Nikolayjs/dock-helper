@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Box, Button, Container, Group, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Alert, Anchor, Box, Button, Container, Group, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconCalculatorOff, IconPlus, IconSearch } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { IconCalculatorOff, IconInfoCircle, IconPlus, IconSearch } from '@tabler/icons-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { CatalogPanel } from '../components/common/CatalogPanel';
 
@@ -14,12 +14,24 @@ import {
 } from '../features/calculators/CalculatorTable';
 import { CALCULATOR_CATEGORIES, CATEGORY_COLORS } from '../features/calculators/types';
 import { useCalculators } from '../features/calculators/useCalculators';
+import { usePatients } from '../features/patients/usePatients';
 import { QueryState } from '../components/common/QueryState';
 import { sortRows, useTableSort } from '../lib/tableSort';
 
 export function CalculatorsPage() {
   const navigate = useNavigate();
   const { calculators, toggleFavourite, isLoading, error, refetch } = useCalculators();
+  /**
+   * Пациент едет через список калькуляторов дальше, в сам калькулятор.
+   *
+   * Меню калькуляторов в карточке пациента было бы вторым их списком — с поиском, разделами и
+   * звёздочками, которые пришлось бы повторить. Проще провести пациента через тот, что уже есть.
+   */
+  const [searchParams] = useSearchParams();
+  const patientId = searchParams.get('patientId');
+  const { patients } = usePatients();
+  const forPatient = patientId ? patients.find((patient) => patient.id === patientId) : undefined;
+  const withPatient = (path: string) => (patientId ? `${path}?patientId=${patientId}` : path);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>('all');
   // На телефоне таблица из трёх колонок требует бокового смахивания — там компактный список.
@@ -97,6 +109,20 @@ export function CalculatorsPage() {
           </Stack>
         }
       >
+      {/* Кого считаем — видно до того, как калькулятор открыт: иначе подстановка на следующей
+          странице выглядела бы взявшейся из ниоткуда. */}
+      {forPatient && (
+        <Box px="md" pt="md">
+          <Alert variant="light" color="gray" icon={<IconInfoCircle size={18} />}>
+            Расчёт для пациента{' '}
+            <Anchor component={Link} to={`/patients/${forPatient.id}`}>
+              {forPatient.fullName}
+            </Anchor>
+            : поля калькулятора заполнятся из карточки, а результат можно будет записать в визит.
+          </Alert>
+        </Box>
+      )}
+
       <QueryState isLoading={isLoading} error={error} onRetry={refetch} what="калькуляторы">
         {filtered.length === 0 ? (
           <Box p="xl">
@@ -115,7 +141,7 @@ export function CalculatorsPage() {
             calculators={sorted}
             sort={sort}
             onSort={toggle}
-            onOpen={(calc) => navigate(`/calculators/${calc.id}`)}
+            onOpen={(calc) => navigate(withPatient(`/calculators/${calc.id}`))}
             onToggleFavourite={toggleFavourite}
             categoryColor={(category) => CATEGORY_COLORS[category] ?? 'brand'}
             narrow={isNarrow}

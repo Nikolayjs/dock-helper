@@ -1,26 +1,40 @@
 import { useMemo, useState } from 'react';
-import { ActionIcon, Badge, Card, Grid, Group, NumberInput, Select, Stack, Text, ThemeIcon } from '@mantine/core';
-import { IconCalculator, IconPlus } from '@tabler/icons-react';
+import { ActionIcon, Badge, Button, Card, Grid, Group, NumberInput, Select, Stack, Text, ThemeIcon } from '@mantine/core';
+import { IconCalculator, IconClipboardPlus, IconPlus } from '@tabler/icons-react';
 
 import { evaluateFormula } from '../../lib/formulaEngine';
+import { calculationSummary } from './resultLine';
 import type { CalculatorDefinition } from './types';
 
 interface CalculatorFormProps {
   definition: CalculatorDefinition;
   /** When provided, shows a button next to the presets select to add a new preset — omit to hide it (e.g. in the builder preview). */
   onAddPreset?: () => void;
+  /**
+   * Значения, подставленные из карточки пациента.
+   *
+   * Кладутся поверх значений по умолчанию **один раз, при монтировании**: страница не рисует форму,
+   * пока карточка не пришла, поэтому подставлять их потом не приходится, а если бы приходилось —
+   * набранное врачом затиралось бы у него на глазах.
+   */
+  initialValues?: Record<string, number>;
+  /** Записать результат в визит. Есть только там, где известен пациент; в предпросмотре конструктора — нет. */
+  onSaveResult?: (line: string) => void;
 }
 
-function buildInitialValues(definition: CalculatorDefinition): Record<string, number | ''> {
+function buildInitialValues(
+  definition: CalculatorDefinition,
+  overrides?: Record<string, number>,
+): Record<string, number | ''> {
   const values: Record<string, number | ''> = {};
   for (const field of definition.fields) {
     values[field.key] = field.defaultValue ?? (field.type === 'select' ? field.options?.[0]?.value ?? '' : '');
   }
-  return values;
+  return { ...values, ...overrides };
 }
 
-export function CalculatorForm({ definition, onAddPreset }: CalculatorFormProps) {
-  const [values, setValues] = useState<Record<string, number | ''>>(() => buildInitialValues(definition));
+export function CalculatorForm({ definition, onAddPreset, initialValues, onSaveResult }: CalculatorFormProps) {
+  const [values, setValues] = useState<Record<string, number | ''>>(() => buildInitialValues(definition, initialValues));
   const [presetId, setPresetId] = useState<string | null>(null);
 
   const applyPreset = (id: string | null) => {
@@ -164,12 +178,27 @@ export function CalculatorForm({ definition, onAddPreset }: CalculatorFormProps)
               )}
             </div>
           </Group>
-          {matchedRange && (
-            <Badge color={matchedRange.color} variant="light" size="lg" radius="sm">
-              {matchedRange.label}
-            </Badge>
-          )}
+          <Group gap="xs" align="center" wrap="nowrap">
+            {matchedRange && (
+              <Badge color={matchedRange.color} variant="light" size="lg" radius="sm">
+                {matchedRange.label}
+              </Badge>
+            )}
+          </Group>
         </Group>
+
+        {/* Записать можно только посчитанное: кнопка при пустом результате обещала бы то, чего нет. */}
+        {onSaveResult && result !== null && !error && (
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="light"
+              leftSection={<IconClipboardPlus size={16} />}
+              onClick={() => onSaveResult(calculationSummary(definition, values, result, matchedRange))}
+            >
+              Записать в визит
+            </Button>
+          </Group>
+        )}
       </Card>
     </Stack>
   );

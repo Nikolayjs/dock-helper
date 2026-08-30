@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Anchor, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import { IconEdit } from '@tabler/icons-react';
+import { IconCalculator, IconEdit } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -54,14 +54,28 @@ export function PatientConstants({ patient }: { patient: Patient }) {
     <PageSection
       title="Константы"
       action={
-        <Button
-          size="xs"
-          variant="light"
-          leftSection={<IconEdit size={14} />}
-          onClick={() => navigate(`/patients/${patient.id}/edit`)}
-        >
-          Заполнить
-        </Button>
+        <Group gap="xs" wrap="wrap">
+          {/* Калькулятор открывается **через список**: меню калькуляторов здесь было бы вторым их
+              списком — с поиском, разделами и звёздочками, которые пришлось бы повторить. */}
+          <Button
+            size="xs"
+            variant="light"
+            leftSection={<IconCalculator size={14} />}
+            onClick={() =>
+              navigate(`/calculators?patientId=${patient.id}`, { state: { from: `/patients/${patient.id}` } })
+            }
+          >
+            Посчитать
+          </Button>
+          <Button
+            size="xs"
+            variant="light"
+            leftSection={<IconEdit size={14} />}
+            onClick={() => navigate(`/patients/${patient.id}/edit`)}
+          >
+            Заполнить
+          </Button>
+        </Group>
       }
     >
       {!hasAnything ? (
