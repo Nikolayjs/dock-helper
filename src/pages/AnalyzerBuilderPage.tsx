@@ -22,8 +22,9 @@ import { LabTestForm } from '../features/analyzer/LabTestForm';
 import type { Sex } from '../features/analyzer/types';
 import { QUERY_KEY as LAB_TESTS_KEY, useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { useMediaQuery } from '@mantine/hooks';
 import { FormActions } from '../components/common/FormActions';
-import { useFittedHeight } from '../components/common/useFittedHeight';
+import { useStickyFitHeight } from '../components/common/useStickyFitHeight';
 import { STICKY_TOP } from '../layouts/shellMetrics';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
 import { useSaveAction } from '../components/common/useSaveAction';
@@ -196,14 +197,27 @@ export function AnalyzerBuilderPage() {
   /**
    * Предпросмотр кончается там, где кончается экран, а не там, где насчитала формула из `100vh`.
    *
-   * Меряется живая позиция блока: до прокрутки он начинается ниже, чем после (замер: 144 и 84), а
-   * снизу его накрывает прилипшая панель «Сохранить» — её высоту хук вычитает сам. Пол в 320 px —
-   * на случай совсем низкого окна: предпросмотр в полторы строки бесполезен, пусть лучше уедет
-   * вниз вместе со страницей.
+   * Высота берётся по худшему из двух положений прилипшего блока — до прокрутки он начинается ниже
+   * (замер: 144 против 84 после), — и снизу вычитается прилипшая панель «Сохранить». На прокрутке
+   * не считается ничего: пересчёт на каждый кадр перерисовывал страницу с тремя десятками карточек
+   * показателей и давал те самые фризы.
    */
   const previewRef = useRef<HTMLDivElement>(null);
+  /**
+   * Прилипает предпросмотр только там, где он стоит **рядом** с формой.
+   *
+   * Ниже `lg` колонки складываются друг под друга, и предпросмотр оказывается в конце страницы: там
+   * ему незачем ни прилипать, ни ужиматься до экрана — до него просто прокручивают и смотрят
+   * целиком. Замер на телефоне без этого условия: колонка 320 px (пол) вместо естественных полутора
+   * тысяч, то есть окошко в треть экрана вместо документа.
+   */
+  const sideBySide = useMediaQuery('(min-width: 75em)', true, { getInitialValueInEffect: false });
   // `ready` обязателен: до прихода записи страница показывает загрузку и блока не рисует вовсе.
-  const previewHeight = useFittedHeight(previewRef, { reserve: 16, min: 320, minRatio: 0, ready: !isEditMode || hydrated });
+  const previewHeight = useStickyFitHeight(previewRef, {
+    gap: 16,
+    min: 320,
+    ready: sideBySide && (!isEditMode || hydrated),
+  });
 
   const guard = useUnsavedGuard(useDirtyValue({ title, shortTitle, description, parameters, rules }, hydrated));
 
@@ -343,20 +357,30 @@ export function AnalyzerBuilderPage() {
 
         <Grid.Col span={{ base: 12, lg: 5 }}>
           {/*
-            Предпросмотр стоит на виду, пока правят показатели, поэтому он прилипший и со своей
-            прокруткой. Высота при этом **меряется**, а не берётся из `calc(100vh - …)`: жёсткое
-            число не знает ни того, что до прокрутки блок начинается ниже (замер: 144 против 84
-            после прокрутки), ни того, что снизу его накрывает прилипшая панель «Сохранить». С ним
-            низ предпросмотра оказывался на 107 px ниже верха панели — карточка выглядела обрезанной.
+            Предпросмотр прилипший и со своей прокруткой — он нужен на виду, пока правят показатели.
 
-            Прокрутка — `ScrollArea`, а не `overflow: auto`: родная полоса отнимала у блока 10 px и
-            рисовалась **справа от карточки**, прямо на обоях, отдельной белой чертой. У `ScrollArea`
-            полоса лежит поверх содержимого, внутри поверхности, — так же, как в сайдбаре и в поиске.
+            **Прокручивается содержимое карточки, а не карточка.** Сначала было наоборот: обе
+            карточки лежали внутри области прокрутки, и карточка предпросмотра, будучи выше окна,
+            обрезалась её краем — вместо карточки со скруглёнными углами выходил прямоугольник,
+            уходящий за край. Теперь высоту получает сама карточка, а прокручивается список
+            показателей внутри неё: карточка остаётся карточкой в любом положении.
+
+            Полоса прокрутки — `ScrollArea`, а не `overflow: auto`: родная отнимала у блока 10 px и
+            рисовалась **справа от карточки**, прямо на обоях, отдельной чертой. У `ScrollArea` она
+            лежит поверх содержимого, внутри поверхности, — как в сайдбаре и в поиске по шапке.
           */}
-          <div ref={previewRef} style={{ position: 'sticky', top: `calc(${STICKY_TOP} + 16px)` }}>
-            <ScrollArea h={previewHeight ?? undefined} type="auto" scrollbars="y">
-              <Stack gap="lg">
-              <Card withBorder padding="lg">
+          <div
+            ref={previewRef}
+            style={{
+              position: sideBySide ? 'sticky' : undefined,
+              top: sideBySide ? `calc(${STICKY_TOP} + 16px)` : undefined,
+              height: sideBySide ? (previewHeight ?? undefined) : undefined,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--mantine-spacing-lg)',
+            }}
+          >
+              <Card withBorder padding="lg" style={sideBySide ? { flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' } : undefined}>
                 <Badge variant="light" color="gray" mb="xs">
                   Предпросмотр
                 </Badge>
@@ -387,19 +411,23 @@ export function AnalyzerBuilderPage() {
                   />
                 </Group>
 
-                <LabTestForm
-                  test={previewLabTest}
-                  sex={previewSex}
-                  age={previewAge}
-                  values={previewValues}
-                  computedValues={previewResult.values}
-                  statuses={previewResult.statuses}
-                  onChange={(key, value) => setPreviewValues((prev) => ({ ...prev, [key]: value }))}
-                />
+                <ScrollArea style={sideBySide ? { flex: '1 1 auto', minHeight: 0 } : undefined} type="auto" scrollbars="y">
+                  <LabTestForm
+                    test={previewLabTest}
+                    sex={previewSex}
+                    age={previewAge}
+                    values={previewValues}
+                    computedValues={previewResult.values}
+                    statuses={previewResult.statuses}
+                    onChange={(key, value) => setPreviewValues((prev) => ({ ...prev, [key]: value }))}
+                  />
+                </ScrollArea>
               </Card>
+              {/* Заключения занимают столько, сколько им нужно, но не больше сорока процентов
+                  колонки: разбор с десятком совпавших правил иначе выдавил бы сам предпросмотр. */}
+              <ScrollArea style={sideBySide ? { flex: '0 1 auto', minHeight: 0, maxHeight: '40%' } : undefined} type="auto" scrollbars="y">
                 <AnalyzerResults result={previewResult} />
-              </Stack>
-            </ScrollArea>
+              </ScrollArea>
           </div>
         </Grid.Col>
       </Grid>

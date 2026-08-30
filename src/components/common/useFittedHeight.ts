@@ -22,27 +22,11 @@ import { SCROLL_ROOT_ID } from '../layout/scrollRoot';
  */
 export function useFittedHeight(
   ref: RefObject<HTMLElement | null>,
-  {
-    reserve,
-    min,
-    minRatio = 0.5,
-    /**
-     * Появился ли уже сам элемент.
-     *
-     * Страница может до прихода записи показывать загрузку и не рисовать измеряемый блок вовсе —
-     * так делает конструктор анализатора. Эффект в этот момент меряет пустоту и уходит ни с чем, а
-     * о том, что узел наконец появился, **ссылка не сообщает**: React не оповещает о смене
-     * `ref.current`, и эффект с неизменными зависимостями второй раз не запускается. Высота так и
-     * оставалась `null`, то есть не применялась вовсе. Та же причина, по которой метка дозагрузки в
-     * `useIncrementalList` держится в состоянии, а не в ссылке.
-     */
-    ready = true,
-  }: { reserve: number; min: number; minRatio?: number; ready?: boolean },
+  { reserve, min, minRatio = 0.5 }: { reserve: number; min: number; minRatio?: number },
 ): number | null {
   const [height, setHeight] = useState<number | null>(null);
 
   useLayoutEffect(() => {
-    if (!ready) return;
     const measure = () => {
       const element = ref.current;
       if (!element) return;
@@ -73,7 +57,7 @@ export function useFittedHeight(
       window.removeEventListener('resize', measure);
       observer.disconnect();
     };
-  }, [min, minRatio, ready, ref, reserve]);
+  }, [min, minRatio, ref, reserve]);
 
   return height;
 }
