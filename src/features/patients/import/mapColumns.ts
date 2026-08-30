@@ -4,9 +4,12 @@ import type { PatientSex } from '../types';
 /**
  * Works out which column of a spreadsheet is which, and turns its cells into patient fields.
  *
- * Only the fields this app actually has are read. A registry carries far more — policy numbers,
- * addresses, attachment dates — and quietly inventing somewhere to put them would be worse than
- * leaving them behind, which is what the review screen shows the doctor before anything is saved.
+ * Only the fields this app actually has are read — и это теперь читается иначе, чем раньше: полис,
+ * участок и адрес карточка пациента наконец умеет хранить, и импорт их больше не выбрасывает. Это
+ * ровно те колонки, по которым человека потом ищут и относят к участку, а переносить их руками из
+ * выгрузки на сотни строк никто не станет.
+ *
+ * Что не уложилось всё равно, врачу показывает экран разбора — до того, как что-то будет записано.
  */
 
 export type PatientField =
@@ -19,7 +22,10 @@ export type PatientField =
   | 'phone'
   | 'diagnosis'
   | 'diagnosisCode'
-  | 'registeredDate';
+  | 'registeredDate'
+  | 'insurancePolicy'
+  | 'district'
+  | 'address';
 
 export interface DraftPatient {
   fullName: string;
@@ -31,6 +37,9 @@ export interface DraftPatient {
   diagnosisCode: string;
   /** The date the patient went on the register, when the file carries one. */
   registeredDate: string | null;
+  insurancePolicy: string;
+  district: string;
+  address: string;
   /** 1-based row in the file, so a rejected row can be found in the original. */
   sourceRow: number;
 }
@@ -50,6 +59,11 @@ const HEADINGS: Array<{ field: PatientField; prefixes: string[] }> = [
   { field: 'diagnosis', prefixes: ['диагноз', 'заболевание', 'нозология', 'основной диагноз'] },
   { field: 'diagnosisCode', prefixes: ['код мкб', 'мкб', 'мкб 10', 'код диагноза', 'шифр'] },
   { field: 'registeredDate', prefixes: ['дата постановки', 'постановка на учет', 'взят на учет', 'дата взятия', 'на учете с', 'дата учета'] },
+  { field: 'insurancePolicy', prefixes: ['полис', 'номер полиса', 'омс', 'enp', 'енп'] },
+  // «уч» стоит отдельным словом и не задевает «учет»: совпадение идёт по целому слову или по
+  // префиксу с пробелом, а «участок» на «уч » не начинается.
+  { field: 'district', prefixes: ['участок', 'уч', 'терапевтический участок', 'номер участка'] },
+  { field: 'address', prefixes: ['адрес', 'место жительства', 'адрес регистрации', 'прописка', 'проживает'] },
 ];
 
 function normalizeHeading(cell: Cell): string {
@@ -231,6 +245,9 @@ export function mapRows(rows: Cell[][], header: HeaderMatch): MappedRows {
       diagnosis: cellText(row, columns.diagnosis),
       diagnosisCode: cellText(row, columns.diagnosisCode),
       registeredDate: parseDateCell(row[columns.registeredDate ?? -1] ?? null),
+      insurancePolicy: cellText(row, columns.insurancePolicy),
+      district: cellText(row, columns.district),
+      address: cellText(row, columns.address),
       sourceRow: i + 1,
     });
   }

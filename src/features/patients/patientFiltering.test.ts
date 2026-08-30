@@ -7,6 +7,7 @@ import {
   matchesPatientFilters,
   type PatientFilterState,
 } from './patientFiltering';
+import { EMPTY_PATIENT_CONSTANTS } from './types';
 import type { Patient, PatientSex } from './types';
 
 function patient(overrides: Partial<Patient> = {}): Patient {
@@ -18,6 +19,7 @@ function patient(overrides: Partial<Patient> = {}): Patient {
     phone: '',
     reminderDate: null,
     reminderNote: '',
+    ...EMPTY_PATIENT_CONSTANTS,
     visits: [],
     createdAt: '2026-01-01T00:00:00',
     updatedAt: '2026-01-01T00:00:00',

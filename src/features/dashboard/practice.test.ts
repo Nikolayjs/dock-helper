@@ -13,6 +13,7 @@ import {
   getVisitLoad,
 } from './practice';
 import type { Book } from '../library/types';
+import { EMPTY_PATIENT_CONSTANTS } from '../patients/types';
 import type { DispensaryRecord, Patient, PatientVisit } from '../patients/types';
 
 /** Every expectation below is written against this date. */
@@ -48,6 +49,7 @@ function patient(id: string, extra: Partial<Patient> = {}): Patient {
     birthDate: null,
     phone: '',
     reminderDate: null,
+    ...EMPTY_PATIENT_CONSTANTS,
     reminderNote: '',
     visits: [],
     createdAt: TODAY,

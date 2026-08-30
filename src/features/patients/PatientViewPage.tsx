@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { ActionIcon, Avatar, Badge, Button, Card, Container, Group, Menu, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconClipboardHeart, IconClockExclamation, IconEdit, IconFileText, IconPlus, IconPrinter, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconClipboardHeart, IconClockExclamation, IconEdit, IconFileText, IconPlus, IconPrinter, IconSettings, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { DispensaryCard } from './DispensaryCard';
+import { PatientConstants } from './PatientConstants';
 import { PageSection } from '../../components/common/PageSection';
 import { PatientDocuments } from '../documents/PatientDocuments';
 import { PatientLabResults } from '../labResults/PatientLabResults';
@@ -159,6 +160,13 @@ export function PatientViewPage() {
               </div>
             </Group>
             <Group gap="sm" align="center" wrap="wrap">
+              {/* Аллергия стоит в шапке, а не в разделе констант ниже, и это не оформление:
+                  назначая препарат, о ней надо знать не прокручивая. Полный текст — в константах. */}
+              {patient.allergies && (
+                <Badge variant="light" color="red" size="lg" leftSection={<IconAlertTriangle size={14} />} maw={420}>
+                  Аллергия: {patient.allergies}
+                </Badge>
+              )}
               {reminderStatus && patient.reminderDate && (
                 <Badge variant="light" color={REMINDER_COLOR[reminderStatus]} size="lg" leftSection={<IconClockExclamation size={14} />}>
                   {reminderStatus === 'overdue' ? 'Напоминание просрочено' : `Напоминание: ${dayjs(patient.reminderDate).format('D MMMM YYYY')}`}
@@ -211,6 +219,8 @@ export function PatientViewPage() {
             </Stack>
           )}
         </PageSection>
+
+        <PatientConstants patient={patient} />
 
         {/* Терапия и анализы стоят выше документов и визитов: с ними приходят на приём, и первое,
             о чём заходит разговор, — что пациент уже принимает и что изменилось с прошлого раза. */}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { hideObservation, hideVisit } from './hideNested';
+import { EMPTY_PATIENT_CONSTANTS } from './types';
 import type { DispensaryRecord, Patient } from './types';
 
 function patient(id: string, visitIds: string[]): Patient {
@@ -12,6 +13,7 @@ function patient(id: string, visitIds: string[]): Patient {
     phone: '',
     reminderDate: null,
     reminderNote: '',
+    ...EMPTY_PATIENT_CONSTANTS,
     visits: visitIds.map((visitId) => ({
       id: visitId,
       date: '2026-01-01',

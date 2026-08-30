@@ -31,3 +31,16 @@ export function getReminderStatus(reminderDate: string): ReminderStatus {
   if (diff === 0) return 'today';
   return 'upcoming';
 }
+
+/**
+ * Индекс массы тела — если есть из чего его считать.
+ *
+ * Толкования здесь нет намеренно: пороги живут в калькуляторе ИМТ, и второй их набор разошёлся бы
+ * с первым при первой же правке. Карточка показывает число, а что оно значит — отвечает калькулятор.
+ */
+export function bodyMassIndex(heightCm: number | null, weightKg: number | null): number | null {
+  // Ноль — не «не указано», а невозможный рост: делить на него нечего.
+  if (!heightCm || !weightKg) return null;
+  const metres = heightCm / 100;
+  return Math.round((weightKg / (metres * metres)) * 10) / 10;
+}

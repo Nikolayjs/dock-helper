@@ -129,6 +129,15 @@ export function PatientImportModal({ opened, onClose, onImport }: PatientImportM
             phone: p.phone,
             reminderDate: null,
             reminderNote: '',
+            // Полис, участок и адрес больше не выбрасываются: карточка умеет их хранить.
+            insurancePolicy: p.insurancePolicy,
+            district: p.district,
+            address: p.address,
+            // Антропометрию реестры не носят, а придумывать её нечем.
+            heightCm: null,
+            weightKg: null,
+            measuredAt: null,
+            allergies: '',
             dispensary:
               onRegister && diagnosis
                 ? {

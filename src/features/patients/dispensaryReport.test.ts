@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildDispensaryReport } from './dispensaryReport';
 import { computeDispensaryStats, computeStatsByDiagnosis } from './dispensaryStats';
+import { EMPTY_PATIENT_CONSTANTS } from './types';
 import type { DispensaryRecord, Patient } from './types';
 
 /**
@@ -22,6 +23,7 @@ const patient = (id: string, fullName: string, sex: 'male' | 'female', birthDate
   phone: '',
   reminderDate: null,
   reminderNote: '',
+  ...EMPTY_PATIENT_CONSTANTS,
   visits: [],
   createdAt: '',
   updatedAt: '',

@@ -173,3 +173,51 @@ describe('строки реестра', () => {
     expect(mapped.patients[0].sourceRow).toBe(2);
   });
 });
+
+/**
+ * Полис, участок и адрес.
+ *
+ * Раньше эти колонки выбрасывались — в самом файле так и было написано: класть некуда. Теперь
+ * карточка их хранит, и переносить их руками из выгрузки на сотни строк не нужно.
+ */
+describe('учётные колонки реестра', () => {
+  const rows: Cell[][] = [
+    ['ФИО', 'Полис ОМС', 'Участок', 'Адрес регистрации'],
+    ['Егорова Наталья Петровна', '1234567890123456', '7', 'ул. Ленина, 12, кв. 4'],
+  ];
+
+  it('читаются вместе с именем', () => {
+    const header = findHeader(rows)!;
+    const [patient] = mapRows(rows, header).patients;
+    expect(patient).toMatchObject({
+      fullName: 'Егорова Наталья Петровна',
+      insurancePolicy: '1234567890123456',
+      district: '7',
+      address: 'ул. Ленина, 12, кв. 4',
+    });
+  });
+
+  it('колонки, которых в файле нет, остаются пустыми, а не отсутствуют', () => {
+    const bare: Cell[][] = [['ФИО'], ['Крылов Дмитрий Сергеевич']];
+    const [patient] = mapRows(bare, findHeader(bare)!).patients;
+    expect(patient).toMatchObject({ insurancePolicy: '', district: '', address: '' });
+  });
+
+  // «Участок» и «дата учёта» стоят в одном реестре рядом, и спутать их нельзя: дата постановки
+  // на учёт решает, в какую графу годового отчёта попадёт пациент.
+  it('«участок» не путается с «дата учёта»', () => {
+    const both: Cell[][] = [
+      ['ФИО', 'Участок', 'Дата учета'],
+      ['Егорова Наталья Петровна', '7', '15.03.2024'],
+    ];
+    const [patient] = mapRows(both, findHeader(both)!).patients;
+    expect(patient.district).toBe('7');
+    expect(patient.registeredDate).toBe('2024-03-15');
+  });
+
+  it('ЕНП распознаётся как полис', () => {
+    const enp: Cell[][] = [['ФИО', 'ЕНП'], ['Егорова Наталья Петровна', '1234567890123456']];
+    const [patient] = mapRows(enp, findHeader(enp)!).patients;
+    expect(patient.insurancePolicy).toBe('1234567890123456');
+  });
+});

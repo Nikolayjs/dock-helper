@@ -4,6 +4,7 @@ import { calcAge, formatAge } from '../utils';
 
 import type { ClinicSettings } from '../clinicSettings';
 import { REFERRAL_CATEGORY_LABELS } from '../referralUtils';
+import { EMPTY_PATIENT_CONSTANTS } from '../types';
 import type { Patient, PatientVisit } from '../types';
 import type { DocumentTemplateKind, TemplateLayout } from './layoutTypes';
 import { escapeHtml } from '../../../lib/escapeHtml';
@@ -40,6 +41,7 @@ export const SAMPLE_PATIENT: Patient = {
   phone: '',
   reminderDate: null,
   reminderNote: '',
+  ...EMPTY_PATIENT_CONSTANTS,
   visits: [],
   createdAt: '',
   updatedAt: '',

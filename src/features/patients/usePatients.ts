@@ -5,7 +5,22 @@ import type { Patient, PatientVisit } from './types';
 /** Кэш, которым владеет этот хук. Экспортируется, чтобы удаление могло спрятать строку на время отмены. */
 export const QUERY_KEY = ['patients'];
 
-export type PatientInput = Pick<Patient, 'fullName' | 'sex' | 'birthDate' | 'phone' | 'reminderDate' | 'reminderNote'>;
+export type PatientInput = Pick<
+  Patient,
+  | 'fullName'
+  | 'sex'
+  | 'birthDate'
+  | 'phone'
+  | 'reminderDate'
+  | 'reminderNote'
+  | 'heightCm'
+  | 'weightKg'
+  | 'measuredAt'
+  | 'allergies'
+  | 'insurancePolicy'
+  | 'district'
+  | 'address'
+>;
 export type VisitInput = Pick<PatientVisit, 'date' | 'diagnosis' | 'diagnosisCode' | 'note' | 'referralCategory' | 'referralDestination'>;
 
 const resource = createCrudResource<Patient, PatientInput>('/patients', QUERY_KEY);
