@@ -28,6 +28,13 @@ export interface XlsxInput {
   formats?: SheetFormats | null;
   /** Ширина столбцов в знаках; `null` — считать по содержимому. */
   widths?: (number | null)[] | null;
+  /**
+   * Высота строк данных в пунктах; `null` — оставить Excel считать по содержимому.
+   *
+   * Массив идёт параллельно `rows`, то есть без строки заголовков и без итогов: у них своей высоты
+   * нет, и приписывать им чужую значило бы сдвинуть всю таблицу на строку.
+   */
+  heights?: (number | null)[] | null;
 }
 
 export { columnLetter };
@@ -137,6 +144,10 @@ function rowXml(
   input: XlsxInput,
   styles: StyleTable,
 ): string {
+  // `ht` без `customHeight` Excel игнорирует: он считает такую высоту своей, посчитанной по
+  // содержимому, и при первом же пересчёте её перетирает.
+  const points = input.heights?.[rowNumber - 2];
+  const height = points ? ` ht="${points}" customHeight="1"` : '';
   const body = cells
     .map((value, index) =>
       cellXml(
@@ -150,7 +161,7 @@ function rowXml(
       ),
     )
     .join('');
-  return `<row r="${rowNumber}">${body}</row>`;
+  return `<row r="${rowNumber}"${height}>${body}</row>`;
 }
 
 /**

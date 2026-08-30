@@ -101,6 +101,32 @@ describe('пакет .xlsx', () => {
     ]);
   });
 
+  /**
+   * Ширина столбца и высота строки — часть документа, и в файл они обязаны уйти вместе с ним.
+   *
+   * Читателем это не проверить: `read-excel-file` отдаёт значения ячеек и о размерах не говорит
+   * ничего. Поэтому проверяется сама разметка — ровно в том виде, в каком её ждёт Excel: ширина без
+   * `customWidth` и высота без `customHeight` считаются посчитанными самим Excel и пропадают при
+   * первом пересчёте.
+   */
+  it('уносит в файл заданную ширину столбца и высоту строки', () => {
+    const sized = sheetToXlsxBytes({
+      sheetName: 'Реестр',
+      columns: ['Пациент', 'Дней'],
+      rows: [['Иванов', '3'], ['Петров', '1']],
+      widths: [40, null],
+      heights: [null, 36],
+    });
+    const sheet = partOf(sized, 'xl/worksheets/sheet1.xml');
+    expect(sheet).toContain('<col min="1" max="1" width="40" customWidth="1"/>');
+    // У второго столбца своей ширины нет: она считается по содержимому, но в файл всё равно идёт —
+    // иначе Excel показал бы его в ширину по умолчанию, обрезав заголовок.
+    expect(sheet).toContain('<col min="2" max="2"');
+    expect(sheet).toContain('<row r="3" ht="36" customHeight="1">');
+    // Строка без заданной высоты остаётся без атрибута — пусть считает Excel.
+    expect(sheet).toContain('<row r="2">');
+  });
+
   it('закрепляет строку заголовков и помечает её полужирным стилем', () => {
     const sheet = partOf(bytes, 'xl/worksheets/sheet1.xml');
     expect(sheet).toContain('<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>');

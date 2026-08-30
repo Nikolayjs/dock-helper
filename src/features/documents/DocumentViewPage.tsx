@@ -51,6 +51,7 @@ export function DocumentViewPage() {
           totals: doc.sheet?.totals,
           formats: doc.sheet?.formats,
           widths: doc.sheet?.widths,
+          heights: doc.sheet?.heights,
         });
       } else {
         await downloadDocx({ title: doc.title, html: doc.content });

@@ -14,6 +14,8 @@ import {
   sortRows,
   setCell,
   setColumnName,
+  setColumnWidth,
+  setRowHeight,
   trimTrailingRows,
 } from './sheetOps';
 import type { DocumentSheet } from './types';
@@ -259,5 +261,61 @@ describe('buildGrid', () => {
     expect(grid[0]).toEqual(['Пациент', 'Дней', 'Сумма']);
     expect(grid[1][0]).toBe('Иванов');
     expect(grid[4][0]).toBe('Итого');
+  });
+});
+
+/**
+ * Размеры ездят вместе со своей строкой и своим столбцом.
+ *
+ * Высота задана записи, а не месту в реестре: строка, уехавшая при сортировке вверх, обязана
+ * увезти свою высоту с собой — ровно по той же причине, по которой это делает заливка. Ошибка
+ * здесь не падает и не видна в JSON: она видна только глазами, на бумаге.
+ */
+describe('ширина столбцов и высота строк', () => {
+  const sheet: DocumentSheet = {
+    columns: ['Пациент', 'Дней'],
+    rows: [['Иванов', '3'], ['Петров', '1'], ['Сидоров', '2']],
+    widths: [20, null],
+    heights: [40, null, 25],
+  };
+
+  it('вставленный столбец не сдвигает чужую ширину', () => {
+    const next = addColumn(sheet, 0);
+    expect(next.widths).toEqual([20, null, null]);
+  });
+
+  it('удалённый столбец уносит свою ширину', () => {
+    expect(removeColumn(sheet, 0).widths).toEqual([null]);
+  });
+
+  it('новая строка приходит без высоты, а чужие остаются на местах', () => {
+    expect(addRow(sheet).heights).toEqual([40, null, 25, null]);
+  });
+
+  it('удалённая строка уносит свою высоту', () => {
+    expect(removeRow(sheet, 0).heights).toEqual([null, 25]);
+  });
+
+  it('сортировка увозит высоту вместе со строкой', () => {
+    // По второму столбцу: 1, 2, 3 — то есть Петров, Сидоров, Иванов.
+    const sorted = sortRows(sheet, 1, 'asc');
+    expect(sorted.rows.map((row) => row[0])).toEqual(['Петров', 'Сидоров', 'Иванов']);
+    expect(sorted.heights).toEqual([null, 25, 40]);
+  });
+
+  it('размер, снятый у последнего столбца, убирает массив целиком', () => {
+    expect(setColumnWidth(sheet, 0, null).widths).toBeNull();
+  });
+
+  it('высота ставится и снимается по одной строке', () => {
+    expect(setRowHeight(sheet, 1, 33).heights).toEqual([40, 33, 25]);
+    expect(setRowHeight({ ...sheet, heights: [null, 33, null] }, 1, null).heights).toBeNull();
+  });
+
+  it('вставка из буфера растит таблицу, а размеры остаются на своих местах', () => {
+    const pasted = pasteInto(sheet, 2, 0, [['Кузнецов', '5'], ['Морозов', '7']]);
+    expect(pasted.rows.length).toBe(4);
+    expect(pasted.heights).toEqual([40, null, 25, null]);
+    expect(pasted.widths).toEqual([20, null]);
   });
 });

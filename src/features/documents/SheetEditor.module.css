@@ -214,3 +214,58 @@ tr:hover .rowActions button,
   font-size: var(--mantine-font-size-xs);
   font-weight: 700;
 }
+
+/*
+ * Ручки размера: у правого края заголовка столбца и у нижнего края номера строки.
+ *
+ * Ширина столбца и высота строки — свойства документа: он печатается и уходит в `.xlsx`, и столбец,
+ * расширенный ради длинных фамилий, обязан остаться широким и там. Тянут их поэтому в редакторе, а
+ * не в просмотре.
+ *
+ * Полоска шире курсора мыши на пару пикселей в каждую сторону: попасть в границу в один пиксель
+ * нельзя ни мышью, ни тем более пальцем. Видна она только под курсором — постоянная линия у каждого
+ * столбца читалась бы как вторая рамка.
+ */
+.headCell,
+.numberCell {
+  position: relative;
+}
+
+.columnGrip,
+.rowGrip {
+  position: absolute;
+  z-index: 3;
+  touch-action: none;
+  background-color: transparent;
+  transition: background-color 100ms ease;
+}
+
+.columnGrip {
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.rowGrip {
+  left: 0;
+  bottom: -3px;
+  height: 6px;
+  width: 100%;
+  cursor: row-resize;
+}
+
+.columnGrip:hover,
+.rowGrip:hover,
+.gripActive {
+  background-color: var(--mantine-color-brand-4);
+}
+
+/* На бумаге ручек нет: они инструмент, а не документ. */
+@media print {
+  .columnGrip,
+  .rowGrip {
+    display: none;
+  }
+}

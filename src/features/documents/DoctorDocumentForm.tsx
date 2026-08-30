@@ -92,6 +92,7 @@ export function DoctorDocumentForm({
         totals: clean.totals,
         formats: clean.formats,
         widths: clean.widths,
+        heights: clean.heights,
       });
     } catch {
       notifications.show({ message: 'Не удалось собрать файл .xlsx', color: 'red' });

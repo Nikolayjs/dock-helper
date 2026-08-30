@@ -65,6 +65,23 @@ export function setColumnName(sheet: DocumentSheet, columnIndex: number, name: s
   return { ...sheet, columns };
 }
 
+/**
+ * Ширина столбца и высота строки — свойства документа, а не показа.
+ *
+ * Таблицу печатают и выгружают в `.xlsx`, и столбец, расширенный ради длинных фамилий, обязан
+ * остаться широким и там. Поэтому размеры лежат в самом документе, а массивы заводятся лениво: у
+ * таблицы, которую никто не тянул, их нет вовсе — и в JSON они не занимают ни байта.
+ */
+export function setColumnWidth(sheet: DocumentSheet, columnIndex: number, chars: number | null): DocumentSheet {
+  const widths = sheet.columns.map((_, index) => (index === columnIndex ? chars : (sheet.widths?.[index] ?? null)));
+  return { ...sheet, widths: widths.some((value) => value !== null) ? widths : null };
+}
+
+export function setRowHeight(sheet: DocumentSheet, rowIndex: number, points: number | null): DocumentSheet {
+  const heights = sheet.rows.map((_, index) => (index === rowIndex ? points : (sheet.heights?.[index] ?? null)));
+  return { ...sheet, heights: heights.some((value) => value !== null) ? heights : null };
+}
+
 export function addRow(sheet: DocumentSheet): DocumentSheet {
   if (sheet.rows.length >= MAX_ROWS) return sheet;
   const rows = [...sheet.rows, sheet.columns.map(() => '')];
@@ -72,6 +89,8 @@ export function addRow(sheet: DocumentSheet): DocumentSheet {
   return {
     ...sheet,
     rows,
+    // Новая строка своей высоты не имеет: она считается по содержимому, пока её не потянут.
+    heights: sheet.heights ? [...sheet.heights, null] : sheet.heights,
     totals: retargetTotals(sheet, rows.length),
     // Строка итогов уезжает на строку вниз, и её оформление обязано уехать вместе с ней.
     formats: remapFormats(sheet.formats ?? undefined, (row, column) =>
@@ -86,6 +105,7 @@ export function removeRow(sheet: DocumentSheet, rowIndex: number): DocumentSheet
   return {
     ...sheet,
     rows,
+    heights: sheet.heights ? sheet.heights.filter((_, index) => index !== rowIndex) : sheet.heights,
     totals: retargetTotals(sheet, rows.length),
     formats: remapFormats(sheet.formats ?? undefined, (row, column) => {
       if (row === removed) return null;
@@ -267,6 +287,9 @@ export function sortRows(sheet: DocumentSheet, columnIndex: number, direction: S
   return {
     ...sheet,
     rows,
+    // Высота едет вместе со строкой по той же причине, что и заливка: она задана этой записи, а не
+    // этому месту в реестре.
+    heights: sheet.heights ? ordered.map((entry) => sheet.heights?.[entry.index] ?? null) : sheet.heights,
     formats: remapFormats(sheet.formats ?? undefined, (row, column) => ({
       row: movedTo.get(row) ?? row,
       column,
@@ -357,7 +380,15 @@ export function pasteInto(sheet: DocumentSheet, rowIndex: number, columnIndex: n
     ? Array.from({ length: width }, (_, index) => sheet.totals?.[index] ?? '')
     : sheet.totals;
 
-  return retargetSheet({ ...sheet, columns, rows, totals }, sheet);
+  // Размеры идут параллельными массивами и обязаны остаться той же длины, что таблица: вставка
+  // расширяет её и вниз, и вправо, а строки и столбцы, появившиеся при этом, своей высоты и ширины
+  // не имеют.
+  const widths = sheet.widths ? Array.from({ length: width }, (_, index) => sheet.widths?.[index] ?? null) : sheet.widths;
+  const heights = sheet.heights
+    ? Array.from({ length: height }, (_, index) => sheet.heights?.[index] ?? null)
+    : sheet.heights;
+
+  return retargetSheet({ ...sheet, columns, rows, totals, widths, heights }, sheet);
 }
 
 /** Вставка меняет число строк, а значит диапазоны итогов надо дотянуть — тем же правилом. */
@@ -377,7 +408,12 @@ export function trimTrailingRows(sheet: DocumentSheet): DocumentSheet {
   const rows = [...sheet.rows];
   while (rows.length > 0 && rows[rows.length - 1].every((cell) => cell.trim() === '')) rows.pop();
   if (rows.length === sheet.rows.length) return sheet;
-  return { ...sheet, rows, totals: retargetTotals(sheet, rows.length) };
+  return {
+    ...sheet,
+    rows,
+    heights: sheet.heights ? sheet.heights.slice(0, rows.length) : sheet.heights,
+    totals: retargetTotals(sheet, rows.length),
+  };
 }
 
 /** Пустая таблица — та, в которой ничего не написано ни в одной ячейке. Заголовки не в счёт. */

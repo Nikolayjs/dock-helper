@@ -19,6 +19,7 @@ import { FormulaHelp } from './FormulaHelp';
 import { FormulaHintBox } from './FormulaHintBox';
 import classes from './SheetEditor.module.css';
 import { applyFormat, clearFormat, getFormat, normalizeRange, rangeContains } from './sheetFormat';
+import { MIN_COLUMN_CHARS, MIN_ROW_POINTS, columnChars, columnPx, rowPoints, rowPx } from './sheetMetrics';
 import {
   addColumn,
   addRow,
@@ -34,6 +35,8 @@ import {
   removeTotalsRow,
   setCell,
   setColumnName,
+  setColumnWidth,
+  setRowHeight,
   setTotalsCell,
   sortRows,
   type SortDirection,
@@ -135,6 +138,10 @@ const SheetRow = memo(function SheetRow({
   cells,
   shown,
   excelRow,
+  rowIndex,
+  height,
+  onResizeRow,
+  onAutoSizeRow,
   editingColumn,
   selectedFrom,
   selectedTo,
@@ -155,6 +162,11 @@ const SheetRow = memo(function SheetRow({
   cells: string[];
   shown: string[];
   excelRow: number;
+  /** Номер строки данных: по нему ставится и снимается её высота. У строки итогов его нет. */
+  rowIndex?: number;
+  height?: number | null;
+  onResizeRow?: (event: React.PointerEvent, rowIndex: number) => void;
+  onAutoSizeRow?: (rowIndex: number) => void;
   editingColumn: number | null;
   selectedFrom: number;
   selectedTo: number;
@@ -173,9 +185,22 @@ const SheetRow = memo(function SheetRow({
   onSelectRow: (excelRow: number) => void;
 }) {
   return (
-    <tr className={`${hidden ? classes.hidden : ''} ${totals ? classes.totalsRow : ''}`}>
+    <tr
+      className={`${hidden ? classes.hidden : ''} ${totals ? classes.totalsRow : ''}`}
+      data-row={rowIndex}
+      style={{ height: height ?? undefined }}
+    >
       <td className={`${classes.numberCell} ${classes.pickable}`} onClick={() => onSelectRow(excelRow)} title="Выделить строку">
         {excelRow}
+        {rowIndex !== undefined && onResizeRow && (
+          <span
+            className={classes.rowGrip}
+            onPointerDown={(event) => onResizeRow(event, rowIndex)}
+            onDoubleClick={() => onAutoSizeRow?.(rowIndex)}
+            title="Потяните, чтобы изменить высоту; двойное нажатие — по содержимому"
+            aria-hidden
+          />
+        )}
       </td>
       {cells.map((cell, columnIndex) => {
         // В фокусе — сама формула, вне фокуса — её результат. Так же ведёт себя Excel, и иначе
@@ -363,6 +388,101 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
     setHistoryTick((tick) => tick + 1);
     emit(next);
   }, []);
+
+  /**
+   * Тянем границу — размер применяется сразу, а в документ попадает один раз, на отпускании.
+   *
+   * Писать ширину на каждый кадр значило бы засыпать историю правок сотней шагов, из которых
+   * отменять пришлось бы каждый; ровно та же причина, по которой так же ведёт себя уголок картинки
+   * в редакторе текста. Пока тянут, размер ставится прямо в DOM — без состояния и без перерисовки
+   * таблицы на три десятка столбцов.
+   *
+   * Слушается **окно**, а не сама ручка: указатель во время протяжки с неё уходит, и события
+   * приходили бы уже не ей.
+   */
+  const beginResize = useCallback(
+    (
+      event: React.PointerEvent,
+      options: {
+        axis: 'x' | 'y';
+        /** Элемент, которому ставится размер, пока тянут. */
+        target: HTMLElement | null;
+        /** Размер, от которого считается протяжка. */
+        startSize: number;
+        min: number;
+        commitSize: (px: number) => void;
+      },
+    ) => {
+      const { axis, target, startSize, min, commitSize } = options;
+      if (!target) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const startPoint = axis === 'x' ? event.clientX : event.clientY;
+      const grip = event.currentTarget as HTMLElement;
+      grip.classList.add(classes.gripActive);
+
+      const sizeAt = (moveEvent: PointerEvent) =>
+        Math.max(min, Math.round(startSize + ((axis === 'x' ? moveEvent.clientX : moveEvent.clientY) - startPoint)));
+
+      const move = (moveEvent: PointerEvent) => {
+        const size = sizeAt(moveEvent);
+        if (axis === 'x') target.style.width = `${size}px`;
+        else target.style.height = `${size}px`;
+      };
+
+      const finish = (upEvent: PointerEvent) => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', finish);
+        grip.classList.remove(classes.gripActive);
+        commitSize(sizeAt(upEvent));
+      };
+
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', finish);
+    },
+    [],
+  );
+
+  const resizeColumn = useCallback(
+    (event: React.PointerEvent, columnIndex: number) => {
+      const frame = frameRef.current;
+      const col = frame?.querySelector<HTMLElement>(`col[data-column="${columnIndex}"]`);
+      const head = frame?.querySelector<HTMLElement>(`th[data-column="${columnIndex}"]`);
+      beginResize(event, {
+        axis: 'x',
+        target: col ?? null,
+        startSize: head?.getBoundingClientRect().width ?? 0,
+        min: MIN_COLUMN_CHARS * 8,
+        commitSize: (px) => commit(setColumnWidth(latest.current.value, columnIndex, columnChars(px))),
+      });
+    },
+    [beginResize, commit],
+  );
+
+  const resizeRow = useCallback(
+    (event: React.PointerEvent, rowIndex: number) => {
+      const frame = frameRef.current;
+      const row = frame?.querySelector<HTMLElement>(`tr[data-row="${rowIndex}"]`);
+      beginResize(event, {
+        axis: 'y',
+        target: row ?? null,
+        startSize: row?.getBoundingClientRect().height ?? 0,
+        min: Math.round(MIN_ROW_POINTS * (96 / 72)),
+        commitSize: (px) => commit(setRowHeight(latest.current.value, rowIndex, rowPoints(px))),
+      });
+    },
+    [beginResize, commit],
+  );
+
+  /** Двойное нажатие по ручке возвращает размер «по содержимому» — как в Excel. */
+  const autoSizeColumn = useCallback((columnIndex: number) => {
+    commit(setColumnWidth(latest.current.value, columnIndex, null));
+  }, [commit]);
+
+  const autoSizeRow = useCallback((rowIndex: number) => {
+    commit(setRowHeight(latest.current.value, rowIndex, null));
+  }, [commit]);
 
   const undo = useCallback(() => {
     const previous = past.current.pop();
@@ -708,6 +828,19 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
           таблица получает свободное поле снизу, как в самом Excel, а не коробку в три строки. */}
       <div className={classes.frame} ref={frameRef} style={{ height: frameHeight ?? undefined }}>
         <table className={classes.table}>
+          {/* Ширину столбцу задаёт `colgroup`, а не ячейка: ширина у столбца одна на всю таблицу, и
+              выставлять её каждой ячейке значило бы повторять одно и то же тысячу раз. */}
+          <colgroup>
+            <col />
+            {value.columns.map((_, columnIndex) => (
+              <col
+                key={columnIndex}
+                data-column={columnIndex}
+                style={{ width: columnPx(value.widths?.[columnIndex]) ?? undefined }}
+              />
+            ))}
+            <col />
+          </colgroup>
           <thead>
             <tr>
               <th className={`${classes.numberCell} ${classes.headCell} ${classes.corner}`}>{HEADER_ROW}</th>
@@ -718,6 +851,7 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
                 return (
                   <th
                     key={columnIndex}
+                    data-column={columnIndex}
                     className={`${classes.headCell} ${selected ? classes.selected : ''}`}
                     style={fillStyle(format)}
                     // Без этого протягивание, начатое в шапке, не доходило до соседних столбцов:
@@ -800,6 +934,13 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
                         </Menu.Dropdown>
                       </Menu>
                     </Group>
+                    <span
+                      className={classes.columnGrip}
+                      onPointerDown={(event) => resizeColumn(event, columnIndex)}
+                      onDoubleClick={() => autoSizeColumn(columnIndex)}
+                      title="Потяните, чтобы изменить ширину; двойное нажатие — по содержимому"
+                      aria-hidden
+                    />
                   </th>
                 );
               })}
@@ -815,6 +956,10 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
                   cells={cells}
                   shown={shown[index + 1] ?? cells}
                   excelRow={excelRow}
+                  rowIndex={index}
+                  height={rowPx(value.heights?.[index])}
+                  onResizeRow={resizeRow}
+                  onAutoSizeRow={autoSizeRow}
                   editingColumn={editing?.row === excelRow ? editing.column : null}
                   selectedFrom={selection && excelRow >= selection.top && excelRow <= selection.bottom ? selection.left : -1}
                   selectedTo={selection && excelRow >= selection.top && excelRow <= selection.bottom ? selection.right : -1}

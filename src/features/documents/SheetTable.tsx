@@ -4,6 +4,7 @@ import { Text } from '@mantine/core';
 import { columnLetter } from '../../lib/sheet/cellRef';
 import { evaluateGrid } from '../../lib/sheet/formula';
 import { getFormat } from './sheetFormat';
+import { columnPx, rowPx } from './sheetMetrics';
 import classes from './SheetTable.module.css';
 import { buildGrid, compareCells, type SortDirection } from './sheetOps';
 import type { CellFormat, DocumentSheet } from './types';
@@ -80,6 +81,13 @@ export function SheetTable({ sheet }: { sheet: DocumentSheet | null }) {
   return (
     <div className={classes.frame} ref={frameRef} style={{ maxHeight: frameHeight ?? undefined }}>
       <table className={classes.table}>
+        {/* Ширина столбца — часть документа, а не показа: её задал врач в редакторе, и та же ширина
+            уходит в `.xlsx` и на бумагу. Просмотр обязан показывать документ таким, каков он есть. */}
+        <colgroup>
+          {sheet.columns.map((_, index) => (
+            <col key={index} style={{ width: columnPx(sheet.widths?.[index]) ?? undefined }} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             {sheet.columns.map((column, index) => (
@@ -100,7 +108,11 @@ export function SheetTable({ sheet }: { sheet: DocumentSheet | null }) {
         </thead>
         <tbody>
           {ordered.map((entry) => (
-            <tr key={entry.excelRow} className={classes.row}>
+            <tr
+              key={entry.excelRow}
+              className={classes.row}
+              style={{ height: rowPx(sheet.heights?.[entry.excelRow - 2]) ?? undefined }}
+            >
               {entry.cells.map((cell, columnIndex) => (
                 <td key={columnIndex} className={classes.cell} style={cellStyle(getFormat(formats, entry.excelRow, columnIndex))}>
                   {cell}
