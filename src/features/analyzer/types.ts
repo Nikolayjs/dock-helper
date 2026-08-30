@@ -45,13 +45,25 @@ export interface LabParameter {
   derivedNote?: string;
 }
 
+/**
+ * Про кого анализ — то, что известно о пациенте помимо самих значений.
+ *
+ * Пол уже влияет на нормы, но норма отвечает на вопрос «нормальное ли это число», а правило — на
+ * другой: «относится ли это заключение к этому пациенту». Ферритин ниже нормы у женщины и у мужчины
+ * читается по-разному, и правилу нужен способ это сказать.
+ */
+export interface PatternContext {
+  sex: Sex;
+  age?: number;
+}
+
 export interface PatternRule {
   id: string;
   title: string;
   severity: Severity;
   description?: string;
   causes: string[];
-  match: (statuses: Record<string, ParamStatus>, values: Record<string, number>) => boolean;
+  match: (statuses: Record<string, ParamStatus>, values: Record<string, number>, context: PatternContext) => boolean;
 }
 
 export interface LabTestDefinition {

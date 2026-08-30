@@ -1,7 +1,7 @@
 import { ActionIcon, Alert, Card, Grid, Group, Select, SegmentedControl, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
 import { IconGripVertical, IconLock, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
 
-import type { ParamStatus, Severity } from '../types';
+import type { ParamStatus, Severity, Sex } from '../types';
 import type { CustomPatternRule, PatternCondition } from '../customTypes';
 
 export interface DraftPatternRule extends CustomPatternRule {
@@ -34,8 +34,38 @@ const STATUS_OPTIONS = [
   { value: 'high', label: 'Повышен' },
 ];
 
+const SEX_OPTIONS = [
+  { value: 'female', label: 'Женский' },
+  { value: 'male', label: 'Мужской' },
+];
+
+/**
+ * Значение первого списка, означающее «условие про пациента, а не про показатель».
+ *
+ * Живёт только в этом списке: в правило уходит отдельный вид условия, а не показатель с особым
+ * ключом. Совпадение с настоящим ключом поэтому ничего не ломает — сравнивается вид условия.
+ */
+const SEX_ITEM = '__patient-sex__';
+
 function emptyCondition(paramOptions: ParamOption[]): PatternCondition {
-  return { id: crypto.randomUUID(), paramKey: paramOptions[0]?.key ?? '', status: 'high' };
+  return { id: crypto.randomUUID(), kind: 'param', paramKey: paramOptions[0]?.key ?? '', status: 'high' };
+}
+
+/**
+ * Смена того, о чём условие: показатель <-> пол пациента.
+ *
+ * Вид условия меняется целиком, а не подменой одного поля: у условия про пол нет ни показателя, ни
+ * статуса, и оставлять их «на всякий случай» значило бы хранить рядом с правилом данные, которых в
+ * нём нет. Отрицание переносится — оно про само условие, а не про его предмет.
+ */
+function switchSubject(condition: PatternCondition, value: string | null): PatternCondition {
+  if (value === SEX_ITEM) {
+    return condition.kind === 'sex' ? condition : { id: condition.id, kind: 'sex', sex: 'female', negate: condition.negate };
+  }
+  if (value === null) return condition;
+  return condition.kind === 'param'
+    ? { ...condition, paramKey: value }
+    : { id: condition.id, kind: 'param', paramKey: value, status: 'high', negate: condition.negate };
 }
 
 export function PatternRuleEditorRow({ rule, paramOptions, lockedSummary, onChange, onRemove }: PatternRuleEditorRowProps) {
@@ -126,23 +156,44 @@ export function PatternRuleEditorRow({ rule, paramOptions, lockedSummary, onChan
                     <Select
                       style={{ flex: 1 }}
                       size="sm"
-                      data={paramOptions.map((p) => ({ value: p.key, label: p.label || p.key }))}
-                      value={condition.paramKey}
-                      onChange={(v) => updateCondition(index, { ...condition, paramKey: v ?? condition.paramKey })}
+                      data={[
+                        { group: 'Пациент', items: [{ value: SEX_ITEM, label: 'Пол пациента' }] },
+                        {
+                          group: 'Показатели',
+                          items: paramOptions.map((p) => ({ value: p.key, label: p.label || p.key })),
+                        },
+                      ]}
+                      value={condition.kind === 'sex' ? SEX_ITEM : condition.paramKey}
+                      onChange={(v) => updateCondition(index, switchSubject(condition, v))}
                       placeholder="Показатель"
                     />
-                    <Select
-                      size="sm"
-                      w={150}
-                      data={STATUS_OPTIONS}
-                      value={condition.status}
-                      allowDeselect={false}
-                      onChange={(v) => updateCondition(index, { ...condition, status: (v as ParamStatus) ?? 'high' })}
-                    />
+                    {condition.kind === 'sex' ? (
+                      <Select
+                        size="sm"
+                        w={150}
+                        data={SEX_OPTIONS}
+                        value={condition.sex}
+                        allowDeselect={false}
+                        onChange={(v) => updateCondition(index, { ...condition, sex: (v as Sex) ?? 'female' })}
+                      />
+                    ) : (
+                      <Select
+                        size="sm"
+                        w={150}
+                        data={STATUS_OPTIONS}
+                        value={condition.status}
+                        allowDeselect={false}
+                        onChange={(v) => updateCondition(index, { ...condition, status: (v as ParamStatus) ?? 'high' })}
+                      />
+                    )}
                     <Switch
                       size="sm"
                       label="не"
-                      title="Условие срабатывает, когда показатель НЕ в этом статусе"
+                      title={
+                        condition.kind === 'sex'
+                          ? 'Условие срабатывает, когда пол пациента ДРУГОЙ'
+                          : 'Условие срабатывает, когда показатель НЕ в этом статусе'
+                      }
                       checked={condition.negate ?? false}
                       onChange={(e) => updateCondition(index, { ...condition, negate: e.currentTarget.checked })}
                     />

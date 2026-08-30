@@ -145,8 +145,15 @@ export function AnalyzerBuilderPage() {
         if (rule.conditions.length === 0) {
           list.push(`У правила «${rule.title || 'без названия'}» нет условий срабатывания.`);
         } else {
-          const unknown = rule.conditions.filter((c) => !paramKeys.includes(c.paramKey));
+          const unknown = rule.conditions.filter((c) => c.kind === 'param' && !paramKeys.includes(c.paramKey));
           if (unknown.length > 0) list.push(`Правило «${rule.title || 'без названия'}» ссылается на несуществующий показатель.`);
+          // Правило из одних условий о пациенте не смотрит на анализ вовсе: оно сработает на каждом
+          // анализе подходящего пола — то есть заключение появится там, где его ничем не подтвердили.
+          if (rule.conditions.every((c) => c.kind === 'sex')) {
+            list.push(
+              `Правило «${rule.title || 'без названия'}» состоит только из условий о пациенте: добавьте хотя бы один показатель, иначе оно сработает на любом анализе.`,
+            );
+          }
         }
       }
     }

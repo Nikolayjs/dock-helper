@@ -72,7 +72,7 @@ export function analyzeTest(
     if (Object.keys(numericValues).length === before) break;
   }
 
-  const matchedPatterns = test.patterns.filter((pattern) => pattern.match(statuses, numericValues));
+  const matchedPatterns = test.patterns.filter((pattern) => pattern.match(statuses, numericValues, { sex, age }));
 
   // О подстановке говорится только тогда, когда она на что-то влияет: если ни один заполненный
   // показатель не зависит от возраста, сообщение было бы шумом.

@@ -1,5 +1,14 @@
 import { evaluateFormula } from '../../lib/formulaEngine';
-import type { AgeBand, LabParameter, LabTestDefinition, ParamStatus, PatternRule, Severity } from './types';
+import type {
+  AgeBand,
+  LabParameter,
+  LabTestDefinition,
+  ParamStatus,
+  PatternContext,
+  PatternRule,
+  Severity,
+  Sex,
+} from './types';
 
 // ---------------------------------------------------------------------------
 // Backend-mirroring types — what dock-helper-api's /custom-lab-tests actually
@@ -55,6 +64,15 @@ export interface BackendLabParameter {
 
 export type PatternNode =
   | { type: 'condition'; paramKey: string; status: ParamStatus; negate?: boolean }
+  /**
+   * Пол пациента отдельным условием.
+   *
+   * Норма отвечает на вопрос «нормальное ли это число» — и на него пол уже влияет через `SexRange`.
+   * Правило отвечает на другой: «относится ли это заключение к этому пациенту». Ферритин ниже нормы
+   * у женщины и у мужчины — разные разговоры, и без такого узла одно правило пришлось бы писать за
+   * два и оба формулировать обтекаемо.
+   */
+  | { type: 'sex'; sex: Sex; negate?: boolean }
   | { type: 'group'; operator: 'and' | 'or'; children: PatternNode[] };
 
 export interface BackendPatternRule {
@@ -133,12 +151,15 @@ export interface CustomLabParameter {
 
 export type PatternOperator = 'and' | 'or';
 
-export interface PatternCondition {
-  id: string;
-  paramKey: string;
-  status: ParamStatus;
-  negate?: boolean;
-}
+/**
+ * Условие в плоском редакторе — про показатель или про самого пациента.
+ *
+ * Разные виды, а не одно поле с особым значением `paramKey`: показатель с таким ключом рано или
+ * поздно завёл бы кто-нибудь, и различать их стало бы нечем.
+ */
+export type PatternCondition =
+  | { id: string; kind: 'param'; paramKey: string; status: ParamStatus; negate?: boolean }
+  | { id: string; kind: 'sex'; sex: Sex; negate?: boolean };
 
 export interface CustomPatternRule {
   id: string;
@@ -166,7 +187,11 @@ export interface LabTestDraft {
 // Runtime engine mapper — backend shape -> the closures analyzerEngine.ts consumes.
 // ---------------------------------------------------------------------------
 
-function evalPatternNode(node: PatternNode, statuses: Record<string, ParamStatus>): boolean {
+function evalPatternNode(
+  node: PatternNode,
+  statuses: Record<string, ParamStatus>,
+  context: PatternContext,
+): boolean {
   if (node.type === 'condition') {
     // Незаполненный показатель не выполняет условие ни в каком виде, **в том числе с отрицанием**.
     // Иначе «гемоглобин не в норме» срабатывало на анализе, где гемоглобина нет вовсе: отсутствие
@@ -176,9 +201,15 @@ function evalPatternNode(node: PatternNode, statuses: Record<string, ParamStatus
     const result = actual === node.status;
     return node.negate ? !result : result;
   }
+  if (node.type === 'sex') {
+    // Пол известен всегда: на странице стоит переключатель, и по нему же берутся нормы. Поэтому
+    // здесь нет ветки «не указан» — в отличие от показателя, которого может не быть в анализе.
+    const result = context.sex === node.sex;
+    return node.negate ? !result : result;
+  }
   return node.operator === 'and'
-    ? node.children.every((child) => evalPatternNode(child, statuses))
-    : node.children.some((child) => evalPatternNode(child, statuses));
+    ? node.children.every((child) => evalPatternNode(child, statuses, context))
+    : node.children.some((child) => evalPatternNode(child, statuses, context));
 }
 
 function toEngineRange(param: BackendLabParameter): LabParameter['range'] {
@@ -231,7 +262,7 @@ export function toLabTestDefinition(test: BackendLabTest): LabTestDefinition {
       severity: rule.severity,
       description: rule.description,
       causes: rule.causes,
-      match: (statuses) => evalPatternNode(rule.root, statuses),
+      match: (statuses, _values, context) => evalPatternNode(rule.root, statuses, context),
     })),
   };
 }
@@ -251,29 +282,40 @@ function isFlatParameterRange(param: BackendLabParameter): boolean {
   return isFlatRangeValue(param.range);
 }
 
+/** Плоское — это одно условие или группа, внутри которой нет вложенных групп. */
 function isFlatPatternRoot(node: PatternNode): boolean {
-  return node.type === 'condition' || node.children.every((child) => child.type === 'condition');
+  return node.type !== 'group' || node.children.every((child) => child.type !== 'group');
+}
+
+type LeafNode = Exclude<PatternNode, { type: 'group' }>;
+
+function toDraftCondition(node: LeafNode): PatternCondition {
+  return node.type === 'sex'
+    ? { id: crypto.randomUUID(), kind: 'sex', sex: node.sex, negate: node.negate }
+    : { id: crypto.randomUUID(), kind: 'param', paramKey: node.paramKey, status: node.status, negate: node.negate };
+}
+
+function toLeafNode(condition: PatternCondition): PatternNode {
+  return condition.kind === 'sex'
+    ? { type: 'sex', sex: condition.sex, negate: condition.negate || undefined }
+    : {
+        type: 'condition',
+        paramKey: condition.paramKey,
+        status: condition.status,
+        negate: condition.negate || undefined,
+      };
 }
 
 function flattenPatternRoot(root: PatternNode): { operator: PatternOperator; conditions: PatternCondition[] } {
-  if (root.type === 'condition') {
-    return { operator: 'and', conditions: [{ id: crypto.randomUUID(), paramKey: root.paramKey, status: root.status, negate: root.negate }] };
-  }
+  if (root.type !== 'group') return { operator: 'and', conditions: [toDraftCondition(root)] };
   return {
     operator: root.operator,
-    conditions: root.children.map((child) => {
-      const condition = child as Extract<PatternNode, { type: 'condition' }>;
-      return { id: crypto.randomUUID(), paramKey: condition.paramKey, status: condition.status, negate: condition.negate };
-    }),
+    conditions: root.children.map((child) => toDraftCondition(child as LeafNode)),
   };
 }
 
 function buildPatternRoot(operator: PatternOperator, conditions: PatternCondition[]): PatternNode {
-  return {
-    type: 'group',
-    operator,
-    children: conditions.map((c) => ({ type: 'condition', paramKey: c.paramKey, status: c.status, negate: c.negate || undefined })),
-  };
+  return { type: 'group', operator, children: conditions.map(toLeafNode) };
 }
 
 function hydrateParameter(param: BackendLabParameter): CustomLabParameter {
@@ -431,9 +473,15 @@ export function describeLockedParamRange(param: CustomLabParameter): string {
 
 const STATUS_TEXT: Record<ParamStatus, string> = { low: 'ниже нормы', normal: 'в норме', high: 'выше нормы' };
 
+export const SEX_TEXT: Record<Sex, string> = { male: 'мужской', female: 'женский' };
+
 export function describePatternNode(node: PatternNode, paramLabel: (key: string) => string): string {
   if (node.type === 'condition') {
     const text = `${paramLabel(node.paramKey)} ${STATUS_TEXT[node.status]}`;
+    return node.negate ? `НЕ (${text})` : text;
+  }
+  if (node.type === 'sex') {
+    const text = `пол ${SEX_TEXT[node.sex]}`;
     return node.negate ? `НЕ (${text})` : text;
   }
   const joiner = node.operator === 'and' ? ' И ' : ' ИЛИ ';
