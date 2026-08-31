@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ActionIcon, Badge, Box, Button, Group, Select, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconChevronRight, IconEdit, IconPlus, IconSearch, IconTrash, IconX } from '@tabler/icons-react';
+import { IconChevronRight, IconEdit, IconNotesOff, IconPlus, IconSearch, IconTrash, IconX } from '@tabler/icons-react';
 
 import { DataTable } from '../../components/common/DataTable';
 import type { DataColumn } from '../../components/common/DataTable';
@@ -51,6 +51,14 @@ export function DiseasesCatalog({ onOpen, onEdit }: Props) {
 
   const [search, setSearch] = useState('');
   const [section, setSection] = useState<string>(ALL_SECTIONS);
+  /*
+   * «Только без описания» — рабочий отбор, а не украшение.
+   *
+   * Справочник заполняется постепенно, и главный вопрос заполняющего — что ещё не написано. Без
+   * этого его пришлось бы искать, открывая карточки подряд. Признак приходит в самом списке
+   * (`hasDescription`): текста в нём нет, а знание о том, есть ли он, — есть.
+   */
+  const [onlyEmpty, setOnlyEmpty] = useState(false);
   const isNarrow = useMediaQuery('(max-width: 62em)');
   const { sort, toggle } = useTableSort<SortKey>(
     { key: 'name', direction: 'asc' },
@@ -66,8 +74,13 @@ export function DiseasesCatalog({ onOpen, onEdit }: Props) {
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return diseases.filter((row) => (section === ALL_SECTIONS || sectionOf(row) === section) && matches(row, query));
-  }, [diseases, search, section]);
+    return diseases.filter(
+      (row) =>
+        (section === ALL_SECTIONS || sectionOf(row) === section) &&
+        (!onlyEmpty || !row.hasDescription) &&
+        matches(row, query),
+    );
+  }, [diseases, search, section, onlyEmpty]);
 
   const sorted = useMemo(
     () =>
@@ -77,7 +90,7 @@ export function DiseasesCatalog({ onOpen, onEdit }: Props) {
     [filtered, sort],
   );
 
-  const isFiltering = search.trim() !== '' || section !== ALL_SECTIONS;
+  const isFiltering = search.trim() !== '' || section !== ALL_SECTIONS || onlyEmpty;
 
   // Правка и добавление живут на своей странице: у описания полноценный редактор, и в окне ему
   // тесно ровно настолько, насколько длинный текст не помещается в окно.
@@ -187,6 +200,13 @@ export function DiseasesCatalog({ onOpen, onEdit }: Props) {
               allowDeselect={false}
               w={280}
             />
+            <Button
+              variant={onlyEmpty ? 'filled' : 'default'}
+              leftSection={<IconNotesOff size={18} />}
+              onClick={() => setOnlyEmpty((prev) => !prev)}
+            >
+              Без описания ({diseases.filter((row) => !row.hasDescription).length})
+            </Button>
             <Button leftSection={<IconPlus size={18} />} onClick={openNew}>
               Добавить
             </Button>
