@@ -86,9 +86,11 @@ function summarize(parameter: DraftParameter): string {
     if (parameter.unit) parts.push(parameter.unit);
     if (parameter.ageBands?.length) parts.push('норма по возрасту');
     else if (parameter.bySex) parts.push('норма по полу');
-    else if (parameter.min !== undefined || parameter.max !== undefined) {
-      parts.push(`норма ${parameter.min ?? '…'}–${parameter.max ?? '…'}`);
-    }
+    else if (parameter.min !== undefined && parameter.max !== undefined) parts.push(`норма ${parameter.min}–${parameter.max}`);
+    // Односторонняя норма пишется словом, а не многоточием: «норма …–0» читается как ошибка, тогда
+    // как «норма до 0» — обычное дело для показателя, которого в норме быть не должно.
+    else if (parameter.max !== undefined) parts.push(`норма до ${parameter.max}`);
+    else if (parameter.min !== undefined) parts.push(`норма от ${parameter.min}`);
   }
   return parts.join(' · ');
 }

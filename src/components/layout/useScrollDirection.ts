@@ -14,6 +14,14 @@ export interface ScrollState {
   visible: boolean;
   /** Ушли ли от верха настолько, что кнопке «наверх» есть что делать. */
   scrolled: boolean;
+  /**
+   * Докрутили до самого низа.
+   *
+   * Нужен панели действий формы: она прячется при листании вниз, но в конце страницы обязана быть
+   * на месте — там врач и жмёт «Сохранить», и требовать ради этого движения вверх значило бы
+   * прятать кнопку ровно в тот момент, когда за ней тянутся.
+   */
+  atBottom: boolean;
 }
 
 /**
@@ -43,7 +51,7 @@ export interface ScrollState {
  * всё листание.
  */
 export function useScrollDirection(target?: HTMLElement | null): ScrollState {
-  const [state, setState] = useState<ScrollState>({ visible: true, scrolled: false });
+  const [state, setState] = useState<ScrollState>({ visible: true, scrolled: false, atBottom: false });
   const lastY = useRef(0);
 
   useEffect(() => {
@@ -66,7 +74,11 @@ export function useScrollDirection(target?: HTMLElement | null): ScrollState {
         const visible = y <= TOP_ZONE ? true : Math.abs(delta) < MOVE_THRESHOLD ? previous.visible : delta < 0;
         if (Math.abs(delta) >= MOVE_THRESHOLD) lastY.current = y;
         const scrolled = y > BACK_TO_TOP_AT;
-        return previous.visible === visible && previous.scrolled === scrolled ? previous : { visible, scrolled };
+        // Допуск в 2 px: дробные высоты при масштабе окна не 100 % иначе не дают равенства никогда.
+        const atBottom = y + el.clientHeight >= el.scrollHeight - 2;
+        return previous.visible === visible && previous.scrolled === scrolled && previous.atBottom === atBottom
+          ? previous
+          : { visible, scrolled, atBottom };
       });
     };
 
