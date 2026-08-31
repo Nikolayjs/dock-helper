@@ -82,7 +82,15 @@ for (const page of PUBLIC_PAGES) {
   // поломка, ради которой он и заводился, и заметить её потом можно только через `curl` на проде.
   if (markup.length < 500) throw new Error(`${page.path}: разметка вышла пустой (${markup.length} байт)`);
 
-  const canonical = `${SITE_ORIGIN}${page.path === '/' ? '/' : page.path}`;
+  /*
+   * Канонический адрес — тот, который сервер и отдаёт, то есть **со слэшем на конце**.
+   *
+   * Страница лежит файлом `pricing/index.html`, и express на `/pricing` отвечает 301 на
+   * `/pricing/`. Канонический без слэша указывал на адрес, который перенаправляет на саму эту
+   * страницу: круг, в котором ни один из двух адресов не назван главным. Для краулера это ровно то
+   * же, что не назвать канонический вовсе.
+   */
+  const canonical = `${SITE_ORIGIN}${page.path === '/' ? '/' : `${page.path}/`}`;
   const head = [
     `<title>${escapeAttribute(page.title)}</title>`,
     `<meta name="description" content="${escapeAttribute(page.description)}" />`,
