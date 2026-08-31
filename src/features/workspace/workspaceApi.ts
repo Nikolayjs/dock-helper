@@ -6,6 +6,8 @@ export interface WorkspaceMember {
   role: string;
   username: string;
   avatarDataUrl: string | null;
+  /** Владелец пространства — тот, кто его завёл. Отмечен в списке: у него и спрашивают общее. */
+  accessRole: 'owner' | 'member';
 }
 
 export function getMembers(): Promise<WorkspaceMember[]> {

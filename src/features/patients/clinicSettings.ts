@@ -13,14 +13,12 @@ import { DEMO_CLINIC } from '../demo/demoDoctor';
 import { isDemoSession } from '../demo/demoSession';
 
 export interface ClinicSettings {
-  specialty: string;
   clinicName: string;
   clinicAddress: string;
   licenseNumber: string;
 }
 
 const DEFAULT_SETTINGS: ClinicSettings = {
-  specialty: '',
   clinicName: '',
   clinicAddress: '',
   licenseNumber: '',
@@ -35,7 +33,7 @@ function authHeaders(): HeadersInit | undefined {
 
 /** The backend's response is entity-shaped (`id`, `updatedAt`) — narrow it so the cache (and a later save built from it) never carries fields `UpdateClinicSettingsDto` would reject. */
 function pick(raw: ClinicSettings): ClinicSettings {
-  return { specialty: raw.specialty, clinicName: raw.clinicName, clinicAddress: raw.clinicAddress, licenseNumber: raw.licenseNumber };
+  return { clinicName: raw.clinicName, clinicAddress: raw.clinicAddress, licenseNumber: raw.licenseNumber };
 }
 
 export function getClinicSettings(): ClinicSettings {

@@ -119,7 +119,14 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
   // отдать ему ошибку значило бы сломать доски там, где ничего серверного не происходит.
   if (pathname === '/workspace/members') {
     return [
-      { id: DEMO_DOCTOR.id, name: DEMO_DOCTOR.name, role: DEMO_DOCTOR.role, username: DEMO_DOCTOR.username, avatarDataUrl: null },
+      {
+        id: DEMO_DOCTOR.id,
+        name: DEMO_DOCTOR.name,
+        role: DEMO_DOCTOR.role,
+        username: DEMO_DOCTOR.username,
+        avatarDataUrl: null,
+        accessRole: DEMO_DOCTOR.accessRole,
+      },
     ] as T;
   }
 

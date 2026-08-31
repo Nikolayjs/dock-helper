@@ -25,6 +25,7 @@ export function TemplateDocument({ template, patient, visit, copiesOverride }: T
     patient,
     visit,
     doctorName: user.name,
+    doctorRole: user.role,
     clinicSettings: getClinicSettings(),
   };
 

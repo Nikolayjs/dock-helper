@@ -29,6 +29,8 @@ export interface TemplateContext {
   patient: Patient;
   visit: PatientVisit;
   doctorName: string;
+  /** Должность врача — она же печатается как его специализация. */
+  doctorRole: string;
   clinicSettings: ClinicSettings;
 }
 
@@ -87,7 +89,17 @@ export const PLACEHOLDERS: PlaceholderDef[] = [
   },
   { token: '{{referralDestination}}', label: 'Куда направлен', resolve: (ctx) => ctx.visit.referralDestination || EMPTY },
   { token: '{{doctorName}}', label: 'Врач', resolve: (ctx) => ctx.doctorName || EMPTY },
-  { token: '{{specialty}}', label: 'Специализация врача', resolve: (ctx) => ctx.clinicSettings.specialty || EMPTY },
+  {
+    token: '{{specialty}}',
+    label: 'Должность врача',
+    /**
+     * Берётся у **врача**, а не из общих реквизитов, и это исправленная ошибка.
+     *
+     * Специализация лежала одна на всё рабочее пространство: у второго врача в документе стояла
+     * чужая. Должность же врач пишет себе сам — там ей и место, рядом с именем и подписью.
+     */
+    resolve: (ctx) => ctx.doctorRole || EMPTY,
+  },
   { token: '{{clinicName}}', label: 'Название клиники', resolve: (ctx) => ctx.clinicSettings.clinicName || EMPTY },
   { token: '{{clinicAddress}}', label: 'Адрес клиники', resolve: (ctx) => ctx.clinicSettings.clinicAddress || EMPTY },
   { token: '{{licenseNumber}}', label: 'Номер лицензии', resolve: (ctx) => ctx.clinicSettings.licenseNumber || EMPTY },

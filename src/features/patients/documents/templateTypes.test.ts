@@ -22,6 +22,7 @@ const context = (overrides: Partial<TemplateContext> = {}): TemplateContext => (
   patient: { ...SAMPLE_PATIENT, fullName: 'Иванов <b>Иван</b> Иванович' },
   visit: SAMPLE_VISIT,
   doctorName: 'Петров П. П.',
+  doctorRole: 'врач-терапевт',
   clinicSettings: {
     clinicName: 'Клиника «Здоровье» & Ко',
     clinicAddress: '',

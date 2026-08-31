@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import {
   ActionIcon,
+  Alert,
   Avatar,
+  Badge,
   Box,
   Button,
   Card,
@@ -77,6 +79,11 @@ export function DoctorPage() {
   const logout = useLogout();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const { hasCustomOrder, resetOrder } = useSidebarOrder();
+  /**
+   * Общее меняет только владелец: реквизиты печатаются на документах всех врачей, а приглашение
+   * открывает чужому человеку доступ к записям пациентов. Здесь это лишь вид — запрещает сервер.
+   */
+  const isOwner = user.accessRole === 'owner';
   const [clinicSettings, setClinicSettingsState] = useState<ClinicSettings>(() => getClinicSettings());
 
   const [name, setName] = useState(user.name);
@@ -218,7 +225,13 @@ export function DoctorPage() {
 
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" style={{ flex: 1, minWidth: 240 }}>
               <TextInput label="Имя" value={name} onChange={(e) => setName(e.currentTarget.value)} onBlur={handleNameRoleBlur} />
-              <TextInput label="Должность" value={role} onChange={(e) => setRole(e.currentTarget.value)} onBlur={handleNameRoleBlur} />
+              <TextInput
+                label="Должность"
+                description="Печатается в документах под вашей подписью"
+                value={role}
+                onChange={(e) => setRole(e.currentTarget.value)}
+                onBlur={handleNameRoleBlur}
+              />
               {/* Специальность — не то же, что должность. Должность врач пишет себе сам, и она
                   печатается в документах; специальность выбирается из списка, потому что по ней
                   отбираются справочники, а свободный текст отобрать нечем. */}
@@ -302,22 +315,24 @@ export function DoctorPage() {
           </Group>
           <Text size="sm" c="dimmed" mb="lg">
             Эти данные подставляются в шапку и подпись печатных документов — справок и направлений.
+            Они общие для всего рабочего пространства.
           </Text>
 
+          {!isOwner && (
+            <Alert variant="light" color="gray" mb="md">
+              Реквизиты одни на всё рабочее пространство, и меняет их владелец. Ваши собственные
+              данные — имя, должность и подпись — в карточке выше, и они у каждого врача свои.
+            </Alert>
+          )}
+
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-            <TextInput
-              label="Специализация"
-              placeholder="Терапевт"
-              value={clinicSettings.specialty}
-              onChange={(e) => handleClinicFieldChange('specialty', e.currentTarget.value)}
-              onBlur={handleClinicFieldBlur}
-            />
             <TextInput
               label="Номер лицензии"
               placeholder="ЛО-00-00-000000"
               value={clinicSettings.licenseNumber}
               onChange={(e) => handleClinicFieldChange('licenseNumber', e.currentTarget.value)}
               onBlur={handleClinicFieldBlur}
+              disabled={!isOwner}
             />
             <TextInput
               label="Название клиники"
@@ -325,6 +340,7 @@ export function DoctorPage() {
               value={clinicSettings.clinicName}
               onChange={(e) => handleClinicFieldChange('clinicName', e.currentTarget.value)}
               onBlur={handleClinicFieldBlur}
+              disabled={!isOwner}
             />
             <TextInput
               label="Адрес клиники"
@@ -332,6 +348,7 @@ export function DoctorPage() {
               value={clinicSettings.clinicAddress}
               onChange={(e) => handleClinicFieldChange('clinicAddress', e.currentTarget.value)}
               onBlur={handleClinicFieldBlur}
+              disabled={!isOwner}
             />
           </SimpleGrid>
 
@@ -438,9 +455,17 @@ export function DoctorPage() {
                     {getInitials(member.name)}
                   </Avatar>
                   <Box>
-                    <Text size="sm" fw={600}>
-                      {member.name}
-                    </Text>
+                    <Group gap={6} wrap="nowrap">
+                      <Text size="sm" fw={600}>
+                        {member.name}
+                      </Text>
+                      {/* Владелец назван вслух: иначе непонятно, у кого просить правку реквизитов. */}
+                      {member.accessRole === 'owner' && (
+                        <Badge size="xs" variant="light" color="brand">
+                          Владелец
+                        </Badge>
+                      )}
+                    </Group>
                     <Text size="xs" c="dimmed">
                       {member.username} · {member.role}
                     </Text>
@@ -454,6 +479,10 @@ export function DoctorPage() {
             <Text size="sm" c="dimmed">
               В демо-режиме рабочее пространство одно и состоит из вас: приглашать некого, аккаунтов
               здесь нет.
+            </Text>
+          ) : !isOwner ? (
+            <Text size="sm" c="dimmed">
+              Приглашать врачей в рабочее пространство может его владелец — он отмечен в списке выше.
             </Text>
           ) : (
             <>

@@ -7,7 +7,9 @@ import { getClinicSettings } from '../clinicSettings';
 /** Issue date, doctor identity and a blank signature line — shared footer for every printed document. */
 export function DocumentSignature() {
   const user = useAuth();
-  const { specialty, licenseNumber } = getClinicSettings();
+  const { licenseNumber } = getClinicSettings();
+  // Должность берётся у самого врача: общая специализация в реквизитах у второго врача была чужой.
+  const specialty = user.role;
 
   return (
     <Stack gap="xs" mt={60}>
