@@ -22,7 +22,7 @@ export function LandingFooter() {
           </Stack>
           <Group gap="lg" wrap="wrap">
             <Anchor component={Link} to="/legal/offer" size="sm" c="dimmed" underline="never">
-              Оферта
+              Условия использования
             </Anchor>
             <Anchor component={Link} to="/legal/privacy" size="sm" c="dimmed" underline="never">
               Обработка персональных данных

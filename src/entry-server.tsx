@@ -36,7 +36,7 @@ export const PUBLIC_PAGES = [
   },
   {
     path: '/legal/offer',
-    title: 'Публичная оферта — MedAssist',
+    title: 'Условия использования — MedAssist',
     description: 'Условия использования MedAssist.',
   },
   {
