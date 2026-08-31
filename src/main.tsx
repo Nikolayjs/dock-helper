@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { isAppPath } from './lib/appBase';
+import { registerServiceWorker } from './lib/pushNotifications';
 import { listenForStaleChunks } from './lib/staleChunkReload';
 
 /**
@@ -18,6 +19,10 @@ import { listenForStaleChunks } from './lib/staleChunkReload';
 // Ставится до монтирования: страницы грузятся лениво, и первый же переход во вкладке, пережившей
 // деплой, может попросить файл, которого больше нет.
 listenForStaleChunks();
+
+// Фоновый обработчик: он нужен и для уведомлений при закрытом приложении, и для установки на
+// устройство. Регистрируется после монтирования и ничего не ждёт — приложение полно и без него.
+void registerServiceWorker();
 
 const root = createRoot(document.getElementById('root')!);
 

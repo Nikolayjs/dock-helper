@@ -267,6 +267,10 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     return Object.fromEntries(DEMO_ICD10.filter((entry) => codes.has(entry.code)).map((entry) => [entry.code, entry.name])) as T;
   }
 
+  // Push-уведомления шлёт сервер, а демо работает без него. Отвечаем честным «не настроено»:
+  // переключатель тогда не показывается вовсе и ничего не обещает.
+  if (pathname === '/push/public-key') return { publicKey: null } as T;
+
   if (pathname === '/news-feed-sources/archive-settings') {
     const settings = { enabled: false, retentionDays: 30 };
     return (method === 'GET' ? settings : { ...settings, ...payload }) as T;
