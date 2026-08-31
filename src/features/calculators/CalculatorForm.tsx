@@ -197,6 +197,16 @@ export function CalculatorForm({ definition, onAddPreset, initialValues, cleared
           </Group>
         </Group>
 
+        {/* Что число значит и меняет ли оно что-нибудь.
+            Без этой строки плашка сообщала только цифру и ярлык — «Умеренная депрессия, 12», — а
+            цифру врач и так видит. Стоит под результатом, а не в подсказке: читать её нужно вместе
+            с числом, а не наводя на что-то мышь. */}
+        {matchedRange?.note && !error && result !== null && (
+          <Text size="sm" c="dimmed" mt="sm">
+            {matchedRange.note}
+          </Text>
+        )}
+
         {/* Записать можно только посчитанное: кнопка при пустом результате обещала бы то, чего нет. */}
         {onSaveResult && result !== null && !error && (
           <Group justify="flex-end" mt="md">
