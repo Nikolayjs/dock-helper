@@ -25,6 +25,7 @@ import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext'
 import { observationsWarning, visitsWarning } from '../features/patients/deleteWarnings';
 import { CatalogPanel } from '../components/common/CatalogPanel';
 import { QueryState } from '../components/common/QueryState';
+import { readSetting, writeSetting } from '../lib/settingsStore';
 
 const DISCLAIMER_KEY = 'medassist:patients-disclaimer-dismissed';
 
@@ -55,10 +56,10 @@ export function PatientsPage() {
   // Окно снимается не по закрытию, а никогда: иначе Mantine нечего показывать во время
   // анимации ухода, и окно исчезало бы рывком.
   const [importMounted, setImportMounted] = useState(false);
-  const [disclaimerDismissed, setDisclaimerDismissed] = useState(() => localStorage.getItem(DISCLAIMER_KEY) === '1');
+  const [disclaimerDismissed, setDisclaimerDismissed] = useState(() => readSetting(DISCLAIMER_KEY) === '1');
 
   const dismissDisclaimer = () => {
-    localStorage.setItem(DISCLAIMER_KEY, '1');
+    writeSetting(DISCLAIMER_KEY, '1');
     setDisclaimerDismissed(true);
   };
 

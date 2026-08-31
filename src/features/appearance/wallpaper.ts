@@ -1,3 +1,5 @@
+import { readSetting, writeSetting } from '../../lib/settingsStore';
+
 /**
  * Обои рабочей области и палитра, которую они задают.
  *
@@ -116,7 +118,7 @@ function isWallpaper(value: unknown): value is Wallpaper {
 
 export function readAppearance(): AppearanceSettings {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readSetting(STORAGE_KEY);
     if (!raw) return DEFAULT_APPEARANCE;
     const parsed = JSON.parse(raw) as Partial<AppearanceSettings>;
     return {
@@ -133,7 +135,7 @@ export class WallpaperTooLargeError extends Error {}
 
 export function writeAppearance(settings: AppearanceSettings): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    writeSetting(STORAGE_KEY, JSON.stringify(settings));
   } catch {
     // Место в хранилище кончилось. Молчать нельзя: врач выбрал обои, а они не сохранились.
     throw new WallpaperTooLargeError('Не хватило места в хранилище браузера. Попробуйте картинку поменьше.');

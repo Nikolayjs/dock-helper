@@ -8,6 +8,7 @@ import { loadClinicSettings } from '../patients/clinicSettings';
 import { me } from './authApi';
 import { clearStoredToken, readStoredToken, storeToken } from './session';
 import type { AuthUser } from './types';
+import { pullSettings, stopSettingsSync } from '../../lib/settingsStore';
 
 const AuthContext = createContext<AuthUser | null>(null);
 const AuthUpdaterContext = createContext<((user: AuthUser) => void) | null>(null);
@@ -45,10 +46,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    *
    * Clinic settings are awaited *before* the user is published on purpose: components that print
    * a letterhead read them synchronously during render (`DocumentLetterhead`,
-   * `DocumentSignature`, `TemplateDocument`), so they must be in place before anything mounts. */
+   * `DocumentSignature`, `TemplateDocument`), so they must be in place before anything mounts.
+   *
+   * Личные настройки ждём по той же причине и в том же месте. Раскладку дашборда, порядок меню и
+   * сортировки читают синхронно в рендере — придя позже, они переложили бы дашборд у врача на
+   * глазах. Промах здесь стоит доли секунды на входе; промах в другую сторону виден каждый раз. */
   const finishLogin = async (token: string, user: AuthUser) => {
     storeToken(token);
-    await loadClinicSettings();
+    await Promise.all([loadClinicSettings(), pullSettings()]);
     setUser(user);
   };
 
@@ -97,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setSessionExpiredHandler(() => {
       clearStoredToken();
+      stopSettingsSync();
       setUser(null);
       goToLogin();
     });
@@ -111,6 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     clearStoredToken();
+    // Отправку настроек гасим до перехода: накопленное принадлежало тому, кто вышел.
+    stopSettingsSync();
     setUser(null);
     // The public site and the application are two routers; crossing between them is a page load.
     window.location.assign('/login');

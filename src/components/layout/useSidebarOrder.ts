@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { readSetting, removeSetting, writeSetting } from '../../lib/settingsStore';
 
 export type SidebarSection = 'main' | 'knowledge';
 
@@ -9,7 +10,7 @@ const EMPTY_ORDER: SidebarOrder = { main: [], knowledge: [] };
 
 function readOrder(): SidebarOrder {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readSetting(STORAGE_KEY);
     if (!raw) return EMPTY_ORDER;
     const parsed = JSON.parse(raw);
     return {
@@ -22,7 +23,7 @@ function readOrder(): SidebarOrder {
 }
 
 function writeOrder(order: SidebarOrder) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+  writeSetting(STORAGE_KEY, JSON.stringify(order));
 }
 
 /** Sorts `items` (each with a `path`) by the stored order, appending any item not yet in storage at the end. */
@@ -51,7 +52,7 @@ export function useSidebarOrder() {
   }, []);
 
   const resetOrder = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    removeSetting(STORAGE_KEY);
     setOrder(EMPTY_ORDER);
   }, []);
 

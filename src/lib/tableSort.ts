@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { readSetting, writeSetting } from './settingsStore';
 
 /**
  * Sorting a table by clicking its headers.
@@ -76,7 +77,7 @@ export function parseStoredSort<K extends string>(raw: string | null, keys: read
 
 function readStored<K extends string>(storageKey: string, keys: readonly K[]): SortState<K> | null {
   try {
-    return parseStoredSort(localStorage.getItem(storageKey), keys);
+    return parseStoredSort(readSetting(storageKey), keys);
   } catch {
     // Private mode denies localStorage outright; the table just opens on its default.
     return null;
@@ -105,7 +106,7 @@ export function useTableSort<K extends string>(initial: SortState<K>, persist?: 
   useEffect(() => {
     if (!storageKey) return;
     try {
-      localStorage.setItem(storageKey, JSON.stringify(sort));
+      writeSetting(storageKey, JSON.stringify(sort));
     } catch {
       // Nothing to do about a full or blocked store — the sort still works for this session.
     }

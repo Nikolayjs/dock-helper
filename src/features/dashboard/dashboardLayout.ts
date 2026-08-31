@@ -1,3 +1,5 @@
+import { readSetting, writeSetting } from '../../lib/settingsStore';
+
 /**
  * Which cards the dashboard shows, and in what order.
  *
@@ -73,7 +75,7 @@ function readSpans(value: unknown): Record<string, number> {
 
 export function readLayout(): DashboardLayout {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readSetting(STORAGE_KEY);
     if (!raw) return EMPTY_LAYOUT;
     const parsed = JSON.parse(raw) as Partial<DashboardLayout>;
     return {
@@ -92,7 +94,7 @@ export function readLayout(): DashboardLayout {
 
 export function writeLayout(layout: DashboardLayout): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+    writeSetting(STORAGE_KEY, JSON.stringify(layout));
   } catch {
     // Private mode, or a full quota: the dashboard still works, it just forgets.
   }

@@ -1,3 +1,5 @@
+import { readSetting, writeSetting } from '../../lib/settingsStore';
+
 /**
  * How often each document template is actually printed.
  *
@@ -20,7 +22,7 @@ export type UsageMap = Record<string, TemplateUse>;
 
 export function readUsage(): UsageMap {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readSetting(STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const usage: UsageMap = {};
@@ -39,7 +41,7 @@ export function readUsage(): UsageMap {
 
 function writeUsage(usage: UsageMap): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(usage));
+    writeSetting(STORAGE_KEY, JSON.stringify(usage));
   } catch {
     // Private mode or a full quota: the shortcut simply stops learning.
   }

@@ -1,3 +1,5 @@
+import { readSetting, writeSetting } from '../../lib/settingsStore';
+
 /** Reader zoom preferences, remembered across books and sessions. */
 
 const STORAGE_KEY = 'medassist:library:reader-prefs';
@@ -44,7 +46,7 @@ function readZoom(value: unknown, fallback: number): ReaderZoom {
 
 function readPrefs(): ReaderPrefs {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readSetting(STORAGE_KEY);
     if (!raw) return DEFAULT_PREFS;
     const parsed = JSON.parse(raw);
     return {
@@ -58,7 +60,7 @@ function readPrefs(): ReaderPrefs {
 }
 
 function writePrefs(patch: Partial<ReaderPrefs>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...readPrefs(), ...patch }));
+  writeSetting(STORAGE_KEY, JSON.stringify({ ...readPrefs(), ...patch }));
 }
 
 export function getPdfZoom(): ReaderZoom {

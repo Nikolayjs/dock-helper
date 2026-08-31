@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import { readSetting, writeSetting } from '../../lib/settingsStore';
 
 const STORAGE_KEY = 'medassist:sidebar-width';
 const DEFAULT_WIDTH = 268;
@@ -43,7 +44,7 @@ interface StoredSidebarWidth {
 
 function readStored(): StoredSidebarWidth {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readSetting(STORAGE_KEY);
     if (!raw) return { width: DEFAULT_WIDTH, collapsed: false };
     const parsed = JSON.parse(raw);
     return {
@@ -56,7 +57,7 @@ function readStored(): StoredSidebarWidth {
 }
 
 function writeStored(state: StoredSidebarWidth) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  writeSetting(STORAGE_KEY, JSON.stringify(state));
 }
 
 export function useSidebarWidth() {
