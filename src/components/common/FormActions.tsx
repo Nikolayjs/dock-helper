@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
 import { useScrollDirection } from '../layout/useScrollDirection';
+import { setFormActionsHeight } from './formActionsSlot';
 import classes from './FormActions.module.css';
 
 /**
@@ -23,12 +25,33 @@ import classes from './FormActions.module.css';
  */
 export function FormActions({ children }: { children: ReactNode }) {
   const { visible, atBottom } = useScrollDirection();
+  const ref = useRef<HTMLDivElement>(null);
+
+  /*
+   * Панель сообщает свою высоту кнопке «наверх», чтобы та встала над ней, а не поверх.
+   *
+   * Меряется наблюдателем, а не считается: у разных форм разный набор кнопок, а на узком экране они
+   * ещё и переносятся на вторую строку. `offsetHeight`, а не прямоугольник на экране: спрятанная
+   * панель сдвинута трансформацией, и её экранная координата в этот момент врала бы.
+   */
+  useEffect(() => {
+    const bar = ref.current;
+    if (!bar) return;
+    const report = () => setFormActionsHeight(bar.offsetHeight);
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      setFormActionsHeight(0);
+    };
+  }, []);
 
   // Метка нужна тем, кто считает, сколько места осталось до низа окна: панель прилипшая и
   // перекрывает нижнюю полосу экрана — см. `useFittedHeight`. Она остаётся и у спрятанной панели:
   // место в раскладке та занимает по-прежнему, уезжает только картинка.
   return (
-    <div className={visible || atBottom ? classes.bar : `${classes.bar} ${classes.hidden}`} data-form-actions>
+    <div ref={ref} className={visible || atBottom ? classes.bar : `${classes.bar} ${classes.hidden}`} data-form-actions>
       {children}
     </div>
   );
