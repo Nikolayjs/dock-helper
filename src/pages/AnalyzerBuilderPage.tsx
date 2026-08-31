@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { Alert, Badge, Button, Card, Container, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Alert, Badge, Button, Card, Container, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Tabs, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -109,6 +109,20 @@ export function AnalyzerBuilderPage() {
    * в предпросмотре справа, давала 531 правку DOM в карточках правил — то есть перерисовку всех
    * трёхсот с лишним полей ради значения, к которому они не имеют отношения.
    */
+  /*
+   * Открыта ровно одна строка списка, и это несущее решение, а не экономия.
+   *
+   * Правят один показатель за раз: открытая строка — это и есть «что я сейчас редактирую». Дав
+   * открыть несколько, мы вернули бы ту же бесконечную страницу, ради которой всё затевалось, — и
+   * при этом на любой набранной букве перерисовывали бы все открытые строки разом.
+   */
+  const [openParam, setOpenParam] = useState<string | null>(null);
+  const [openRule, setOpenRule] = useState<string | null>(null);
+  const [section, setSection] = useState('main');
+
+  const toggleParam = useCallback((uid: string) => setOpenParam((cur) => (cur === uid ? null : uid)), []);
+  const toggleRule = useCallback((uid: string) => setOpenRule((cur) => (cur === uid ? null : uid)), []);
+
   const paramKeys = useMemo(() => parameters.map((p) => p.key.trim()).filter(Boolean), [parameters]);
   const paramOptions = useMemo(
     () => parameters.filter((p) => p.key.trim()).map((p) => ({ key: p.key.trim(), label: p.label || p.key })),
@@ -119,27 +133,40 @@ export function AnalyzerBuilderPage() {
     [parameters],
   );
 
-  const errors = useMemo(() => {
-    const list: string[] = [];
-    if (!title.trim()) list.push('Укажите название анализа.');
-    if (!shortTitle.trim()) list.push('Укажите короткое название для вкладки.');
-    if (parameters.length === 0) list.push('Добавьте хотя бы один показатель.');
+  /*
+   * Каждая ошибка знает свой раздел, и это не украшение.
+   *
+   * Разделы разнесены по вкладкам, а значит две трети формы в любой момент **не на экране**. Список
+   * ошибок, не говорящий, где искать, превратился бы в жалобу без адреса: «у каждого показателя
+   * должен быть ключ» — у какого? Отсюда отметка на вкладке и переход к разделу по нажатию на
+   * саму ошибку. Источник один: и список, и отметки считаются здесь.
+   */
+  const problems = useMemo(() => {
+    const list: { section: 'main' | 'params' | 'rules'; text: string }[] = [];
+    const push = (section: 'main' | 'params' | 'rules') => (text: string) => list.push({ section, text });
+    const main = { push: push('main') };
+    const params = { push: push('params') };
+    const rulesSection = { push: push('rules') };
+
+    if (!title.trim()) main.push('Укажите название анализа.');
+    if (!shortTitle.trim()) main.push('Укажите короткое название для вкладки.');
+    if (parameters.length === 0) params.push('Добавьте хотя бы один показатель.');
 
     const seenKeys = new Set<string>();
     for (const param of parameters) {
       const key = param.key.trim();
-      if (!param.label.trim()) list.push('У каждого показателя должно быть название.');
+      if (!param.label.trim()) params.push('У каждого показателя должно быть название.');
       if (!key) {
-        list.push('У каждого показателя должен быть ключ.');
+        params.push('У каждого показателя должен быть ключ.');
       } else if (!IDENTIFIER_RE.test(key)) {
-        list.push(`Ключ «${key}» недопустим: только латиница, цифры и «_», не начиная с цифры.`);
+        params.push(`Ключ «${key}» недопустим: только латиница, цифры и «_», не начиная с цифры.`);
       } else if (seenKeys.has(key)) {
-        list.push(`Ключ «${key}» используется дважды.`);
+        params.push(`Ключ «${key}» используется дважды.`);
       }
       seenKeys.add(key);
 
       if (param.inputType === 'select' && !(param.options ?? []).some((o) => o.label.trim())) {
-        list.push(`У показателя «${param.label || key}» нужен хотя бы один вариант выбора.`);
+        params.push(`У показателя «${param.label || key}» нужен хотя бы один вариант выбора.`);
       }
       // Проверяются те границы, которые показатель действительно использует: при норме по полу это
       // мужская и женская пары, при общей — одна. Иначе перевёрнутая женская норма проходила бы молча.
@@ -149,32 +176,32 @@ export function AnalyzerBuilderPage() {
         pairs.some((r) => r?.min !== undefined && r.max !== undefined && r.min > r.max);
 
       if (param.inputType === 'number' && !param.ageBands?.length && inverted(pairsOf(param))) {
-        list.push(`У показателя «${param.label || key}» минимум нормы больше максимума.`);
+        params.push(`У показателя «${param.label || key}» минимум нормы больше максимума.`);
       }
       if (param.inputType === 'number' && param.ageBands?.length) {
         for (const band of param.ageBands) {
           if (band.minAge !== undefined && band.maxAge !== undefined && band.minAge > band.maxAge) {
-            list.push(`У показателя «${param.label || key}» в одном из возрастных диапазонов «возраст от» больше «возраст до».`);
+            params.push(`У показателя «${param.label || key}» в одном из возрастных диапазонов «возраст от» больше «возраст до».`);
           }
           if (inverted(pairsOf(band))) {
-            list.push(`У показателя «${param.label || key}» в одном из возрастных диапазонов минимум нормы больше максимума.`);
+            params.push(`У показателя «${param.label || key}» в одном из возрастных диапазонов минимум нормы больше максимума.`);
           }
         }
       }
     }
 
     for (const rule of rules) {
-      if (!rule.title.trim()) list.push('У каждого правила должно быть заключение.');
+      if (!rule.title.trim()) rulesSection.push('У каждого правила должно быть заключение.');
       if (!rule.locked) {
         if (rule.conditions.length === 0) {
-          list.push(`У правила «${rule.title || 'без названия'}» нет условий срабатывания.`);
+          rulesSection.push(`У правила «${rule.title || 'без названия'}» нет условий срабатывания.`);
         } else {
           const unknown = rule.conditions.filter((c) => c.kind === 'param' && !paramKeys.includes(c.paramKey));
-          if (unknown.length > 0) list.push(`Правило «${rule.title || 'без названия'}» ссылается на несуществующий показатель.`);
+          if (unknown.length > 0) rulesSection.push(`Правило «${rule.title || 'без названия'}» ссылается на несуществующий показатель.`);
           // Правило из одних условий о пациенте не смотрит на анализ вовсе: оно сработает на каждом
           // анализе подходящего пола — то есть заключение появится там, где его ничем не подтвердили.
           if (rule.conditions.every((c) => c.kind === 'sex')) {
-            list.push(
+            rulesSection.push(
               `Правило «${rule.title || 'без названия'}» состоит только из условий о пациенте: добавьте хотя бы один показатель, иначе оно сработает на любом анализе.`,
             );
           }
@@ -184,6 +211,10 @@ export function AnalyzerBuilderPage() {
 
     return list;
   }, [title, shortTitle, parameters, rules, paramKeys]);
+
+  const errors = useMemo(() => problems.map((p) => p.text), [problems]);
+  /** Раздел помечен, только если мешает сохранению именно он. */
+  const invalidSections = useMemo(() => new Set(problems.map((p) => p.section)), [problems]);
 
   const previewDraft: LabTestDraft = useMemo(
     () => ({
@@ -229,11 +260,25 @@ export function AnalyzerBuilderPage() {
   const removeParameter = useCallback((uid: string) => {
     setParameters((prev) => prev.filter((p) => p.uid !== uid));
   }, []);
+  /*
+   * Новая строка приходит открытой: её и завели, чтобы заполнить. Свёрнутая пустая строка внизу
+   * длинного списка выглядела бы так, будто нажатие не сработало.
+   */
+  const addParameter = useCallback(() => {
+    const created = emptyParameter();
+    setParameters((prev) => [...prev, created]);
+    setOpenParam(created.uid);
+  }, []);
   const updateRule = useCallback((next: DraftPatternRule) => {
     setRules((prev) => prev.map((r) => (r.uid === next.uid ? next : r)));
   }, []);
   const removeRule = useCallback((uid: string) => {
     setRules((prev) => prev.filter((r) => r.uid !== uid));
+  }, []);
+  const addRule = useCallback(() => {
+    const created = emptyRule();
+    setRules((prev) => [...prev, created]);
+    setOpenRule(created.uid);
   }, []);
   const changePreviewValue = useCallback((key: string, value: number | undefined) => {
     setPreviewValues((prev) => ({ ...prev, [key]: value }));
@@ -322,68 +367,133 @@ export function AnalyzerBuilderPage() {
       <BuilderLayout
         editor={
           <>
-            <Card withBorder padding="lg">
-              <Title order={4} mb="md">
-                Основное
-              </Title>
-              <Stack gap="md">
-                <TextInput label="Название анализа" placeholder="Например: Гормоны щитовидной железы" value={title} onChange={(e) => setTitle(e.currentTarget.value)} required />
-                <TextInput label="Короткое название (для вкладки)" placeholder="Например: ТТГ" value={shortTitle} onChange={(e) => setShortTitle(e.currentTarget.value)} required />
-                <Textarea label="Описание" placeholder="Коротко: что входит в этот анализ" value={description} onChange={(e) => setDescription(e.currentTarget.value)} autosize minRows={2} />
-              </Stack>
-            </Card>
+            {/*
+              Разделы конструктора — вкладки, а не три карточки подряд.
+              
+              Общий анализ крови — тридцать показателей и одиннадцать правил; в развёрнутом виде это
+              была страница на 35 638 px (сорок экранов на компьютере, пятьдесят пять на телефоне) с
+              978 полями ввода. Правят при этом всегда что-то одно: название анализа, показатель или
+              правило. `keepMounted={false}` — условие, ради которого всё и делалось: закрытая
+              вкладка не отрисована вовсе, а не спрятана стилем.
+              
+              Отметка на вкладке показывает, что именно в этом разделе мешает сохранению: две трети
+              формы в любой момент не на экране, и список ошибок без адреса заставлял бы искать их
+              по всем вкладкам.
+            */}
+            <Tabs value={section} onChange={(v) => setSection(v ?? 'main')} variant="pills" keepMounted={false}>
+              <Tabs.List mb="md">
+                <Tabs.Tab
+                  value="main"
+                  rightSection={invalidSections.has('main') ? <IconAlertTriangle size={13} color="var(--mantine-color-orange-6)" /> : undefined}
+                >
+                  Основное
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="params"
+                  rightSection={
+                    invalidSections.has('params') ? (
+                      <IconAlertTriangle size={13} color="var(--mantine-color-orange-6)" />
+                    ) : (
+                      <Badge size="xs" variant="light" color="gray" circle>
+                        {parameters.length}
+                      </Badge>
+                    )
+                  }
+                >
+                  Показатели
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="rules"
+                  rightSection={
+                    invalidSections.has('rules') ? (
+                      <IconAlertTriangle size={13} color="var(--mantine-color-orange-6)" />
+                    ) : (
+                      <Badge size="xs" variant="light" color="gray" circle>
+                        {rules.length}
+                      </Badge>
+                    )
+                  }
+                >
+                  Правила
+                </Tabs.Tab>
+              </Tabs.List>
 
-            <Card withBorder padding="lg">
-              <Group justify="space-between" mb="md">
-                <Title order={4}>Показатели</Title>
-                <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setParameters((prev) => [...prev, emptyParameter()])}>
-                  Добавить показатель
-                </Button>
-              </Group>
-              <Stack gap="sm">
-                {parameters.map((param) => (
-                  <ParameterEditorRow
-                    key={param.uid}
-                    parameter={param}
-                    onChange={updateParameter}
-                    onRemove={removeParameter}
-                  />
-                ))}
-              </Stack>
-            </Card>
+              <Tabs.Panel value="main">
+                <Card withBorder padding="lg">
+                  <Stack gap="md">
+                    <TextInput label="Название анализа" placeholder="Например: Гормоны щитовидной железы" value={title} onChange={(e) => setTitle(e.currentTarget.value)} required />
+                    <TextInput label="Короткое название (для вкладки)" placeholder="Например: ТТГ" value={shortTitle} onChange={(e) => setShortTitle(e.currentTarget.value)} required />
+                    <Textarea label="Описание" placeholder="Коротко: что входит в этот анализ" value={description} onChange={(e) => setDescription(e.currentTarget.value)} autosize minRows={2} />
+                  </Stack>
+                </Card>
+              </Tabs.Panel>
 
-            <Card withBorder padding="lg">
-              <Group justify="space-between" mb="md">
-                <div>
-                  <Title order={4}>Правила интерпретации</Title>
-                  <Text size="sm" c="dimmed">
-                    Необязательно: заключения, которые появляются при сочетании отклонений (например, «повышен ТТГ» И «понижен Т4»).
-                  </Text>
-                </div>
-                <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setRules((prev) => [...prev, emptyRule()])} disabled={paramOptions.length === 0}>
-                  Добавить правило
-                </Button>
-              </Group>
-              <Stack gap="sm">
-                {rules.map((rule) => (
-                  <PatternRuleEditorRow
-                    key={rule.uid}
-                    rule={rule}
-                    paramOptions={paramOptions}
-                    lockedSummary={rule.locked && rule.rawRoot ? describePatternNode(rule.rawRoot, (key) => paramLabelByKey[key] ?? key) : undefined}
-                    onChange={updateRule}
-                    onRemove={removeRule}
-                  />
-                ))}
-              </Stack>
-            </Card>
+              <Tabs.Panel value="params">
+                <Card withBorder padding="lg">
+                  <Group justify="space-between" mb="md">
+                    <Text size="sm" c="dimmed">
+                      Нажмите на показатель, чтобы открыть его поля
+                    </Text>
+                    <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={addParameter}>
+                      Добавить показатель
+                    </Button>
+                  </Group>
+                  <Stack gap="sm">
+                    {parameters.map((param) => (
+                      <ParameterEditorRow
+                        key={param.uid}
+                        parameter={param}
+                        open={openParam === param.uid}
+                        onToggle={toggleParam}
+                        onChange={updateParameter}
+                        onRemove={removeParameter}
+                      />
+                    ))}
+                  </Stack>
+                </Card>
+              </Tabs.Panel>
 
-            {errors.length > 0 && (
+              <Tabs.Panel value="rules">
+                <Card withBorder padding="lg">
+                  <Group justify="space-between" mb="md" align="flex-start" wrap="nowrap">
+                    <Text size="sm" c="dimmed">
+                      Необязательно: заключения, которые появляются при сочетании отклонений (например, «повышен ТТГ» И «понижен Т4»).
+                    </Text>
+                    <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={addRule} disabled={paramOptions.length === 0} style={{ flexShrink: 0 }}>
+                      Добавить правило
+                    </Button>
+                  </Group>
+                  <Stack gap="sm">
+                    {rules.map((rule) => (
+                      <PatternRuleEditorRow
+                        key={rule.uid}
+                        rule={rule}
+                        paramOptions={paramOptions}
+                        open={openRule === rule.uid}
+                        onToggle={toggleRule}
+                        lockedSummary={rule.locked && rule.rawRoot ? describePatternNode(rule.rawRoot, (key) => paramLabelByKey[key] ?? key) : undefined}
+                        onChange={updateRule}
+                        onRemove={removeRule}
+                      />
+                    ))}
+                  </Stack>
+                </Card>
+              </Tabs.Panel>
+            </Tabs>
+
+            {problems.length > 0 && (
               <Alert color="orange" icon={<IconAlertTriangle size={18} />} title="Проверьте форму">
                 <Stack gap={2}>
-                  {errors.map((err, i) => (
-                    <Text size="sm" key={i}>
-                      • {err}
+                  {problems.map((problem, i) => (
+                    /* Нажатие уводит в тот раздел, где ошибка: искать её по вкладкам вручную —
+                       ровно то, ради чего отметка и заводилась. */
+                    <Text
+                      size="sm"
+                      key={i}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setSection(problem.section)}
+                    >
+                      • {problem.text}
                     </Text>
                   ))}
                 </Stack>

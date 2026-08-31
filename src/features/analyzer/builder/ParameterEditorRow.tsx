@@ -1,6 +1,8 @@
 import { memo } from 'react';
-import { ActionIcon, Alert, Card, Divider, Grid, Group, NumberInput, Select, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
-import { IconGripVertical, IconLock, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
+import { ActionIcon, Alert, Divider, Grid, Group, NumberInput, Select, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
+import { IconLock, IconPlus, IconX } from '@tabler/icons-react';
+
+import { CollapsibleRow } from './CollapsibleRow';
 
 import type { CustomAgeBand, CustomLabParameter, CustomLabParameterOption, CustomRange } from '../customTypes';
 
@@ -64,10 +66,34 @@ interface ParameterEditorRowProps {
   onChange: (parameter: DraftParameter) => void;
   /** Принимает `uid`, чтобы обработчик был один на все строки — иначе мемоизация не работает. */
   onRemove: (uid: string) => void;
+  open: boolean;
+  /** Принимает `uid` по той же причине, что и `onRemove`. */
+  onToggle: (uid: string) => void;
   keyError?: string;
 }
 
-function ParameterEditorRowView({ parameter, onChange, onRemove, keyError }: ParameterEditorRowProps) {
+/**
+ * Строка списка свёрнута, и вместо полей у неё одна фраза: чем этот показатель отличается от
+ * соседнего. Ключ — потому что на него ссылаются правила; единицы и норма — потому что именно их
+ * приходят править. «Норма по полу» и «по возрасту» названы словами, а не числами: числа там разные
+ * для каждой полосы, и в одну строку они не складываются.
+ */
+function summarize(parameter: DraftParameter): string {
+  const parts = [parameter.key || 'без ключа'];
+  if (parameter.inputType === 'select') parts.push('список значений');
+  else if (parameter.inputType === 'derived') parts.push('вычисляется по формуле');
+  else {
+    if (parameter.unit) parts.push(parameter.unit);
+    if (parameter.ageBands?.length) parts.push('норма по возрасту');
+    else if (parameter.bySex) parts.push('норма по полу');
+    else if (parameter.min !== undefined || parameter.max !== undefined) {
+      parts.push(`норма ${parameter.min ?? '…'}–${parameter.max ?? '…'}`);
+    }
+  }
+  return parts.join(' · ');
+}
+
+function ParameterEditorRowView({ parameter, onChange, onRemove, open, onToggle, keyError }: ParameterEditorRowProps) {
   const updateOption = (index: number, option: CustomLabParameterOption) => {
     const options = [...(parameter.options ?? [])];
     options[index] = option;
@@ -129,19 +155,15 @@ function ParameterEditorRowView({ parameter, onChange, onRemove, keyError }: Par
   };
 
   return (
-    <Card withBorder padding="md" radius="md">
-      <Group justify="space-between" mb="sm" wrap="nowrap">
-        <Group gap={6} c="dimmed">
-          <IconGripVertical size={16} />
-          <Text size="xs" fw={600} tt="uppercase">
-            Показатель
-          </Text>
-        </Group>
-        <ActionIcon color="red" variant="subtle" onClick={() => onRemove(parameter.uid)} radius="md">
-          <IconTrash size={16} />
-        </ActionIcon>
-      </Group>
-
+    <CollapsibleRow
+      kind="Показатель"
+      title={parameter.label}
+      summary={summarize(parameter)}
+      open={open}
+      onToggle={() => onToggle(parameter.uid)}
+      onRemove={() => onRemove(parameter.uid)}
+      invalid={!parameter.label.trim() || !parameter.key.trim() || Boolean(keyError)}
+    >
       <Grid>
         <Grid.Col span={{ base: 12, sm: 6 }}>
           <TextInput
@@ -466,7 +488,7 @@ function ParameterEditorRowView({ parameter, onChange, onRemove, keyError }: Par
           </Grid>
         </Grid.Col>
       </Grid>
-    </Card>
+    </CollapsibleRow>
   );
 }
 

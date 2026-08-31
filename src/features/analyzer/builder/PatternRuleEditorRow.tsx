@@ -1,6 +1,8 @@
 import { memo } from 'react';
-import { ActionIcon, Alert, Card, Grid, Group, Select, SegmentedControl, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
-import { IconGripVertical, IconLock, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
+import { ActionIcon, Alert, Grid, Group, Select, SegmentedControl, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
+import { IconLock, IconPlus, IconX } from '@tabler/icons-react';
+
+import { CollapsibleRow } from './CollapsibleRow';
 
 import type { ParamStatus, Severity, Sex } from '../types';
 import type { CustomPatternRule, PatternCondition } from '../customTypes';
@@ -22,6 +24,9 @@ interface PatternRuleEditorRowProps {
   onChange: (rule: DraftPatternRule) => void;
   /** Принимает `uid`, чтобы обработчик был один на все строки — иначе мемоизация не работает. */
   onRemove: (uid: string) => void;
+  open: boolean;
+  /** Принимает `uid` по той же причине, что и `onRemove`. */
+  onToggle: (uid: string) => void;
 }
 
 const SEVERITY_OPTIONS = [
@@ -49,6 +54,26 @@ const SEX_OPTIONS = [
  */
 const SEX_ITEM = '__patient-sex__';
 
+/**
+ * Условия правила одной фразой — для свёрнутой строки.
+ *
+ * У правила, пришедшего из сида со сложной структурой (`locked`), уже есть готовое описание: его
+ * считает страница той же функцией, которой рисует замок внутри. Здесь описываются только те
+ * условия, что редактируются в конструкторе.
+ */
+function summarizeConditions(rule: DraftPatternRule, paramOptions: ParamOption[], lockedSummary?: string): string {
+  if (rule.locked) return lockedSummary ?? 'условия не редактируются';
+  const label = (key: string) => paramOptions.find((p) => p.key === key)?.label || key;
+  const STATUS: Record<string, string> = { low: 'понижен', normal: 'в норме', high: 'повышен' };
+  const parts = rule.conditions.map((c) =>
+    c.kind === 'sex'
+      ? `${c.negate ? 'не ' : ''}${c.sex === 'male' ? 'мужчина' : 'женщина'}`
+      : `${label(c.paramKey)} ${c.negate ? 'не ' : ''}${STATUS[c.status] ?? c.status}`,
+  );
+  if (parts.length === 0) return 'условий нет';
+  return parts.join(rule.operator === 'or' ? ' или ' : ' и ');
+}
+
 function emptyCondition(paramOptions: ParamOption[]): PatternCondition {
   return { id: crypto.randomUUID(), kind: 'param', paramKey: paramOptions[0]?.key ?? '', status: 'high' };
 }
@@ -70,7 +95,7 @@ function switchSubject(condition: PatternCondition, value: string | null): Patte
     : { id: condition.id, kind: 'param', paramKey: value, status: 'high', negate: condition.negate };
 }
 
-function PatternRuleEditorRowView({ rule, paramOptions, lockedSummary, onChange, onRemove }: PatternRuleEditorRowProps) {
+function PatternRuleEditorRowView({ rule, paramOptions, lockedSummary, onChange, onRemove, open, onToggle }: PatternRuleEditorRowProps) {
   const updateCondition = (index: number, condition: PatternCondition) => {
     const conditions = [...rule.conditions];
     conditions[index] = condition;
@@ -86,19 +111,15 @@ function PatternRuleEditorRowView({ rule, paramOptions, lockedSummary, onChange,
   };
 
   return (
-    <Card withBorder padding="md" radius="md">
-      <Group justify="space-between" mb="sm" wrap="nowrap">
-        <Group gap={6} c="dimmed">
-          <IconGripVertical size={16} />
-          <Text size="xs" fw={600} tt="uppercase">
-            Правило
-          </Text>
-        </Group>
-        <ActionIcon color="red" variant="subtle" onClick={() => onRemove(rule.uid)} radius="md">
-          <IconTrash size={16} />
-        </ActionIcon>
-      </Group>
-
+    <CollapsibleRow
+      kind="Правило"
+      title={rule.title}
+      summary={summarizeConditions(rule, paramOptions, lockedSummary)}
+      open={open}
+      onToggle={() => onToggle(rule.uid)}
+      onRemove={() => onRemove(rule.uid)}
+      invalid={!rule.title.trim() || (!rule.locked && rule.conditions.length === 0)}
+    >
       <Grid>
         <Grid.Col span={{ base: 12, sm: 8 }}>
           <TextInput
@@ -220,7 +241,7 @@ function PatternRuleEditorRowView({ rule, paramOptions, lockedSummary, onChange,
           )}
         </Grid.Col>
       </Grid>
-    </Card>
+    </CollapsibleRow>
   );
 }
 
