@@ -46,6 +46,7 @@ import { isDemoSession } from '../features/demo/demoSession';
 import { ChangePasswordModal } from '../features/doctor/ChangePasswordModal';
 import { DoctorNotesCard } from '../features/doctor/DoctorNotesCard';
 import { resizeImageToDataUrl } from '../lib/imageResize';
+import { InstallApp } from '../features/pwa/InstallApp';
 import { PushSettings } from '../features/reminders/PushSettings';
 
 const AVATAR_MAX_DIMENSION = 256;
@@ -374,6 +375,8 @@ export function DoctorPage() {
             </Text>
           </Stack>
         </Card>
+
+        <InstallApp />
 
         <PushSettings />
 

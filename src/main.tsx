@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { isAppPath } from './lib/appBase';
+import { listenForInstallPrompt } from './lib/installPrompt';
 import { registerServiceWorker } from './lib/pushNotifications';
 import { listenForStaleChunks } from './lib/staleChunkReload';
 
@@ -23,6 +24,10 @@ listenForStaleChunks();
 // Фоновый обработчик: он нужен и для уведомлений при закрытом приложении, и для установки на
 // устройство. Регистрируется после монтирования и ничего не ждёт — приложение полно и без него.
 void registerServiceWorker();
+
+// Слушатель ставится здесь, а не в компоненте: событие приходит один раз и вскоре после загрузки,
+// и подписавшись позже, его можно не застать вовсе.
+listenForInstallPrompt();
 
 const root = createRoot(document.getElementById('root')!);
 

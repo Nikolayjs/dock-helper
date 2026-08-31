@@ -1,0 +1,104 @@
+/**
+ * Установка приложения на устройство.
+ *
+ * Само по себе приложение установить можно и без нас — Chrome показывает свой значок в адресной
+ * строке. Но значок этот замечают немногие, а на iPhone его нет вовсе: там установка делается
+ * руками через «Поделиться», и **без неё не работают push-уведомления**. Поэтому приложение говорит
+ * об установке само, и на каждой системе — по-своему.
+ */
+
+/** Событие, которым Chrome сообщает, что установка возможна. В типах браузера его нет. */
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+let deferred: BeforeInstallPromptEvent | null = null;
+const listeners = new Set<() => void>();
+
+const notify = () => {
+  for (const listener of listeners) listener();
+};
+
+/**
+ * Перехват события — ставится при старте, до отрисовки.
+ *
+ * Событие приходит один раз и вскоре после загрузки: подписавшись из компонента, который
+ * смонтируется позже, его можно не застать вовсе. Поэтому слушатель ставится в точке входа, а
+ * компоненты читают уже сохранённое.
+ */
+export function listenForInstallPrompt(): void {
+  if (typeof window === 'undefined') return;
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    // Без этого Chrome показывает свою полоску снизу — и наша кнопка оказывается второй об одном.
+    event.preventDefault();
+    deferred = event as BeforeInstallPromptEvent;
+    notify();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferred = null;
+    notify();
+  });
+}
+
+export function subscribeToInstallState(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function canInstall(): boolean {
+  return deferred !== null;
+}
+
+/** Приложение уже открыто как установленное. */
+export function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    // Свой признак у Safari на iOS: стандартного `display-mode` он долго не поддерживал.
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+/**
+ * iPhone и iPad: там установка только вручную, и рассказать про неё больше некому.
+ *
+ * Второе условие — про iPad. С iPadOS 13 он представляется Макинтошем, и по одному имени его не
+ * отличить; выдаёт сенсорный экран, которого у настоящего Мака нет. Ошибиться тут значит показать
+ * владельцу планшета совет «нажмите значок в адресной строке Chrome», которого там не будет.
+ */
+export function isIos(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  return /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+}
+
+/** Что показать в карточке установки. */
+export type InstallAdvice = 'installed' | 'button' | 'ios' | 'other';
+
+/**
+ * Порядок веток здесь и есть решение, и он проверяется тестом, а не браузером.
+ *
+ * Установленному приложению нечего предлагать — эта ветка первая. Затем кнопка: там, где браузер
+ * сам сказал, что установка возможна, инструкция была бы длиннее и хуже. И только потом разговор о
+ * том, чего браузер не умеет: на iOS событие не приходит **никогда**, поэтому туда попадают ровно
+ * те, кому нужна инструкция.
+ */
+export function installAdvice(state: { standalone: boolean; installable: boolean; ios: boolean }): InstallAdvice {
+  if (state.standalone) return 'installed';
+  if (state.installable) return 'button';
+  return state.ios ? 'ios' : 'other';
+}
+
+export async function promptInstall(): Promise<'accepted' | 'dismissed' | 'unavailable'> {
+  if (!deferred) return 'unavailable';
+  const event = deferred;
+  // Событие одноразовое: второй `prompt()` браузер отвергает. Отпускаем его сразу.
+  deferred = null;
+  notify();
+  await event.prompt();
+  const { outcome } = await event.userChoice;
+  return outcome;
+}

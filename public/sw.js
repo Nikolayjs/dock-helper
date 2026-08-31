@@ -37,17 +37,35 @@ self.addEventListener('fetch', (event) => {
   // Всё, кроме файлов сборки, идёт в сеть без нашего участия: и запросы к API, и index.html.
   if (!url.pathname.startsWith('/assets/')) return;
 
+  /*
+   * Ответ обязан прийти даже тогда, когда кэш не работает.
+   *
+   * Это исправленная ошибка, и она была тяжёлой: любой сбой внутри обработчика превращается в
+   * `ERR_FAILED` у файла сборки, а без файлов сборки приложение не стартует вовсе — врач видит
+   * пустой экран, и починить это со своей стороны он не может никак. Кэш здесь — ускорение, и
+   * ускорение не имеет права ломать то, что ускоряет: каждый шаг обёрнут, а на самый крайний
+   * случай остаётся простой поход в сеть.
+   */
   event.respondWith(
     (async () => {
-      const cached = await caches.match(request);
-      if (cached) return cached;
+      try {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+      } catch {
+        // Кэш недоступен (приватное окно, запрет на хранение, нехватка места) — идём в сеть.
+      }
+
       const response = await fetch(request);
-      if (response.ok) {
-        const cache = await caches.open(CACHE);
-        cache.put(request, response.clone());
+      try {
+        if (response.ok) {
+          const cache = await caches.open(CACHE);
+          await cache.put(request, response.clone());
+        }
+      } catch {
+        // Не записалось — переживём: файл уже получен и отдаётся странице.
       }
       return response;
-    })(),
+    })().catch(() => fetch(request)),
   );
 });
 
