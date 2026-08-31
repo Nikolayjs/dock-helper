@@ -764,7 +764,7 @@ export function SheetEditor({ value, onChange, header }: SheetEditorProps) {
       {/* Панель и строка формул прилипают под шапкой приложения — как панель редактора Word. При
           точно подобранной высоте рабочего места они и так не успевают уйти под шапку; прилипание
           страхует от ошибки замера в несколько пикселей. */}
-      <div className={classes.stickyTop} style={{ top: STICKY_TOP }}>
+      <div className={`${classes.stickyTop} app-sticky`} style={{ top: STICKY_TOP }}>
         {header}
         <SheetToolbar
           formats={value.formats ?? undefined}

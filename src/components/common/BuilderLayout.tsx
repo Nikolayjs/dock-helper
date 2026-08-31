@@ -50,7 +50,7 @@ export function BuilderLayout({ editor, actions, preview, previewLabel = 'Пре
   return (
     <>
       <Tabs defaultValue="editor" variant="pills" keepMounted={false}>
-        <div className={classes.tabs}>
+        <div className={`${classes.tabs} app-sticky`}>
           <Tabs.List>
             <Tabs.Tab value="editor">Конструктор</Tabs.Tab>
             <Tabs.Tab value="preview">{previewLabel}</Tabs.Tab>

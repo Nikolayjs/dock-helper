@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-import type { CSSProperties } from 'react';
+import { memo, useEffect } from 'react';
 import { AppShell } from '@mantine/core';
 
 import { HEADER_HEIGHT } from './shellMetrics';
@@ -144,6 +143,37 @@ function getPageMeta(pathname: string): PageMetaEntry {
   return PAGE_META.find((entry) => entry.match(pathname)) ?? { match: () => false, title: 'MedAssist' };
 }
 
+/**
+ * Содержимое страницы — за `memo`, и это условие плавности, а не микрооптимизация.
+ *
+ * Шапка на телефоне прячется при прокрутке вниз и возвращается при прокрутке вверх, то есть
+ * `showHeader` меняется посреди жеста. Оболочка при этом перерисовывалась целиком — вместе с
+ * `Outlet`, то есть со всей открытой страницей. На лёгкой странице это незаметно, на конструкторе
+ * анализатора — тридцать карточек показателей и десяток правил — нет: замер на телефоне 390 px с
+ * процессором, замедленным вшестеро, дал **худший кадр 1530 мс** и длинную задачу 1415 мс, тогда
+ * как на странице анализов рядом — 225 и 123. Ровно это врач и назвал «фризом при появлении шапки».
+ *
+ * Пропсов у компонента нет вовсе, поэтому `memo` не пропускает ни одной перерисовки родителя. Смену
+ * маршрута это не ломает: `Outlet` читает её из контекста роутера, а контекст сквозь `memo`
+ * проходит. И лечит это **все** страницы разом, а не одну — в отличие от мемоизации каждой тяжёлой
+ * страницы по очереди, которой лечилась читалка.
+ */
+const PageContent = memo(function PageContent() {
+  return (
+    <>
+      {/* Полоса демо-режима стоит здесь, а не в шапке, намеренно: высота шапки (`HEADER_HEIGHT`)
+          держит на себе каждый прилипший элемент приложения, и лишние сорок пикселей в ней
+          сдвинули бы панели редакторов, рабочее место таблицы и кнопку «наверх». Внутри
+          содержимого полоса видна на каждой странице — переход прокручивает страницу к началу. */}
+      <DemoBanner />
+      {/* Carries the bottom padding — see .content in the stylesheet for why it cannot sit on Main. */}
+      <div className={classes.content}>
+        <Outlet />
+      </div>
+    </>
+  );
+});
+
 export function AppLayout() {
   const [opened, { toggle, close }] = useDisclosure(false);
   const location = useLocation();
@@ -197,8 +227,20 @@ export function AppLayout() {
         header: showHeader ? classes.header : `${classes.header} ${classes.headerHidden}`,
         navbar: classes.navbar,
       }}
-      // Липкие панели страниц прилипают к этой переменной, а не к числу: см. `STICKY_TOP`.
-      style={{ '--app-sticky-top': showHeader ? `${HEADER_HEIGHT}px` : '0px' } as CSSProperties}
+      /*
+       * Состояние шапки объявляется **атрибутом**, а не сменой наследуемой переменной, и это
+       * исправленная ошибка, найденная замером.
+       *
+       * Раньше здесь стояло `style={{ '--app-sticky-top': ... }}`. Смена наследуемого свойства на
+       * предке обесценивает посчитанный стиль **всего поддерева**, а поддерево здесь — открытая
+       * страница целиком. Замер на конструкторе анализатора (14 311 узлов, процессор замедлен
+       * вшестеро): смена переменной — 1244 мс в медиане, переключение класса на том же элементе —
+       * 0 мс. Это и был «фриз при появлении шапки», которого нет на странице анализов рядом.
+       *
+       * Теперь переменную переопределяет правило `[data-header-hidden] .app-sticky` в `index.css`:
+       * оно достаёт только сами прилипшие панели, а их поддеревья — это десяток кнопок.
+       */
+      data-header-hidden={showHeader ? undefined : 'true'}
     >
       <ReminderWatcher />
       <ScrollToTopButton />
@@ -212,15 +254,7 @@ export function AppLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        {/* Полоса демо-режима стоит здесь, а не в шапке, намеренно: высота шапки (`HEADER_HEIGHT`)
-            держит на себе каждый прилипший элемент приложения, и лишние сорок пикселей в ней
-            сдвинули бы панели редакторов, рабочее место таблицы и кнопку «наверх». Внутри
-            содержимого полоса видна на каждой странице — переход прокручивает страницу к началу. */}
-        <DemoBanner />
-        {/* Carries the bottom padding — see .content in the stylesheet for why it cannot sit on Main. */}
-        <div className={classes.content}>
-          <Outlet />
-        </div>
+        <PageContent />
       </AppShell.Main>
     </AppShell>
   );

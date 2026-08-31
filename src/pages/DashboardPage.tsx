@@ -205,7 +205,7 @@ export function DashboardPage() {
           justify="space-between"
           wrap="wrap"
           gap="sm"
-          className={editing ? `${gridClasses.toolbar} ${gridClasses.toolbarEditing}` : gridClasses.toolbar}
+          className={`${editing ? `${gridClasses.toolbar} ${gridClasses.toolbarEditing}` : gridClasses.toolbar} app-sticky`}
           style={{ top: STICKY_TOP }}
         >
           <div style={{ flex: '1 1 320px', minWidth: 0 }}>

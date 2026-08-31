@@ -112,7 +112,7 @@ export function NoteForm({ initialNote, initialDate, onSubmit, onCancel, onDelet
           </Text>
           <RichTextEditor editor={editor}>
           <EditorBubbleMenu editor={editor} />
-            <RichTextEditor.Toolbar sticky stickyOffset={STICKY_TOP}>
+            <RichTextEditor.Toolbar sticky stickyOffset={STICKY_TOP} className="app-sticky">
               <RichTextEditor.ControlsGroup>
                 <RichTextEditor.Bold />
                 <RichTextEditor.Italic />

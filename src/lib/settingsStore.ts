@@ -23,6 +23,7 @@ export const SYNCED_KEYS = [
   'medassist:document-usage',
   'medassist:drugs:intro-hidden',
   'medassist:patients-disclaimer-dismissed',
+  'medassist:notifications-seen',
 ] as const;
 
 /** Сортировки списков: ключей столько же, сколько разделов, и все они синхронизируются. */

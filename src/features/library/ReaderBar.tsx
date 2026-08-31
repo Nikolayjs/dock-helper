@@ -27,7 +27,7 @@ interface ReaderBarProps {
 
 /** Панель читалки. Почему она есть и почему прилипшая — в `ReaderBar.module.css`. */
 export function ReaderBar({ children, slotRef, top, hidden, overlay, rootRef }: ReaderBarProps) {
-  const className = [classes.bar, overlay ? classes.overlay : '', hidden ? classes.hidden : ''].filter(Boolean).join(' ');
+  const className = [classes.bar, 'app-sticky', overlay ? classes.overlay : '', hidden ? classes.hidden : ''].filter(Boolean).join(' ');
   return (
     <div className={className} style={overlay ? undefined : { top }} aria-hidden={hidden} ref={rootRef}>
       {children}

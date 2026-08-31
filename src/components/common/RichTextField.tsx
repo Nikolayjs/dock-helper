@@ -185,7 +185,7 @@ export function RichTextField({
       <RichTextEditor editor={editor} labels={RUSSIAN_EDITOR_LABELS}>
         <EditorBubbleMenu editor={editor} />
         <ImageBubbleMenu editor={editor} />
-        <RichTextEditor.Toolbar sticky stickyOffset={STICKY_TOP}>
+        <RichTextEditor.Toolbar sticky stickyOffset={STICKY_TOP} className="app-sticky">
           <RichTextEditor.ControlsGroup>
             <RichTextEditor.Undo />
             <RichTextEditor.Redo />
