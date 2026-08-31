@@ -394,7 +394,7 @@ export function AnalyzerBuilderPage() {
                     invalidSections.has('params') ? (
                       <IconAlertTriangle size={13} color="var(--mantine-color-orange-6)" />
                     ) : (
-                      <Badge size="xs" variant="light" color="gray" circle>
+                      <Badge size="xs" variant="light" color="gray">
                         {parameters.length}
                       </Badge>
                     )
@@ -408,7 +408,7 @@ export function AnalyzerBuilderPage() {
                     invalidSections.has('rules') ? (
                       <IconAlertTriangle size={13} color="var(--mantine-color-orange-6)" />
                     ) : (
-                      <Badge size="xs" variant="light" color="gray" circle>
+                      <Badge size="xs" variant="light" color="gray">
                         {rules.length}
                       </Badge>
                     )
