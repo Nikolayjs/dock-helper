@@ -1,5 +1,8 @@
+import { useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { ActionIcon, Card, Group, Text, UnstyledButton } from '@mantine/core';
+
+import { SCROLL_ROOT_ID } from '../../../components/layout/scrollRoot';
 import { IconAlertTriangle, IconChevronDown, IconChevronRight, IconTrash } from '@tabler/icons-react';
 
 import classes from './CollapsibleRow.module.css';
@@ -47,8 +50,36 @@ interface CollapsibleRowProps {
 }
 
 export function CollapsibleRow({ kind, title, summary, open, onToggle, onRemove, invalid, children }: CollapsibleRowProps) {
+  const card = useRef<HTMLDivElement>(null);
+  const topBefore = useRef<number | null>(null);
+
+  /*
+   * Открытая строка остаётся под пальцем, а не уезжает вверх.
+   *
+   * Открыта всегда одна: нажимая на вторую, врач закрывает первую. Если та была **выше** по списку,
+   * страница на её высоту укорачивается — и нажатая строка вместе со своими полями уезжает вверх, в
+   * какое-то другое место экрана. Прокрутка при этом никуда не денется: она считается от начала
+   * содержимого, а начало осталось прежним.
+   *
+   * Поэтому строка запоминает, где была в момент нажатия, и после перерисовки возвращает себя туда
+   * же, подвинув прокрутку на разницу. Замер делается в `useLayoutEffect` — до отрисовки: сделай мы
+   * это в обычном эффекте, врач успел бы увидеть кадр с уехавшей строкой.
+   */
+  const handleToggle = () => {
+    topBefore.current = card.current?.getBoundingClientRect().top ?? null;
+    onToggle();
+  };
+
+  useLayoutEffect(() => {
+    const before = topBefore.current;
+    topBefore.current = null;
+    if (before === null || !card.current) return;
+    const delta = Math.round(card.current.getBoundingClientRect().top - before);
+    if (delta !== 0) document.getElementById(SCROLL_ROOT_ID)?.scrollBy(0, delta);
+  }, [open]);
+
   return (
-    <Card withBorder padding={0} radius="md">
+    <Card withBorder padding={0} radius="md" ref={card}>
       <Group gap={0} wrap="nowrap" align="stretch">
         {/*
           Заголовок — кнопка, а не строка с обработчиком: разворачивание обязано работать с
@@ -56,7 +87,7 @@ export function CollapsibleRow({ kind, title, summary, open, onToggle, onRemove,
         */}
         <UnstyledButton
           className={classes.header}
-          onClick={onToggle}
+          onClick={handleToggle}
           aria-expanded={open}
           aria-label={`${kind}: ${title || 'без названия'}`}
         >
