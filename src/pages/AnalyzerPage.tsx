@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Tabs, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconClipboardPlus, IconEdit, IconEraser, IconFileUpload, IconPlus } from '@tabler/icons-react';
+import { useMediaQuery } from '@mantine/hooks';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+
+import { STICKY_TOP } from '../layouts/shellMetrics';
 
 import { analyzeTest } from '../features/analyzer/analyzerEngine';
 import { usePatients } from '../features/patients/usePatients';
@@ -21,6 +24,8 @@ import type { FilledPanel } from '../features/labResults/panels';
 
 export function AnalyzerPage() {
   const navigate = useNavigate();
+  // Тот же порог, что у сетки колонок ниже: разъехавшись, они дали бы кадр прокрутки в одну колонку.
+  const sideBySide = useMediaQuery('(min-width: 75em)', true, { getInitialValueInEffect: false });
   const { customTests, isLoading, updateTest } = useCustomAnalyzers();
   const allTests = useMemo(() => customTests.map(toLabTestDefinition), [customTests]);
 
@@ -233,9 +238,27 @@ export function AnalyzerPage() {
           </Grid.Col>
 
           <Grid.Col span={{ base: 12, lg: 5 }}>
-            <div style={{ position: 'sticky', top: 84, maxHeight: 'calc(100vh - 104px)', overflowY: 'auto' }}>
+            {/*
+              Прилипший кадр прокрутки — только там, где колонки стоят рядом.
+              
+              Пока они рядом, он и нужен: врач вписывает показатели слева и видит толкование справа,
+              не прокручивая. Сложившись в одну колонку, тот же кадр становится вредом: заключения
+              идут следом за формой, прокручивать внутри них нечего, а `overflow: auto` **режет
+              карточку по своим краям** — растянутая во всю ширину, она обрезалась им до ширины
+              колонки и получала снизу собственную полосу прокрутки (замер на 753 px: карточка
+              заявлена на 0..753, нарисована на 20..733). Та же прилипшая прокрутка уже убиралась у
+              конструкторов калькулятора и анкеты, и по той же причине.
+            */}
+            {sideBySide ? (
+              <div
+                className="app-sticky"
+                style={{ position: 'sticky', top: `calc(${STICKY_TOP} + 16px)`, maxHeight: 'calc(100vh - 104px)', overflowY: 'auto' }}
+              >
+                <AnalyzerResults result={result} />
+              </div>
+            ) : (
               <AnalyzerResults result={result} />
-            </div>
+            )}
           </Grid.Col>
         </Grid>
       )}
