@@ -62,6 +62,13 @@ interface RichTextFieldProps {
   exportAuthor?: string;
   /** Заголовок, найденный в импортированном файле — форма решает, подставлять ли его. */
   onImportedTitle?: (title: string) => void;
+  /**
+   * Кнопки, которые нужны не всем: например вставка вики-ссылки в справочнике заболеваний.
+   *
+   * Слотом, а не веткой внутри панели: редактор один на статьи, заметки, документы врача и
+   * справочник, и знание о том, что бывает справочник заболеваний, ему тут ни к чему.
+   */
+  extraControls?: ReactNode;
 }
 
 export function RichTextField({
@@ -72,6 +79,7 @@ export function RichTextField({
   exportTitle,
   exportAuthor,
   onImportedTitle,
+  extraControls,
 }: RichTextFieldProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
@@ -340,6 +348,8 @@ export function RichTextField({
               </Menu.Dropdown>
             </Menu>
           </RichTextEditor.ControlsGroup>
+          {extraControls && <RichTextEditor.ControlsGroup>{extraControls}</RichTextEditor.ControlsGroup>}
+
         </RichTextEditor.Toolbar>
         <RichTextEditor.Content
           mih={minHeight}

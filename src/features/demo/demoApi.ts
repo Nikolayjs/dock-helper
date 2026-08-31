@@ -145,6 +145,38 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     return [...new Set(collection('/abbreviations').map((row) => String(row.category ?? '')))].filter(Boolean) as T;
   }
 
+  // ── Справочник заболеваний: связи в обе стороны ─────────────────────────────────────────────
+  // Свои ветки обязательны по той же причине, что у `/drugs/search`: без них «by-code» и
+  // «mentions» разобрались бы как идентификаторы записи, и в демо карточка кода МКБ-10 молча
+  // ничего не знала бы о болезнях, а обратные ссылки не появлялись бы вовсе.
+  if (pathname.startsWith('/diseases/by-code/') && method === 'GET') {
+    const code = decodeURIComponent(pathname.slice('/diseases/by-code/'.length)).toUpperCase();
+    const rubric = code.includes('.') ? code.slice(0, code.indexOf('.')) : code;
+    return collection('/diseases')
+      .filter((row) =>
+        ((row.icdCodes as string[]) ?? []).some((raw) => {
+          const own = raw.trim().toUpperCase();
+          return own === code || own === rubric || own.startsWith(`${code}.`);
+        }),
+      )
+      .map((row) => ({ id: row.id, name: row.name, summary: row.summary })) as T;
+  }
+
+  if (pathname.endsWith('/mentions') && pathname.startsWith('/diseases/') && method === 'GET') {
+    const id = pathname.slice('/diseases/'.length, -'/mentions'.length);
+    const target = collection('/diseases').find((row) => row.id === id);
+    if (!target) return [] as T;
+    const names = [String(target.name), ...(((target.synonyms as string[]) ?? []))].map((name) => name.trim().toLowerCase());
+    return collection('/diseases')
+      .filter((row) => {
+        if (row.id === id) return false;
+        const links = [...String(row.description ?? '').matchAll(/\[\[([^\]]+)\]\]/g)]
+          .map((match) => match[1].split('|')[0].trim().toLowerCase());
+        return links.some((title) => names.includes(title));
+      })
+      .map((row) => ({ id: row.id, name: row.name, summary: row.summary })) as T;
+  }
+
   // ── Поиск препарата для строки в шапке ───────────────────────────────────────────────────────
   // Своя ветка обязательна: без неё `/drugs/search` разобрался бы как карточка с id «search» и
   // отдал бы «запись не найдена» — то есть поиск в демо молча ничего не находил бы.

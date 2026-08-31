@@ -9,7 +9,7 @@ import { RecordEditorPage } from '../../components/common/RecordEditorPage';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { DiseaseForm } from './DiseaseForm';
 import type { DiseaseInput } from './types';
-import { QUERY_KEY, useDiseases } from './useDiseases';
+import { QUERY_KEY, useDisease, useDiseases } from './useDiseases';
 
 /**
  * Редактор заболевания — отдельной страницей, а не окном.
@@ -22,8 +22,14 @@ export function DiseaseEditorPage() {
   const navigate = useNavigate();
   const confirmDelete = useDeleteWithConfirm();
   const { diseases, isLoading, createDisease, updateDisease, deleteDisease } = useDiseases();
+  /*
+   * Запись дочитывается целиком: в списке описания нет, а редактор правит именно его. Пока запрос
+   * идёт, форма не рисуется — заполнить её пустым описанием значило бы предложить врачу сохранить
+   * стёртый текст.
+   */
+  const { disease: full, isLoading: isLoadingFull } = useDisease(id);
 
-  const editing = id ? diseases.find((row) => row.id === id) : undefined;
+  const editing = id ? (full ?? undefined) : undefined;
   const backTo = editing ? `/reference/diseases/${editing.id}` : '/reference';
 
   /** Разделы берутся из самих записей: отдельного списка у заболеваний нет — это специальности. */
@@ -61,7 +67,7 @@ export function DiseaseEditorPage() {
     <RecordEditorPage
       id={id}
       record={editing}
-      isLoading={isLoading}
+      isLoading={isLoading || (Boolean(id) && isLoadingFull)}
       notFound={{
         text: 'Такого заболевания в справочнике нет — возможно, запись удалили.',
         to: '/reference',

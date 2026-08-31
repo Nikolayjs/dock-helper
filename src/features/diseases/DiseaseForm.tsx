@@ -8,6 +8,7 @@ import { useDirtyValue, useEditorDirty, useUnsavedGuard } from '../../components
 import { useRichTextEditor } from '../../components/common/useRichTextEditor';
 import { useSaveAction } from '../../components/common/useSaveAction';
 import { descriptionToHtml } from './description';
+import { WikiLinkControl } from './WikiLinkControl';
 import type { Disease, DiseaseInput } from './types';
 
 /**
@@ -106,7 +107,8 @@ export function DiseaseForm({ initial, sections, onSubmit, onCancel, onDelete }:
       <RichTextField
         editor={editor}
         exportTitle={name}
-        hint="Разделы, списки и таблицы сохраняются при вставке: текст из руководства не сминается в один ком. Обновления справочника ваше описание не затирают."
+        extraControls={<WikiLinkControl editor={editor} />}
+        hint="Разделы, списки и таблицы сохраняются при вставке: текст из руководства не сминается в один ком. Кнопка со звеном цепи ставит ссылку на другую болезнь, сокращение или рекомендацию — название выбирается из справочника, потому что ссылка разрешается точным совпадением. Код МКБ-10 пишется прямо в тексте: [[I48.0]]. Обновления справочника ваше описание не затирают."
       />
 
       <FormActions>

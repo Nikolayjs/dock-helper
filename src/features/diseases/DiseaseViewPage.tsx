@@ -1,13 +1,15 @@
-import { Alert, Badge, Button, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
+import { Alert, Anchor, Badge, Button, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
 import { IconBook2, IconEdit, IconInfoCircle, IconListSearch, IconNotes } from '@tabler/icons-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BackButton } from '../../components/common/BackButton';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
 import { SafeHtml } from '../../components/common/SafeHtml';
 import { useAllDocuments } from '../knowledgeBase/useDocuments';
 import { descriptionToHtml } from './description';
-import { useDiseases } from './useDiseases';
+import { renderDiseaseWiki } from './wiki';
+import { useAbbreviations } from '../abbreviations/useAbbreviations';
+import { useDisease, useDiseaseMentions, useDiseases } from './useDiseases';
 
 /**
  * Карточка заболевания.
@@ -22,10 +24,21 @@ import { useDiseases } from './useDiseases';
  */
 export function DiseaseViewPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { diseases, isLoading } = useDiseases();
   const { documents } = useAllDocuments();
+  const { abbreviations } = useAbbreviations();
+  /*
+   * Описание дочитывается отдельным запросом: в списке его нет — тексты вики растут, и возить их
+   * все с каждой страницей раздела значило бы повторить ошибку базы знаний. Шапка карточки при
+   * этом рисуется сразу из списка и пустотой не мигает.
+   */
+  const { disease: full } = useDisease(id);
+  const { mentions } = useDiseaseMentions(id);
 
-  const disease = diseases.find((row) => row.id === id) ?? null;
+  const summary = diseases.find((row) => row.id === id) ?? null;
+  const disease = summary ?? full;
+  const description = full?.description ?? '';
 
   // «Не найдено» до того, как список пришёл, — это враньё: страница пуста, пока едет.
   if (!disease) {
@@ -59,7 +72,7 @@ export function DiseaseViewPage() {
             variant="default"
             leftSection={<IconEdit size={16} />}
           >
-            {disease.description ? 'Править' : 'Дополнить описание'}
+            {(summary?.hasDescription ?? Boolean(description)) ? 'Править' : 'Дополнить описание'}
           </Button>
         </Group>
 
@@ -113,12 +126,29 @@ export function DiseaseViewPage() {
               )}
             </Group>
 
-            {disease.description ? (
+            {description ? (
               /* Чужая разметка — через общий санитайзер, как статья и документ врача: описание
                  приносят вставкой из руководства, то есть это ровно тот случай, ради которого
                  `SafeHtml` и заведён. `descriptionToHtml` по дороге поднимает абзацы у записей,
-                 сделанных до появления редактора. */
-              <SafeHtml html={descriptionToHtml(disease.description)} />
+                 сделанных до появления редактора, а `renderDiseaseWiki` превращает `[[Название]]`
+                 в переходы.
+
+                 Переход ловится на обёртке, а не на самой ссылке: разметку рисует `SafeHtml`, и
+                 обработчика внутри неё нет. Тот же приём, что в базе знаний. */
+              <div
+                onClick={(e) => {
+                  const link = (e.target as HTMLElement).closest('[data-wiki-link]');
+                  const href = link?.getAttribute('href');
+                  if (href) {
+                    e.preventDefault();
+                    navigate(href, { state: { from: `/reference/diseases/${disease.id}` } });
+                  }
+                }}
+              >
+                <SafeHtml
+                  html={renderDiseaseWiki(descriptionToHtml(description), { diseases, documents, abbreviations })}
+                />
+              </div>
             ) : (
               <Alert variant="light" color="gray" icon={<IconNotes size={18} />}>
                 <Text size="sm">
@@ -130,6 +160,38 @@ export function DiseaseViewPage() {
             )}
           </Stack>
         </ReadingSheet>
+
+        {mentions.length > 0 && (
+          /*
+             Обратные ссылки: кто ссылается сюда.
+        
+             Вики без них — дорога в один конец: врач, пришедший на «Фибрилляцию предсердий»,
+             не узнает, что о ней говорит карточка тиреотоксикоза. Считает их сервер — собрать
+             такой список на клиенте можно только скачав все описания разом.
+          */
+          <Card withBorder padding="md">
+            <Text fw={600} size="sm" mb="xs">
+              Упоминается в
+            </Text>
+            <Stack gap={6}>
+              {mentions.map((row) => (
+                <Group key={row.id} gap={8} wrap="nowrap" align="baseline">
+                  <Anchor
+                    component={Link}
+                    to={`/reference/diseases/${row.id}`}
+                    state={{ from: `/reference/diseases/${disease.id}` }}
+                    size="sm"
+                  >
+                    {row.name}
+                  </Anchor>
+                  <Text size="xs" c="dimmed" lineClamp={1}>
+                    {row.summary}
+                  </Text>
+                </Group>
+              ))}
+            </Stack>
+          </Card>
+        )}
 
         {guideline ? (
           <Card withBorder padding="md">

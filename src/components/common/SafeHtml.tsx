@@ -27,6 +27,8 @@ const ALLOWED_TAGS = [
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'ul', 'ol', 'li',
   'a', 'img', 'figure', 'figcaption',
+  // Сокращение в описании болезни: расшифровка живёт в `title` и достаётся диктору тоже.
+  'abbr',
   'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
 ];
 
@@ -35,8 +37,9 @@ const ALLOWED_ATTR = [
   'src', 'alt', 'width', 'height',
   'class', 'style', 'align',
   'colspan', 'rowspan', 'colwidth', 'span',
-  // Списки задач Tiptap и ссылки `[[Название]]` базы знаний: по ним рисуются флажок и переход.
-  'data-type', 'data-checked', 'data-doc-link',
+  // Списки задач Tiptap и ссылки `[[Название]]`: по ним рисуются флажок и переход. `data-wiki-link`
+  // — тот же признак у ссылок справочника заболеваний, где целью бывает не только документ.
+  'data-type', 'data-checked', 'data-doc-link', 'data-wiki-link',
 ];
 
 export function sanitizeHtml(html: string): string {

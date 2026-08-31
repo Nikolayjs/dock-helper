@@ -10,7 +10,7 @@ import { QueryState } from '../../components/common/QueryState';
 import { sortRows, useTableSort } from '../../lib/tableSort';
 import { useIncrementalList } from '../../lib/useIncrementalList';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
-import type { Disease } from './types';
+import type { DiseaseSummary } from './types';
 import { QUERY_KEY, useDiseases } from './useDiseases';
 import classes from '../drugs/DrugList.module.css';
 
@@ -20,7 +20,7 @@ const NO_SECTION = 'Без раздела';
 type SortKey = 'name' | 'codes' | 'category';
 const SORT_KEYS: readonly SortKey[] = ['name', 'codes', 'category'];
 
-const sectionOf = (row: Disease) => row.category.trim() || NO_SECTION;
+const sectionOf = (row: DiseaseSummary) => row.category.trim() || NO_SECTION;
 
 /**
  * Совпадение по названию, синонимам и коду МКБ.
@@ -30,7 +30,7 @@ const sectionOf = (row: Disease) => row.category.trim() || NO_SECTION;
  * номенклатуре. Суть (`summary`) не ищется: это фраза для чтения, и поиск по ней выдавал бы
  * болезнь, у которой искомое слово стоит в пояснении, выше той, которая так называется.
  */
-function matches(row: Disease, query: string): boolean {
+function matches(row: DiseaseSummary, query: string): boolean {
   if (!query) return true;
   return (
     row.name.toLowerCase().includes(query) ||
@@ -40,9 +40,9 @@ function matches(row: Disease, query: string): boolean {
 }
 
 interface Props {
-  onOpen: (row: Disease) => void;
+  onOpen: (row: DiseaseSummary) => void;
   /** `null` — создать новую запись. */
-  onEdit: (row: Disease | null) => void;
+  onEdit: (row: DiseaseSummary | null) => void;
 }
 
 export function DiseasesCatalog({ onOpen, onEdit }: Props) {
@@ -82,9 +82,9 @@ export function DiseasesCatalog({ onOpen, onEdit }: Props) {
   // Правка и добавление живут на своей странице: у описания полноценный редактор, и в окне ему
   // тесно ровно настолько, насколько длинный текст не помещается в окно.
   const openNew = () => onEdit(null);
-  const openEdit = (row: Disease) => onEdit(row);
+  const openEdit = (row: DiseaseSummary) => onEdit(row);
 
-  const handleDelete = (row: Disease) =>
+  const handleDelete = (row: DiseaseSummary) =>
     confirmDelete({
       what: 'заболевание',
       name: row.name,
@@ -94,7 +94,7 @@ export function DiseasesCatalog({ onOpen, onEdit }: Props) {
       perform: () => deleteDisease(row.id),
     });
 
-  const columns: DataColumn<Disease, SortKey>[] = [
+  const columns: DataColumn<DiseaseSummary, SortKey>[] = [
     {
       key: 'name',
       header: 'Заболевание',
@@ -232,7 +232,7 @@ export function DiseasesCatalog({ onOpen, onEdit }: Props) {
 }
 
 /** Компактный список на телефоне — стили общие со справочником препаратов. */
-function DiseaseList({ rows, onOpen }: { rows: Disease[]; onOpen: (row: Disease) => void }) {
+function DiseaseList({ rows, onOpen }: { rows: DiseaseSummary[]; onOpen: (row: DiseaseSummary) => void }) {
   const { visible, hasMore, remaining, setSentinel } = useIncrementalList(rows, 40);
 
   return (

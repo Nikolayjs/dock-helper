@@ -1,10 +1,11 @@
 import { Alert, Badge, Button, Card, Center, Container, Group, Loader, Stack, Text, Title, UnstyledButton } from '@mantine/core';
-import { IconAlertTriangle, IconCheck, IconChevronRight, IconInfoCircle, IconStethoscope } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck, IconChevronRight, IconInfoCircle, IconStethoscope, IconVirus } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BackButton } from '../../components/common/BackButton';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
 import { useAllDocuments } from '../knowledgeBase/useDocuments';
+import { useDiseasesByCode } from '../diseases/useDiseases';
 import { useIcd10Card } from './useIcd10';
 
 /**
@@ -40,6 +41,13 @@ export function Icd10ViewPage() {
   const navigate = useNavigate();
   const { card, isLoading, error } = useIcd10Card(code);
   const { documents } = useAllDocuments();
+  /*
+   * Связь была односторонней: болезнь называла свои коды, а код о болезнях не знал ничего — врач,
+   * пришедший из реестра с кодом на руках, из классификации никуда дальше уйти не мог. Считает
+   * сервер: справочник заболеваний принадлежит рабочему пространству, а классификация отдаётся без
+   * входа, и подмешать одно в другое значило бы отдать записи врача любому.
+   */
+  const { diseases } = useDiseasesByCode(code);
 
   /**
    * Клиническая рекомендация с тем же названием, если она есть.
@@ -133,6 +141,35 @@ export function Icd10ViewPage() {
             </Text>
           )}
         </ReadingSheet>
+
+        {diseases.length > 0 && (
+          <Card withBorder padding="lg">
+            <Group gap={8} mb="xs">
+              <IconVirus size={18} />
+              <Text fw={600}>В справочнике заболеваний</Text>
+            </Group>
+            <Stack gap={10}>
+              {diseases.map((disease) => (
+                <UnstyledButton
+                  key={disease.id}
+                  onClick={() => navigate(`/reference/diseases/${disease.id}`, { state: { from: `/icd10/${card.code}` } })}
+                >
+                  <Group gap="xs" wrap="nowrap">
+                    <Text size="sm" fw={600} c="brand">
+                      {disease.name}
+                    </Text>
+                    <IconChevronRight size={14} />
+                  </Group>
+                  {disease.summary && (
+                    <Text size="xs" c="dimmed" mt={2}>
+                      {disease.summary}
+                    </Text>
+                  )}
+                </UnstyledButton>
+              ))}
+            </Stack>
+          </Card>
+        )}
 
         {guideline && (
           <Card withBorder padding="lg">
