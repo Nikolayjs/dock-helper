@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { installAdvice } from './installPrompt';
+import { installAdvice, makesShortcutOnly } from './installPrompt';
 
 /**
  * Порядок веток в карточке установки.
@@ -26,5 +26,34 @@ describe('что показать в карточке установки', () =>
 
   it('прочим браузерам — объяснение, где установка бывает', () => {
     expect(installAdvice({ standalone: false, installable: false, ios: false })).toBe('other');
+  });
+});
+
+/**
+ * Кто на Android ставит приложение, а кто — ярлык.
+ *
+ * Разница видна только после установки: ярлык открывается вкладкой внутри своего браузера, и врач
+ * остаётся гадать, почему «установленное» приложение выглядит как сайт. Сказать об этом заранее —
+ * единственное, что тут вообще можно сделать со стороны сайта.
+ */
+describe('ярлык вместо приложения', () => {
+  const ANDROID = 'Mozilla/5.0 (Linux; Android 14; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko)';
+
+  it('Яндекс.Браузер на Android кладёт ярлык', () => {
+    expect(makesShortcutOnly(`${ANDROID} Chrome/122.0.0.0 YaBrowser/24.1.0.0 Mobile Safari/537.36`)).toBe(true);
+  });
+
+  it('и другие браузеры на Chromium — тоже', () => {
+    expect(makesShortcutOnly(`${ANDROID} Chrome/122.0.0.0 OPR/79.0.0.0 Mobile`)).toBe(true);
+    expect(makesShortcutOnly(`${ANDROID} SamsungBrowser/23.0 Chrome/115.0.0.0 Mobile`)).toBe(true);
+  });
+
+  // Chrome на Android собирает WebAPK — это и есть настоящая установка.
+  it('Chrome на Android ставит приложение', () => {
+    expect(makesShortcutOnly(`${ANDROID} Chrome/122.0.0.0 Mobile Safari/537.36`)).toBe(false);
+  });
+
+  it('к настольным браузерам это не относится', () => {
+    expect(makesShortcutOnly('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 YaBrowser/24.1.0.0')).toBe(false);
   });
 });
