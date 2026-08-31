@@ -130,6 +130,29 @@ export const PLACEHOLDERS: PlaceholderDef[] = [
      */
     resolve: (ctx) => `${dayjs(ctx.visit.date).format('YYYYMMDD')}-${ctx.visit.id.slice(-4).toUpperCase()}`,
   },
+
+  // ── Константы пациента ────────────────────────────────────────────────────────────────────────
+  // Появились вместе с полями карточки: без них бланк 086/у и направление 057/у пришлось бы
+  // дописывать от руки ровно в тех графах, ради которых их и печатают.
+  { token: '{{patientAddress}}', label: 'Адрес пациента', resolve: (ctx) => ctx.patient.address || EMPTY },
+  { token: '{{patientPolicy}}', label: 'Полис ОМС', resolve: (ctx) => ctx.patient.insurancePolicy || EMPTY },
+  { token: '{{patientDistrict}}', label: 'Участок', resolve: (ctx) => ctx.patient.district || EMPTY },
+  {
+    token: '{{patientHeight}}',
+    label: 'Рост, см',
+    resolve: (ctx) => (ctx.patient.heightCm === null ? EMPTY : String(ctx.patient.heightCm)),
+  },
+  {
+    token: '{{patientWeight}}',
+    label: 'Вес, кг',
+    // Через запятую: на бумаге «78.5» читается как чужая строка, набранная машиной.
+    resolve: (ctx) => (ctx.patient.weightKg === null ? EMPTY : String(ctx.patient.weightKg).replace('.', ',')),
+  },
+  {
+    token: '{{patientAllergies}}',
+    label: 'Аллергии',
+    resolve: (ctx) => ctx.patient.allergies || EMPTY,
+  },
 ];
 
 /**

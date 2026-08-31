@@ -62,6 +62,7 @@ export const CALCULATOR_CATEGORIES = [
   'Нефрология',
   'Педиатрия',
   'Пульмонология',
+  'Шкалы и опросники',
   'Прочее',
 ] as const;
 
@@ -78,5 +79,6 @@ export const CATEGORY_COLORS: Record<string, string> = {
   Нефрология: 'grape',
   Педиатрия: 'orange',
   Пульмонология: 'cyan',
+  'Шкалы и опросники': 'violet',
   Прочее: 'gray',
 };
