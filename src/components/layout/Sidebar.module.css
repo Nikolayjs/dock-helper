@@ -105,3 +105,63 @@
   background-color: var(--mantine-color-brand-4);
   opacity: 0.5;
 }
+
+/*
+ * Кнопка меню строки: место под неё занято всегда, а видна она по наведению.
+ *
+ * Появляясь из ниоткуда, она сдвигала бы название ровно в тот момент, когда на него наводят, — та
+ * же причина, по которой в таблице всегда занято место под стрелку сортировки. На сенсорном экране
+ * наведения нет, поэтому там она видна постоянно: иначе переименовать пункт с телефона нечем.
+ */
+.rowMenu {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.navRow:hover .rowMenu,
+.rowMenu:focus-visible,
+.rowMenu[aria-expanded='true'] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .rowMenu {
+    opacity: 1;
+  }
+}
+
+/* Заголовок раздела — кнопка: по нажатию раздел сворачивается. */
+.sectionTitle {
+  display: block;
+  width: 100%;
+  padding: 2px 8px 4px;
+  border-radius: 8px;
+  color: var(--mantine-color-dimmed);
+}
+
+.sectionTitle:hover {
+  background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+}
+
+/* Куда упадёт перетаскиваемый пункт. Пустой раздел «Ещё» без этого — невидимая цель. */
+.sectionDrop {
+  border-radius: 10px;
+  outline: 2px dashed transparent;
+  outline-offset: 2px;
+  transition: outline-color 120ms ease;
+}
+
+.sectionDrop[data-over='true'] {
+  outline-color: var(--mantine-color-brand-4);
+}
+
+/* Пункт под курсором во время перетаскивания: рисуется поверх, иначе исчезает над свёрнутым разделом. */
+.dragGhost {
+  width: 220px;
+  border-radius: 12px;
+  background-color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-6));
+  box-shadow: var(--mantine-shadow-md);
+  padding: 2px;
+  cursor: grabbing;
+}

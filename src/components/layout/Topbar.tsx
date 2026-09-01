@@ -119,6 +119,7 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
 
           <Divider orientation="vertical" visibleFrom="sm" />
 
+          {/* Кнопка без подписи — это кнопка, о которой диктор скажет «кнопка»: имя ей нужно. */}
           <ActionIcon
             variant="light"
             color="gray"
@@ -126,6 +127,7 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
             radius="md"
             hiddenFrom="sm"
             onClick={onBurgerClick}
+            aria-label="Меню разделов"
           >
             <IconMenu2 size={18} />
           </ActionIcon>

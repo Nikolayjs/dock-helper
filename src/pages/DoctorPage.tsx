@@ -38,7 +38,7 @@ import {
 } from '@tabler/icons-react';
 
 import { WallpaperPicker } from '../features/appearance/WallpaperPicker';
-import { useSidebarOrder } from '../components/layout/useSidebarOrder';
+import { useSidebarLayout } from '../components/layout/useSidebarLayout';
 import { updateProfile } from '../features/auth/authApi';
 import { useSpecialties } from '../features/specialties/useSpecialtyFilter';
 import { useAuth, useLogout, useUpdateAuthUser } from '../features/auth/AuthContext';
@@ -78,7 +78,7 @@ export function DoctorPage() {
   const updateAuthUser = useUpdateAuthUser();
   const logout = useLogout();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
-  const { hasCustomOrder, resetOrder } = useSidebarOrder();
+  const { customised, reset: resetSidebar } = useSidebarLayout();
   /**
    * Общее меняет только владелец: реквизиты печатаются на документах всех врачей, а приглашение
    * открывает чужому человеку доступ к записям пациентов. Здесь это лишь вид — запрещает сервер.
@@ -185,8 +185,8 @@ export function DoctorPage() {
 
 
   const handleResetOrder = () => {
-    resetOrder();
-    notifications.show({ message: 'Порядок разделов меню сброшен', color: 'gray' });
+    resetSidebar();
+    notifications.show({ message: 'Меню возвращено к заводскому виду', color: 'gray' });
   };
 
   const handleClinicFieldChange = (field: keyof ClinicSettings, value: string) => {
@@ -399,17 +399,19 @@ export function DoctorPage() {
 
         <Card withBorder padding="lg">
           <Title order={4} mb={4}>
-            Порядок меню
+            Боковое меню
           </Title>
           <Text size="sm" c="dimmed" mb="lg">
-            Разделы в боковом меню можно перетаскивать за ручку слева — порядок сохраняется в этом браузере.
+            Пункты меню перетаскиваются за ручку слева — в том числе между разделами. Через «⋮» справа пункт можно
+            переименовать или убрать в «Ещё»: убранное не пропадает, а лежит в свёрнутом разделе внизу. Настройка
+            переезжает с вами на другие устройства.
           </Text>
           <Group justify="space-between" align="center">
             <Text size="sm" c="dimmed">
-              {hasCustomOrder ? 'Порядок изменён вручную' : 'Используется порядок по умолчанию'}
+              {customised ? 'Меню настроено вручную' : 'Меню в заводском виде'}
             </Text>
-            <Button variant="light" color="gray" leftSection={<IconArrowsSort size={16} />} onClick={handleResetOrder} disabled={!hasCustomOrder}>
-              Сбросить порядок
+            <Button variant="light" color="gray" leftSection={<IconArrowsSort size={16} />} onClick={handleResetOrder} disabled={!customised}>
+              Сбросить настройку
             </Button>
           </Group>
         </Card>
