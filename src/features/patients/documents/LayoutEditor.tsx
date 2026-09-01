@@ -17,6 +17,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
+import { useFormActionsHeight } from '../../../components/common/formActionsSlot';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 
 import { SCROLL_ROOT_ID } from '../../../components/layout/scrollRoot';
@@ -46,6 +47,16 @@ interface LayoutEditorProps {
   onChange: (layout: TemplateLayout) => void;
 }
 
+/**
+ * Доля экрана под шторку свойств блока.
+ *
+ * Было 62 %, и от бланка оставалась полоса в 256 px из 844: правка блока шла в замочную скважину.
+ * Половина — это столько, сколько нужно самим полям (текст, подстановки, кегль, выравнивание), и
+ * ровно столько же остаётся холсту. Число одно на оба места: и шторка, и высота холста считаются
+ * от него, иначе они разъедутся и снова начнут перекрывать друг друга.
+ */
+const DRAWER_FRACTION = 0.5;
+
 export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -69,6 +80,23 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
    * это панель, а не модальное окно: холст над ней остаётся видимым и рабочим.
    */
   const sideBySide = useMediaQuery('(min-width: 62em)', true, { getInitialValueInEffect: false });
+
+  /*
+   * Пока шторка открыта, страница длиннее ровно на её высоту.
+   *
+   * Шторка занимает нижнюю половину экрана, и без этого запаса нижняя половина бланка недостижима
+   * **никакой** прокруткой: страница кончается, а под шторкой остаётся то, что уже не поднять.
+   * Замер на 390×844 до правки: холст 65..740 при шторке 321..844 — от бланка оставалась полоса в
+   * 256 px. С запасом любая его часть поднимается над шторкой обычным движением пальца.
+   *
+   * Высоту холста при этом не трогаем, и это осознанно. Считать её «сколько осталось до низа
+   * окна» нельзя: страница подкручивается сама, когда шторка открывается, а замер места **в
+   * документе** от прокрутки не зависит — рамка снова уезжала под шторку (проверено: холст
+   * 65..423 при шторке с 301).
+   */
+  const actionsHeight = useFormActionsHeight();
+  const drawerOpen = !sideBySide && selected !== null;
+  const drawerHeight = typeof window === 'undefined' ? 0 : Math.round(window.innerHeight * DRAWER_FRACTION);
 
   const updateBlock = useCallback(
     (id: string, patch: Partial<TemplateLayoutBlock>) => {
@@ -164,7 +192,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
   ).length;
 
   return (
-    <div className={classes.editor}>
+    <div className={classes.editor} style={{ paddingBottom: drawerOpen ? drawerHeight : undefined }}>
       <Stack gap="sm" className={classes.canvas}>
         <Group justify="space-between" wrap="wrap" gap="sm">
           <Select
@@ -296,7 +324,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
           opened={selected !== null}
           onClose={() => setSelectedId(null)}
           position="bottom"
-          size="62%"
+          size={`${Math.round(DRAWER_FRACTION * 100)}%`}
           title="Свойства блока"
           padding="md"
           // Ни затемнения, ни захвата фокуса, ни блокировки прокрутки: холст над шторкой должен
@@ -305,7 +333,28 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
           trapFocus={false}
           lockScroll={false}
           closeOnClickOutside={false}
-          styles={{ content: { boxShadow: 'var(--mantine-shadow-xl)' } }}
+          /*
+           * Шторка садится **над** панелью действий, а не поверх неё: иначе «Сохранить» оказывается
+           * под ней, и врач, поправивший блок, не видит, чем это записать. Высоту панель сообщает
+           * сама — тем же механизмом, которым её обходит кнопка «наверх».
+           */
+          styles={{
+            content: {
+              boxShadow: 'var(--mantine-shadow-xl)',
+              marginBottom: actionsHeight,
+              display: 'flex',
+              flexDirection: 'column',
+            },
+            /*
+             * Свойства прокручиваются внутри шторки, и без `min-height: 0` этого не происходит.
+             *
+             * Тело — элемент flex-колонки, а такой элемент не даёт себя сжать ниже собственного
+             * содержимого: замер на 390×844 — тело 532 px внутри шторки 422, и всё, что ниже
+             * подстановок (кегль, выравнивание, полужирный, удаление), было **обрезано** и
+             * недостижимо ничем. Та же ловушка, из-за которой читалке Word понадобился `miw={0}`.
+             */
+            body: { flex: 1, minHeight: 0, overflowY: 'auto' },
+          }}
         >
           <BlockInspector
             selected={selected}
