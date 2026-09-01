@@ -165,3 +165,23 @@
   padding: 2px;
   cursor: grabbing;
 }
+
+/*
+ * Строка, над которой держат другую и получится папка.
+ *
+ * Отличается от обычного «сюда встанет рядом» намеренно сильно: рамка вокруг всей строки, а не
+ * линия между строками. Это два разных исхода одного жеста, и по картинке должно быть видно, какой
+ * из них сейчас произойдёт.
+ */
+.navRow[data-combine='true'] {
+  outline: 2px solid var(--mantine-color-brand-5);
+  outline-offset: 1px;
+  border-radius: 12px;
+}
+
+/* Содержимое папки — со сдвигом, как вложенные страницы в Notion: по отступу и видно вложенность. */
+.folderBody {
+  margin-left: 18px;
+  padding-left: 8px;
+  border-left: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+}

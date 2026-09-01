@@ -62,7 +62,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onNavigate, collapsed, onStartResize, onToggleCollapsed }: SidebarProps) {
-  const { layout, setArrangement, rename, toggleSection } = useSidebarLayout();
+  const { layout, setStructure, rename, renameFolder, toggle } = useSidebarLayout();
   const user = useAuth();
   const initials = getInitials(user.name);
   const location = useLocation();
@@ -77,9 +77,10 @@ export function Sidebar({ onNavigate, collapsed, onStartResize, onToggleCollapse
             layout={layout}
             iconOnly={collapsed}
             onNavigate={onNavigate}
-            onArrange={setArrangement}
+            onStructure={setStructure}
             onRename={rename}
-            onToggleSection={toggleSection}
+            onRenameFolder={renameFolder}
+            onToggle={toggle}
           />
         </Box>
       </ScrollArea>
