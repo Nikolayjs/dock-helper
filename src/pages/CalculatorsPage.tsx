@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Anchor, Box, Button, Container, Group, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { IconCalculatorOff, IconInfoCircle, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
+import { IconBuildingStore, IconCalculatorOff, IconInfoCircle, IconPlus, IconSearch, IconX } from '@tabler/icons-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { CatalogPanel } from '../components/common/CatalogPanel';
@@ -92,6 +92,13 @@ export function CalculatorsPage() {
               />
               <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/calculators/new')}>
                 Создать калькулятор
+              </Button>
+              <Button
+                variant="subtle"
+                leftSection={<IconBuildingStore size={18} />}
+                onClick={() => navigate('/store?tab=calculator')}
+              >
+                Ещё в магазине
               </Button>
             </Group>
           </Group>

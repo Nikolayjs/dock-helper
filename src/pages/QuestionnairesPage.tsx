@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Alert, Button, Box, Container, Group, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { IconInfoCircle, IconPlus, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
+import { IconBuildingStore, IconInfoCircle, IconPlus, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
 import { CatalogPanel } from '../components/common/CatalogPanel';
@@ -65,6 +65,15 @@ export function QuestionnairesPage() {
             />
             <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/diagnostics/new')}>
               Создать анкету
+            </Button>
+            {/* Заводских панелей четыре десятка, а ставится сразу пять самых частых: остальное надо
+                где-то показать, иначе врач о нём не узнает. */}
+            <Button
+              variant="subtle"
+              leftSection={<IconBuildingStore size={18} />}
+              onClick={() => navigate('/store?tab=questionnaire')}
+            >
+              Ещё в магазине
             </Button>
           </Group>
             </Group>

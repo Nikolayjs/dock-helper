@@ -3,7 +3,7 @@ import { Box, Button, Card, Container, Grid, Group, Loader, NumberInput, Segment
 
 import { PageToolbar } from '../components/common/PageToolbar';
 import { notifications } from '@mantine/notifications';
-import { IconClipboardPlus, IconEdit, IconEraser, IconFileUpload, IconPlus } from '@tabler/icons-react';
+import { IconBuildingStore, IconClipboardPlus, IconEdit, IconEraser, IconFileUpload, IconPlus } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -77,7 +77,16 @@ export function AnalyzerPage() {
     [allTests, valuesByTest],
   );
 
-  const activeTestId = testId ?? allTests[0]?.id;
+  /*
+   * Открытая панель — состояние страницы, но ссылка снаружи вправе её назвать (`?test=<id>`).
+   *
+   * Иначе «Открыть» из магазина ведёт на страницу анализов и показывает **не то**, что врач только
+   * что поставил, — обещание, которого ссылка не исполняет. Адрес читается один раз, как
+   * происхождение у кнопки «назад»: дальше вкладки переключают руками, и переписывать за врачом
+   * адрес на каждое нажатие незачем.
+   */
+  const requestedTestId = searchParams.get('test');
+  const activeTestId = testId ?? (requestedTestId && allTests.some((t) => t.id === requestedTestId) ? requestedTestId : undefined) ?? allTests[0]?.id;
   const currentTest = allTests.find((t) => t.id === activeTestId);
   const currentValues = currentTest ? (valuesByTest[currentTest.id] ?? {}) : {};
 
@@ -179,6 +188,14 @@ export function AnalyzerPage() {
               </Tabs>
               <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => navigate('/analyzer/new')}>
                 Свой анализ
+              </Button>
+              <Button
+                size="xs"
+                variant="subtle"
+                leftSection={<IconBuildingStore size={14} />}
+                onClick={() => navigate('/store?tab=analyzer')}
+              >
+                В магазин
               </Button>
               <Button size="xs" leftSection={<IconFileUpload size={14} />} onClick={() => setImportOpen(true)}>
                 Загрузить файл

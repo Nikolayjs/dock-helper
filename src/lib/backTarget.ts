@@ -40,6 +40,7 @@ const SECTION_LABELS: { prefix: string; label: string; item?: string }[] = [
   { prefix: '/interactions', label: 'К взаимодействиям' },
   { prefix: '/icd10', label: 'К МКБ-10', item: 'К коду МКБ-10' },
   { prefix: '/planner', label: 'К планеру' },
+  { prefix: '/store', label: 'В магазин' },
   { prefix: '/notes', label: 'К заметкам', item: 'К заметке' },
   { prefix: '/library', label: 'К библиотеке', item: 'К книге' },
   { prefix: '/news', label: 'К новостям', item: 'К новости' },

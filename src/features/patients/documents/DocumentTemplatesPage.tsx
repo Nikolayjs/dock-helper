@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActionIcon, Alert, Button, Card, Group, Modal, Select, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
-import { IconFileText, IconFileOff, IconInfoCircle, IconPhotoScan, IconPlus, IconPrinter, IconSearch } from '@tabler/icons-react';
+import { IconBuildingStore, IconFileText, IconFileOff, IconInfoCircle, IconPhotoScan, IconPlus, IconPrinter, IconSearch } from '@tabler/icons-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { CatalogToolbar } from '../../../components/common/CatalogPanel';
@@ -98,6 +98,13 @@ export function DocumentTemplatesPage({ hint }: { hint?: string }) {
           </Tooltip>
           <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/documents/templates/new')}>
             Создать бланк
+          </Button>
+          <Button
+            variant="subtle"
+            leftSection={<IconBuildingStore size={18} />}
+            onClick={() => navigate('/store?tab=template')}
+          >
+            Ещё в магазине
           </Button>
         </Group>
       </Group>

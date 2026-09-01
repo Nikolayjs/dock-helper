@@ -2,6 +2,7 @@ import { DEMO_DOCTOR } from './demoDoctor';
 import { createDemoData } from './demoFixtures';
 import { DEMO_ICD10 } from './demoIcd10';
 import { DEMO_DATA_KEY } from './demoSession';
+import { demoStoreItems } from './demoStore';
 
 /**
  * Сервер демо-режима, живущий в браузере.
@@ -296,6 +297,14 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
     calculator.favourite = payload.favourite ?? !calculator.favourite;
     save();
     return calculator as T;
+  }
+
+  // ── Магазин: витрина показывается, установка — нет ───────────────────────────────────────────
+  if (pathname === '/store/items' && method === 'GET') return demoStoreItems(load()) as T;
+  if (pathname === '/store/install') {
+    throw new DemoUnavailableError(
+      'В демо-режиме магазин работает как витрина: установка меняет набор рабочего пространства, а гостевая сессия ничего не сохраняет.',
+    );
   }
 
   // ── Мелочи, у которых в демо нет источника ───────────────────────────────────────────────────

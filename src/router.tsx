@@ -59,6 +59,7 @@ const DiseaseEditorPage = lazyPage(() => import('./features/diseases/DiseaseEdit
 const GuidelineViewPage = lazyPage(() => import('./pages/GuidelineViewPage'), 'GuidelineViewPage');
 const GuidelineEditorPage = lazyPage(() => import('./pages/GuidelineEditorPage'), 'GuidelineEditorPage');
 const QuestionnairesPage = lazyPage(() => import('./pages/QuestionnairesPage'), 'QuestionnairesPage');
+const StorePage = lazyPage(() => import('./pages/StorePage'), 'StorePage');
 const QuestionnaireViewPage = lazyPage(() => import('./pages/QuestionnaireViewPage'), 'QuestionnaireViewPage');
 const QuestionnaireBuilderPage = lazyPage(() => import('./pages/QuestionnaireBuilderPage'), 'QuestionnaireBuilderPage');
 const ArticlesPage = lazyPage(() => import('./pages/ArticlesPage'), 'ArticlesPage');
@@ -153,6 +154,7 @@ export const router = createBrowserRouter(
           {/* Список МКБ-10 переехал во вкладку справочника; карточка кода осталась своей страницей. */}
           <Route path="/icd10/:code" element={<Icd10ViewPage />} />
           <Route path="/planner" element={<PlannerPage />} />
+          <Route path="/store" element={<StorePage />} />
           <Route path="/doctor" element={<DoctorPage />} />
           <Route path="/calculators" element={<CalculatorsPage />} />
           <Route path="/calculators/new" element={<CalculatorBuilderPage />} />

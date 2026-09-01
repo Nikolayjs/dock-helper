@@ -39,6 +39,11 @@ const PAGE_META: PageMetaEntry[] = [
   },
   { match: (p) => p.startsWith('/icd10/'), title: 'Код МКБ-10' },
   { match: (p) => p === '/planner', title: 'Планер', subtitle: 'Доска задач с колонками и карточками' },
+  {
+    match: (p) => p === '/store',
+    title: 'Магазин',
+    subtitle: 'Анализаторы, калькуляторы, диагностические панели и бланки — поставить себе',
+  },
   { match: (p) => p.startsWith('/doctor'), title: 'Мой профиль', subtitle: 'Данные врача, настройки и статистика' },
   {
     match: (p) => p === '/calculators',

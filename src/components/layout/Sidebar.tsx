@@ -19,6 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Avatar, Box, Divider, Group, ScrollArea, Stack, Text, ThemeIcon, Tooltip, UnstyledButton } from "@mantine/core";
 import {
   IconArticle,
+  IconBuildingStore,
   IconBook2,
   IconVocabulary,
   IconBooks,
@@ -60,6 +61,7 @@ const mainNav: NavItemData[] = [
   { label: "Календарь", path: "/calendar", icon: IconCalendarStats },
   { label: "Пациенты", path: "/patients", icon: IconUsers },
   { label: "Документы", path: "/documents", icon: IconFileText },
+  { label: "Магазин", path: "/store", icon: IconBuildingStore },
 ];
 
 const knowledgeNav: NavItemData[] = [
