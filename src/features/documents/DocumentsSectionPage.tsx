@@ -2,6 +2,7 @@ import { Badge, Container, Tabs } from '@mantine/core';
 import { IconFileText, IconRubberStamp } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
 
+import { PageToolbar } from '../../components/common/PageToolbar';
 import { DocumentList } from './DocumentList';
 import { useDoctorDocuments } from './useDoctorDocuments';
 import { DocumentTemplatesPage } from '../patients/documents/DocumentTemplatesPage';
@@ -45,6 +46,9 @@ export function DocumentsSectionPage() {
   return (
     <Container size="xl" px={0}>
       <Tabs variant="pills" value={tab} onChange={switchTab} mb="lg">
+        {/* Вкладки на поверхности, как во всех разделах: см. `PageToolbar`. */}
+        <PageToolbar
+          tabs={
         <Tabs.List>
           <Tabs.Tab
             value="documents"
@@ -73,6 +77,8 @@ export function DocumentsSectionPage() {
             Бланки
           </Tabs.Tab>
         </Tabs.List>
+          }
+        />
       </Tabs>
 
       {/* Пояснение уехало внутрь панели соответствующей вкладки: отдельной строкой оно лежало на

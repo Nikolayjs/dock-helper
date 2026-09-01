@@ -24,6 +24,7 @@ import { QUERY_KEY as PATIENTS_KEY, usePatients } from '../features/patients/use
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { observationsWarning, visitsWarning } from '../features/patients/deleteWarnings';
 import { CatalogPanel } from '../components/common/CatalogPanel';
+import { PageToolbar } from '../components/common/PageToolbar';
 import { QueryState } from '../components/common/QueryState';
 import { readSetting, writeSetting } from '../lib/settingsStore';
 
@@ -124,6 +125,20 @@ export function PatientsPage() {
     [dispensaryFiltered, dispensarySort.sort, patientsById, icdNames],
   );
 
+  /* Вкладки одни на обе ветки раздела: они и есть переключатель между ними. */
+  const sectionTabs = (
+    <Tabs value={tab} onChange={(v) => setTab((v as PatientsTab) ?? 'all')} variant="pills">
+      <Tabs.List>
+        <Tabs.Tab value="all" leftSection={<IconUsers size={16} />}>
+          Все пациенты
+        </Tabs.Tab>
+        <Tabs.Tab value="dispensary" leftSection={<IconClipboardHeart size={16} />}>
+          Диспансерные
+        </Tabs.Tab>
+      </Tabs.List>
+    </Tabs>
+  );
+
   return (
     <Container size="xl" px={0}>
       <Stack gap="lg">
@@ -142,19 +157,10 @@ export function PatientsPage() {
           </Alert>
         )}
 
-        <Tabs value={tab} onChange={(v) => setTab((v as PatientsTab) ?? 'all')} variant="pills">
-          <Tabs.List>
-            <Tabs.Tab value="all" leftSection={<IconUsers size={16} />}>
-              Все пациенты
-            </Tabs.Tab>
-            <Tabs.Tab value="dispensary" leftSection={<IconClipboardHeart size={16} />}>
-              Диспансерные
-            </Tabs.Tab>
-          </Tabs.List>
-        </Tabs>
-
+        {/* Вкладки — первая строка панели, а не остров над ней: см. `PageToolbar`. */}
         {tab === 'all' ? (
           <CatalogPanel
+            tabs={sectionTabs}
             header={
               <Stack gap="md">
                 <Group justify="space-between" align="flex-end" wrap="wrap">
@@ -247,6 +253,7 @@ export function PatientsPage() {
           </CatalogPanel>
         ) : (
           <>
+            <PageToolbar tabs={sectionTabs}>
             <Group justify="space-between" align="flex-end" wrap="wrap">
               <SegmentedControl
                 value={dispensaryFilter}
@@ -265,6 +272,7 @@ export function PatientsPage() {
                 </Button>
               </Group>
             </Group>
+            </PageToolbar>
 
             <QueryState isLoading={recordsLoading} error={recordsError} onRetry={refetchRecords} what="карты учёта">
               {sortedRecords.length === 0 ? (

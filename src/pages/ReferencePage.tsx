@@ -1,4 +1,6 @@
-import { Container, Stack, Tabs } from '@mantine/core';
+import { Box, Container, Stack, Tabs } from '@mantine/core';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { IconListSearch, IconStethoscope, IconVocabulary } from '@tabler/icons-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -38,7 +40,11 @@ export function ReferencePage() {
   return (
     <Container size="xl" px={0}>
       <Tabs variant="pills" value={tab} onChange={setTab} keepMounted={false}>
-        <Tabs.List mb="lg">
+        {/* Вкладки лежат на поверхности, а не на фоне страницы: одно правило на все разделы. */}
+        <Box mb="lg">
+          <PageToolbar
+            tabs={
+        <Tabs.List>
           <Tabs.Tab value="diseases" leftSection={<IconStethoscope size={16} />}>
             Заболевания
           </Tabs.Tab>
@@ -49,6 +55,9 @@ export function ReferencePage() {
             МКБ-10
           </Tabs.Tab>
         </Tabs.List>
+            }
+          />
+        </Box>
 
         {/* `keepMounted={false}` не для экономии памяти: МКБ-10 тянет свои 55 КБ оглавления, и
             держать их наготове у того, кто открыл вкладку с сокращениями, незачем. */}

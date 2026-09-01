@@ -1,4 +1,6 @@
 import { Container, Tabs } from '@mantine/core';
+
+import { PageToolbar } from '../../components/common/PageToolbar';
 import { IconPill, IconPills } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -44,6 +46,9 @@ export function DrugsSectionPage() {
   return (
     <Container size="xl" px={0}>
       <Tabs variant="pills" value={tab} onChange={switchTab} mb="lg">
+        {/* Вкладки на поверхности, как во всех разделах: см. `PageToolbar`. */}
+        <PageToolbar
+          tabs={
         <Tabs.List>
           {/* Без счётчиков: полторы тысячи препаратов и тысяча правил — числа, от которых врач
               ничего не делает иначе, а в круглом значке они к тому же не помещаются («1..»).
@@ -55,6 +60,8 @@ export function DrugsSectionPage() {
             Взаимодействия
           </Tabs.Tab>
         </Tabs.List>
+          }
+        />
       </Tabs>
 
       {tab === 'catalog' ? <DrugCatalog /> : <InteractionsCheck />}

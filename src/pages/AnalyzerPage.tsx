@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Tabs, Text } from '@mantine/core';
+import { Box, Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Tabs, Text } from '@mantine/core';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { notifications } from '@mantine/notifications';
 import { IconClipboardPlus, IconEdit, IconEraser, IconFileUpload, IconPlus } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
@@ -158,26 +160,33 @@ export function AnalyzerPage() {
 
   return (
     <Container size="xl" px={0}>
-      <Group justify="space-between" mb="lg" wrap="wrap" gap="md">
-        <Group gap="xs" wrap="wrap">
-          <Tabs value={activeTestId} onChange={(v) => setTestId(v ?? undefined)} variant="pills">
-            <Tabs.List>
-              {allTests.map((test) => (
-                <Tabs.Tab key={test.id} value={test.id}>
-                  {test.shortTitle}
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
-          </Tabs>
-          <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => navigate('/analyzer/new')}>
-            Свой анализ
-          </Button>
-          <Button size="xs" leftSection={<IconFileUpload size={14} />} onClick={() => setImportOpen(true)}>
-            Загрузить файл
-          </Button>
-        </Group>
-
-        <Group gap="md">
+      {/*
+        Верхушка страницы — одна поверхность на три полосы управления, которые раньше висели на фоне
+        по отдельности: вкладки анализов, кнопки раздела и параметры разбора. См. `PageToolbar`.
+      */}
+      <Box mb="lg">
+        <PageToolbar
+          tabs={
+            <Group gap="xs" wrap="wrap">
+              <Tabs value={activeTestId} onChange={(v) => setTestId(v ?? undefined)} variant="pills" style={{ minWidth: 0 }}>
+                <Tabs.List>
+                  {allTests.map((test) => (
+                    <Tabs.Tab key={test.id} value={test.id}>
+                      {test.shortTitle}
+                    </Tabs.Tab>
+                  ))}
+                </Tabs.List>
+              </Tabs>
+              <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => navigate('/analyzer/new')}>
+                Свой анализ
+              </Button>
+              <Button size="xs" leftSection={<IconFileUpload size={14} />} onClick={() => setImportOpen(true)}>
+                Загрузить файл
+              </Button>
+            </Group>
+          }
+        >
+        <Group gap="md" wrap="wrap">
           <NumberInput
             value={age ?? ''}
             onChange={(v) => setAge(v === '' ? undefined : Number(v))}
@@ -213,7 +222,8 @@ export function AnalyzerPage() {
             Очистить
           </Button>
         </Group>
-      </Group>
+        </PageToolbar>
+      </Box>
 
       {currentTest && result && (
         <Grid gap="lg">

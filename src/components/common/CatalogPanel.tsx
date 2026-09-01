@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import { Box, Card, Divider } from '@mantine/core';
+import { Card } from '@mantine/core';
+
+import { PageToolbar } from './PageToolbar';
 
 /**
  * Список раздела вместе со своей шапкой — на одной поверхности.
@@ -19,19 +21,19 @@ import { Box, Card, Divider } from '@mantine/core';
  * всей высоты списка.
  */
 interface CatalogPanelProps {
+  /** Вкладки раздела, если они есть: первая строка той же поверхности, а не отдельный остров. */
+  tabs?: ReactNode;
   /** Счётчик, поиск, фильтры, кнопки — всё, чем управляют списком. */
   header: ReactNode;
   /** Таблица, компактный список или пустое состояние. */
   children: ReactNode;
 }
 
-export function CatalogPanel({ header, children }: CatalogPanelProps) {
+export function CatalogPanel({ tabs, header, children }: CatalogPanelProps) {
   return (
-    <Card withBorder padding={0}>
-      <Box p="md">{header}</Box>
-      <Divider />
-      {children}
-    </Card>
+    <PageToolbar tabs={tabs} content={children}>
+      {header}
+    </PageToolbar>
   );
 }
 

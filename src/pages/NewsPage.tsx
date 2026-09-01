@@ -30,6 +30,7 @@ import { useNewsFeedItems } from '../features/newsFeed/useNewsFeedItems';
 import { useNewsArchiveSettings } from '../features/newsFeed/useNewsArchiveSettings';
 import { QUERY_KEY as NEWS_SOURCES_KEY, useNewsFeedSources } from '../features/newsFeed/useNewsFeedSources';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
+import { PageToolbar } from '../components/common/PageToolbar';
 import { isDemoSession } from '../features/demo/demoSession';
 
 const PAGE_SIZE = 12;
@@ -128,7 +129,8 @@ export function NewsPage() {
   return (
     <Container size="xl" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap" gap="md">
+        <PageToolbar
+          tabs={
           <Tabs value={activeSourceId} onChange={(v) => setActiveSourceId(v ?? 'all')} variant="pills">
             <Tabs.List>
               <Tabs.Tab value="all">Все источники</Tabs.Tab>
@@ -139,7 +141,8 @@ export function NewsPage() {
               ))}
             </Tabs.List>
           </Tabs>
-
+          }
+        >
           <Group gap="sm">
             <ActionIcon variant="light" color="gray" size="lg" radius="md" onClick={() => refetchAll()} aria-label="Обновить">
               {isLoading ? <Loader size={16} /> : <IconRefresh size={18} />}
@@ -154,7 +157,7 @@ export function NewsPage() {
               Источники
             </Button>
           </Group>
-        </Group>
+        </PageToolbar>
 
         {/* Ленты читает сервер: он ходит за RSS и хранит архив. В демо его нет, и молчаливо пустая
             страница выглядела бы как поломка, а не как граница демонстрации. */}

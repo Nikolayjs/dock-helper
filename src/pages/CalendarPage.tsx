@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Container, Tabs } from '@mantine/core';
+import { Box, Container, Tabs } from '@mantine/core';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
@@ -43,12 +45,19 @@ export function CalendarPage() {
 
   return (
     <Container size="xl" px={0}>
-      <Tabs value={tab} onChange={(v) => setTab((v as CalendarTab) ?? 'notes')} variant="pills" mb="md">
-        <Tabs.List>
-          <Tabs.Tab value="notes">Заметки</Tabs.Tab>
-          <Tabs.Tab value="reminders">Напоминания</Tabs.Tab>
-        </Tabs.List>
-      </Tabs>
+      {/* Вкладки — на поверхности, как во всех разделах: см. `PageToolbar`. */}
+      <Box mb="md">
+        <PageToolbar
+          tabs={
+            <Tabs value={tab} onChange={(v) => setTab((v as CalendarTab) ?? 'notes')} variant="pills">
+              <Tabs.List>
+                <Tabs.Tab value="notes">Заметки</Tabs.Tab>
+                <Tabs.Tab value="reminders">Напоминания</Tabs.Tab>
+              </Tabs.List>
+            </Tabs>
+          }
+        />
+      </Box>
 
       {tab === 'notes' ? (
         <NotesCalendarView
