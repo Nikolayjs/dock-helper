@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { Autocomplete, Button, Card, Container, Group, Select, Stack, TagsInput, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconDeviceFloppy, IconPlus } from '@tabler/icons-react';
@@ -89,16 +91,17 @@ export function DrugEditorPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <Button
-          component={Link}
-          to={id ? `/drugs/${id}` : '/drugs'}
-          variant="subtle"
-          leftSection={<IconArrowLeft size={16} />}
-          pl={8}
-          style={{ alignSelf: 'flex-start' }}
-        >
-          {id ? 'К карточке' : 'К справочнику'}
-        </Button>
+        <PageToolbar>
+          <Button
+            component={Link}
+            to={id ? `/drugs/${id}` : '/drugs'}
+            variant="subtle"
+            leftSection={<IconArrowLeft size={16} />}
+            pl={8}
+            >
+            {id ? 'К карточке' : 'К справочнику'}
+          </Button>
+        </PageToolbar>
 
         <Title order={2}>{id ? 'Редактирование препарата' : 'Новый препарат'}</Title>
 

@@ -2,6 +2,8 @@ import { Button, Center, Container, Loader, Stack, Text, Title } from '@mantine/
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
+import { PageToolbar } from './PageToolbar';
+
 /**
  * Каркас страницы-редактора: кнопка «Назад», заголовок, подложка с формой.
  *
@@ -72,15 +74,25 @@ export function RecordEditorPage({
   return (
     <Container size={size} px={0}>
       <Stack gap="lg">
-        {back}
-        {subtitle ? (
-          <div>
-            <Title order={3}>{title}</Title>
-            {subtitle}
-          </div>
-        ) : (
-          <Title order={3}>{title}</Title>
-        )}
+        {/*
+          Возврат и заголовок — на поверхности, а не на фоне страницы: одно правило на всё
+          приложение, см. `PageToolbar`. Здесь оно закрывает сразу все редакторы: пациента, заметку,
+          документ, статью, рекомендацию, болезнь и карту учёта — раньше у каждого «Назад» висел на
+          обоях.
+        */}
+        <PageToolbar>
+          <Stack gap="sm">
+            {back}
+            {subtitle ? (
+              <div>
+                <Title order={3}>{title}</Title>
+                {subtitle}
+              </div>
+            ) : (
+              <Title order={3}>{title}</Title>
+            )}
+          </Stack>
+        </PageToolbar>
         {children}
       </Stack>
     </Container>

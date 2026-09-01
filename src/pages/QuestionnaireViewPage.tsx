@@ -1,4 +1,6 @@
 import { Button, Container, Group, Stack, Text, Title } from '@mantine/core';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { IconArrowLeft, IconEdit } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -27,14 +29,16 @@ export function QuestionnaireViewPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          <Button component={Link} to="/diagnostics" variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
-            К списку анкет
-          </Button>
-          <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`/diagnostics/${questionnaire.id}/edit`)}>
-            Редактировать
-          </Button>
-        </Group>
+        <PageToolbar>
+          <Group justify="space-between" wrap="wrap">
+            <Button component={Link} to="/diagnostics" variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
+              К списку анкет
+            </Button>
+            <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`/diagnostics/${questionnaire.id}/edit`)}>
+              Редактировать
+            </Button>
+          </Group>
+        </PageToolbar>
 
         <div>
           <Title order={3}>{questionnaire.title}</Title>

@@ -1,4 +1,6 @@
 import { Button, Container, Group, Loader, Stack, Text, Title } from '@mantine/core';
+
+import { PageToolbar } from '../../../components/common/PageToolbar';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -69,16 +71,17 @@ export function DocumentTemplateEditorPage() {
   return (
     <Container size={editingTemplate?.kind === 'layout' ? 'xl' : 'md'} px={0}>
       <Stack gap="lg">
-        <Button
-          variant="subtle"
-          color="gray"
-          leftSection={<IconArrowLeft size={16} />}
-          pl={8}
-          style={{ alignSelf: 'flex-start' }}
-          onClick={() => navigate('/documents?tab=templates')}
-        >
-          К шаблонам документов
-        </Button>
+        <PageToolbar>
+          <Button
+            variant="subtle"
+            color="gray"
+            leftSection={<IconArrowLeft size={16} />}
+            pl={8}
+              onClick={() => navigate('/documents?tab=templates')}
+          >
+            К шаблонам документов
+          </Button>
+        </PageToolbar>
 
         <Title order={3}>{editingTemplate ? 'Редактирование документа' : 'Новый документ'}</Title>
 

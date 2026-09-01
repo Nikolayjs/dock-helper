@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { Alert, Badge, Button, Card, Container, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Tabs, Text, TextInput, Textarea, Title } from '@mantine/core';
+
+import { PageToolbar } from '../components/common/PageToolbar';
+import { Alert, Badge, Box, Button, Card, Container, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Tabs, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -353,16 +355,18 @@ export function AnalyzerBuilderPage() {
 
   return (
     <Container size="xl" px={0}>
-      <Group justify="space-between" mb="lg">
-        <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/analyzer')}>
-          К анализатору
-        </Button>
-        {editingTest && (
-          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-            Удалить
+      <PageToolbar>
+        <Group justify="space-between" mb="lg">
+          <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/analyzer')}>
+            К анализатору
           </Button>
-        )}
-      </Group>
+          {editingTest && (
+            <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+              Удалить
+            </Button>
+          )}
+        </Group>
+      </PageToolbar>
 
       <BuilderLayout
         editor={
@@ -381,7 +385,11 @@ export function AnalyzerBuilderPage() {
               по всем вкладкам.
             */}
             <Tabs value={section} onChange={(v) => setSection(v ?? 'main')} variant="pills" keepMounted={false}>
-              <Tabs.List mb="md">
+              {/* Вкладки разделов конструктора — на поверхности, как верхушка любой страницы. */}
+              <Box mb="md">
+                <PageToolbar
+                  tabs={
+              <Tabs.List>
                 <Tabs.Tab
                   value="main"
                   rightSection={invalidSections.has('main') ? <IconAlertTriangle size={13} color="var(--mantine-color-orange-6)" /> : undefined}
@@ -417,6 +425,9 @@ export function AnalyzerBuilderPage() {
                   Правила
                 </Tabs.Tab>
               </Tabs.List>
+                  }
+                />
+              </Box>
 
               <Tabs.Panel value="main">
                 <Card withBorder padding="lg">

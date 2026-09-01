@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { Alert, Badge, Button, Card, Container, Group, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
@@ -129,16 +131,18 @@ export function QuestionnaireBuilderPage() {
 
   return (
     <Container size="xl" px={0}>
-      <Group justify="space-between" mb="lg">
-        <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/diagnostics')}>
-          К анкетам
-        </Button>
-        {editingQuestionnaire && (
-          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-            Удалить
+      <PageToolbar>
+        <Group justify="space-between" mb="lg">
+          <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/diagnostics')}>
+            К анкетам
           </Button>
-        )}
-      </Group>
+          {editingQuestionnaire && (
+            <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+              Удалить
+            </Button>
+          )}
+        </Group>
+      </PageToolbar>
 
       <BuilderLayout
         previewLabel="Предпросмотр опроса"

@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { Button, Card, Container, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { IconArrowLeft, IconPrinter, IconTableExport } from '@tabler/icons-react';
@@ -140,19 +142,21 @@ export function DispensaryStatsPage() {
   return (
     <Container size="lg" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" align="center" wrap="wrap" gap="sm" className="no-print">
-          <Button component={Link} to="/patients" variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
-            К списку пациентов
-          </Button>
-          <Group gap="xs">
-            <Button variant="light" leftSection={<IconTableExport size={16} />} onClick={handleExport}>
-              Скачать .xlsx
+        <PageToolbar className="no-print">
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <Button component={Link} to="/patients" variant="subtle" leftSection={<IconArrowLeft size={16} />} pl={8}>
+              К списку пациентов
             </Button>
-            <Button variant="light" leftSection={<IconPrinter size={16} />} onClick={() => window.print()}>
-              Печать
-            </Button>
+            <Group gap="xs">
+              <Button variant="light" leftSection={<IconTableExport size={16} />} onClick={handleExport}>
+                Скачать .xlsx
+              </Button>
+              <Button variant="light" leftSection={<IconPrinter size={16} />} onClick={() => window.print()}>
+                Печать
+              </Button>
+            </Group>
           </Group>
-        </Group>
+        </PageToolbar>
 
         <Card withBorder padding="md" className="no-print">
           <Stack gap="sm">

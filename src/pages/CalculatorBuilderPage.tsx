@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import {
   ActionIcon,
   Alert,
@@ -216,16 +218,18 @@ export function CalculatorBuilderPage() {
 
   return (
     <Container size="xl" px={0}>
-      <Group justify="space-between" mb="lg">
-        <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/calculators')}>
-          К списку калькуляторов
-        </Button>
-        {editingCalculator && (
-          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-            Удалить
+      <PageToolbar>
+        <Group justify="space-between" mb="lg">
+          <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/calculators')}>
+            К списку калькуляторов
           </Button>
-        )}
-      </Group>
+          {editingCalculator && (
+            <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+              Удалить
+            </Button>
+          )}
+        </Group>
+      </PageToolbar>
 
       <BuilderLayout
         editor={

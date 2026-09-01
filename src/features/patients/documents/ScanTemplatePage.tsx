@@ -1,4 +1,6 @@
 import { useState } from 'react';
+
+import { PageToolbar } from '../../../components/common/PageToolbar';
 import { Alert, Button, Container, FileInput, Group, Stack, Text, TextInput, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconPhotoScan } from '@tabler/icons-react';
@@ -105,16 +107,17 @@ export function ScanTemplatePage() {
   return (
     <Container size="xl" px={0}>
       <Stack gap="lg">
-        <Button
-          variant="subtle"
-          color="gray"
-          leftSection={<IconArrowLeft size={16} />}
-          pl={8}
-          style={{ alignSelf: 'flex-start' }}
-          onClick={() => navigate('/documents?tab=templates')}
-        >
-          К шаблонам документов
-        </Button>
+        <PageToolbar>
+          <Button
+            variant="subtle"
+            color="gray"
+            leftSection={<IconArrowLeft size={16} />}
+            pl={8}
+              onClick={() => navigate('/documents?tab=templates')}
+          >
+            К шаблонам документов
+          </Button>
+        </PageToolbar>
 
         <Title order={3}>Бланк из снимка</Title>
 
