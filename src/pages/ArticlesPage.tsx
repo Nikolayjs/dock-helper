@@ -35,7 +35,7 @@ export function ArticlesPage() {
         onOpen={(doc) => navigate(`/articles/${doc.id}`)}
         onEdit={(doc) => navigate(`/articles/${doc.id}/edit`)}
         onDelete={handleDelete}
-        onTagClick={(tag) => navigate(`/knowledge/tag/${encodeURIComponent(tag)}`)}
+        onTagClick={(tag) => navigate(`/knowledge/tag/${encodeURIComponent(tag)}`, { state: { from: '/articles' } })}
       />
     </Container>
   );

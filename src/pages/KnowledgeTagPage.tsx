@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
-import { Badge, Button, Container, Group, Stack } from '@mantine/core';
-import { IconArrowLeft, IconTag } from '@tabler/icons-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Badge, Container, Group, Stack } from '@mantine/core';
+import { IconTag } from '@tabler/icons-react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+
+import { BackButton } from '../components/common/BackButton';
+import { hasTag } from '../features/knowledgeBase/tags';
 
 import { KnowledgeGrid } from '../features/knowledgeBase/KnowledgeGrid';
 import type { KnowledgeDocumentSummary } from '../features/knowledgeBase/types';
@@ -12,10 +15,12 @@ export function KnowledgeTagPage() {
   const { tag: encodedTag } = useParams();
   const tag = decodeURIComponent(encodedTag ?? '');
   const navigate = useNavigate();
+  const location = useLocation();
   const { documents, deleteDocument } = useAllDocuments();
   const confirmDelete = useDeleteWithConfirm();
 
-  const tagged = useMemo(() => documents.filter((doc) => doc.tags.includes(tag)), [documents, tag]);
+  // Регистр тега значения не имеет: «ЛОР» и «лор» — один и тот же тег, см. `tags.ts`.
+  const tagged = useMemo(() => documents.filter((doc) => hasTag(doc.tags, tag)), [documents, tag]);
 
   const handleOpen = (doc: KnowledgeDocumentSummary) => {
     navigate(doc.kind === 'guideline' ? `/guidelines/${doc.id}` : `/articles/${doc.id}`);
@@ -39,9 +44,14 @@ export function KnowledgeTagPage() {
     <Container size="xl" px={0}>
       <Stack gap="lg">
         <Group justify="space-between" wrap="wrap">
-          <Button component={Link} to="/guidelines" variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} pl={8}>
-            К базе знаний
-          </Button>
+          {/*
+            Возврат туда, откуда пришли, а не в раздел рекомендаций.
+        
+            Кнопка вела на `/guidelines` жёстко, и врач, нажавший тег в статье, оказывался в
+            клинических рекомендациях — то самое враньё, ради которого в приложении заведён
+            `BackButton`: ссылка сообщает происхождение, страница его читает.
+          */}
+          <BackButton fallback={{ to: '/articles', label: 'К статьям' }} />
           <Badge size="lg" variant="light" color="brand" leftSection={<IconTag size={14} />}>
             {tag}
           </Badge>
@@ -56,7 +66,9 @@ export function KnowledgeTagPage() {
           onOpen={handleOpen}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          onTagClick={(nextTag) => navigate(`/knowledge/tag/${encodeURIComponent(nextTag)}`)}
+          onTagClick={(nextTag) =>
+            navigate(`/knowledge/tag/${encodeURIComponent(nextTag)}`, { state: { from: location.pathname } })
+          }
         />
       </Stack>
     </Container>

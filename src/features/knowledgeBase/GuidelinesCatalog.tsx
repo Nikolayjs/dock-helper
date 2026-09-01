@@ -19,6 +19,7 @@ import { SortableTh } from '../../components/common/SortableTh';
 import { useIncrementalList } from '../../lib/useIncrementalList';
 import { sortRows, useTableSort } from '../../lib/tableSort';
 import type { SortValue } from '../../lib/tableSort';
+import { normalizeTag } from './tags';
 import type { KnowledgeDocumentSummary } from './types';
 
 /**
@@ -42,7 +43,12 @@ import { useSpecialtyFilter } from '../specialties/useSpecialtyFilter';
 const ALL_SECTIONS = '__all__';
 const NO_SECTION = 'Без раздела';
 
+/*
+ * Раздел — первый тег, и сравнивается он без учёта регистра: «ЛОР» и «лор» это один раздел, а не
+ * два по половине записей в каждом. Показывается при этом написание из самой записи.
+ */
 const sectionOf = (doc: KnowledgeDocumentSummary) => doc.tags[0]?.trim() || NO_SECTION;
+const sectionKey = (doc: KnowledgeDocumentSummary) => normalizeTag(sectionOf(doc));
 
 type GuidelineSortKey = 'title' | 'section' | 'tags' | 'updated';
 const SORT_KEYS: readonly GuidelineSortKey[] = ['title', 'section', 'tags', 'updated'];
@@ -81,10 +87,12 @@ export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, 
   );
 
   const sections = useMemo(() => {
-    const counts = new Map<string, number>();
+    // Ключ — нормализованный тег, подпись — первое встреченное написание.
+    const counts = new Map<string, { label: string; count: number }>();
     for (const doc of documents) {
-      const name = sectionOf(doc);
-      counts.set(name, (counts.get(name) ?? 0) + 1);
+      const key = sectionKey(doc);
+      const seen = counts.get(key);
+      counts.set(key, { label: seen?.label ?? sectionOf(doc), count: (seen?.count ?? 0) + 1 });
     }
     return counts;
   }, [documents]);
@@ -94,7 +102,7 @@ export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, 
   const withoutSpecialty = useMemo(() => {
     const query = search.trim().toLowerCase();
     return documents.filter((doc) => {
-      if (section !== ALL_SECTIONS && sectionOf(doc) !== section) return false;
+      if (section !== ALL_SECTIONS && sectionKey(doc) !== section) return false;
       if (!query) return true;
       return (
         doc.title.toLowerCase().includes(query) ||
@@ -145,8 +153,8 @@ export function GuidelinesCatalog({ documents, onAdd, onOpen, onEdit, onDelete, 
             data={[
               { value: ALL_SECTIONS, label: `Все разделы (${documents.length})` },
               ...[...sections.entries()]
-                .sort((a, b) => b[1] - a[1])
-                .map(([name, count]) => ({ value: name, label: `${name} (${count})` })),
+                .sort((a, b) => b[1].count - a[1].count)
+                .map(([key, { label, count }]) => ({ value: key, label: `${label} (${count})` })),
             ]}
             value={section}
             onChange={(value) => setSection(value ?? ALL_SECTIONS)}

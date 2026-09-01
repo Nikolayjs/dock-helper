@@ -29,7 +29,7 @@ export function GuidelinesPage() {
         onOpen={(doc) => navigate(`/guidelines/${doc.id}`)}
         onEdit={(doc) => navigate(`/guidelines/${doc.id}/edit`)}
         onDelete={handleDelete}
-        onTagClick={(tag) => navigate(`/knowledge/tag/${encodeURIComponent(tag)}`)}
+        onTagClick={(tag) => navigate(`/knowledge/tag/${encodeURIComponent(tag)}`, { state: { from: '/guidelines' } })}
       />
     </Container>
   );
