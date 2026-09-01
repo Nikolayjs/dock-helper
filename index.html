@@ -26,8 +26,19 @@
       устанавливать было нечего. Здесь они не страничные: манифест один на весь сайт.
     -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#4C6FFF" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <!--
+      Цвет полосы заголовка окна PWA и строки состояния Android.
+
+      Две меты, а не одна: у приложения светлая и тёмная темы, и одно значение обязательно врёт про
+      одну из них. Значения — измеренный цвет самой шапки: белый в светлой, `#242424` в тёмной.
+      Дальше, когда оболочка отрисована, `themeColorMeta` вставляет перед ними свою мету с точным
+      цветом шапки — включая подкраску под обои, которой здесь знать неоткуда.
+    -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#242424" media="(prefers-color-scheme: dark)" />
+    <!-- iOS накладывает маску сам и прозрачность заливает чёрным, поэтому значок для него
+         непрозрачный и во всю площадь — отдельный от значка приложения. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- prerender:meta:start -->
     <title>MedAssist — ассистент врача</title>
     <meta

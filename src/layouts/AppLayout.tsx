@@ -1,5 +1,5 @@
 import { memo, useEffect } from 'react';
-import { AppShell } from '@mantine/core';
+import { AppShell, useMantineColorScheme } from '@mantine/core';
 
 import { HEADER_HEIGHT } from './shellMetrics';
 import { useScrollDirection } from '../components/layout/useScrollDirection';
@@ -14,6 +14,8 @@ import { Topbar } from '../components/layout/Topbar';
 import { useSidebarWidth } from '../components/layout/useSidebarWidth';
 import { ReminderWatcher } from '../features/reminders/ReminderWatcher';
 import classes from './AppLayout.module.css';
+import { syncThemeColorMeta } from '../lib/themeColorMeta';
+import { useAppearance } from '../features/appearance/AppearanceProvider';
 
 interface PageMetaEntry {
   match: (path: string) => boolean;
@@ -199,6 +201,20 @@ export function AppLayout() {
    */
   const isMobile = useMediaQuery('(max-width: 47.99em)');
   const showHeader = !isMobile || headerVisible || opened;
+
+  /*
+   * Полоса заголовка окна установленного приложения красится в цвет шапки — см. `themeColorMeta`.
+   *
+   * Считается после отрисовки, в `requestAnimationFrame`, и это не перестраховка: эффекты идут
+   * снизу вверх, то есть эффект оболочки выполняется **раньше** родительского `AppearanceProvider`,
+   * который и проставляет обои с подкраской. Спросив цвет сразу, мы получили бы прошлый.
+   */
+  const { colorScheme } = useMantineColorScheme();
+  const { settings } = useAppearance();
+  useEffect(() => {
+    const frame = requestAnimationFrame(syncThemeColorMeta);
+    return () => cancelAnimationFrame(frame);
+  }, [colorScheme, settings.wallpaper, settings.tint, settings.veil]);
 
   useEffect(() => {
     document.getElementById(SCROLL_ROOT_ID)?.scrollTo(0, 0);
