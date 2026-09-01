@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import {
   ActionIcon,
   Badge,
@@ -18,7 +18,7 @@ import {
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useFormActionsHeight } from '../../../components/common/formActionsSlot';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconMinus, IconPlus, IconTrash, IconZoomIn } from '@tabler/icons-react';
 
 import { SCROLL_ROOT_ID } from '../../../components/layout/scrollRoot';
 
@@ -40,7 +40,22 @@ import type { TemplateLayout, TemplateLayoutBlock } from './layoutTypes';
 type DragMode = 'move' | 'resize';
 
 /** Кратности увеличения холста. Целые — чтобы «в один лист» читалось однозначно. */
-const CANVAS_ZOOMS = [1, 2, 3];
+/**
+ * Пределы увеличения холста.
+ *
+ * Увеличение существует ради **попадания пальцем**: строка распознанного бланка на телефоне выходит
+ * высотой 9 px, разглядеть её можно, а попасть — нет. Отсюда и потолок: вчетверо от ширины экрана
+ * строка становится примерно в 36 px, то есть впору пальцу. Дальше растягивать незачем — читать
+ * бланк всё равно удобнее целиком.
+ */
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+const ZOOM_STEP = 0.5;
+
+const clampZoom = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+
+/** «2,5×» — кратность, а не проценты: на бумагу увеличение не влияет никак. */
+const zoomLabel = (zoom: number) => `${zoom.toFixed(1).replace('.0', '').replace('.', ',')}×`;
 
 interface LayoutEditorProps {
   layout: TemplateLayout;
@@ -94,6 +109,21 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
    * документе** от прокрутки не зависит — рамка снова уезжала под шторку (проверено: холст
    * 65..423 при шторке с 301).
    */
+  /*
+   * Щипок двумя пальцами — то, чем на телефоне увеличивают что угодно.
+   *
+   * Кнопки остаются: щипок хорош, когда бланк уже перед глазами, а «во весь экран» проще нажать.
+   * Точка между пальцами при этом стоит на месте — иначе увеличение уводит бланк неизвестно куда и
+   * его приходится искать заново. Держится она пересчётом прокрутки рамки после смены ширины:
+   * увеличение задаётся шириной холста, а не трансформацией, поэтому после перерисовки достаточно
+   * вернуть ту же долю содержимого под те же пальцы.
+   */
+  const frameRef = useRef<HTMLDivElement>(null);
+  const pinchRef = useRef<{ distance: number; zoom: number; fx: number; fy: number; clientX: number; clientY: number } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  /** Куда вернуть прокрутку рамки после того, как холст сменил ширину. */
+  const keepFocus = useRef<{ fx: number; fy: number; clientX: number; clientY: number } | null>(null);
+
   const actionsHeight = useFormActionsHeight();
   const drawerOpen = !sideBySide && selected !== null;
   const drawerHeight = typeof window === 'undefined' ? 0 : Math.round(window.innerHeight * DRAWER_FRACTION);
@@ -108,7 +138,26 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
     [layout, onChange],
   );
 
+  /**
+   * Палец **выбирает** блок, а двигает только уже выбранный. Мышь — как была.
+   *
+   * Это то, из-за чего бланк на телефоне был неработоспособен: блоки покрывают его почти целиком, и
+   * любое движение пальцем начиналось на блоке — то есть **таскало блок** вместо того, чтобы вести
+   * бланк. Увеличить бланк было можно, а добраться до нужного места — нет, и заодно блоки уезжали
+   * от каждой попытки прокрутить.
+   *
+   * Поэтому касание невыбранного блока его только выбирает и **не отменяет прокрутку**: браузер
+   * ведёт бланк пальцем сам. Выбранный блок двигается сразу — он один, промахнуться уже не по чему.
+   * Тот же порядок «сначала выбрать, потом двигать», что у уголка изменения размера: он и появляется
+   * только у выбранного.
+   */
   const beginDrag = (block: TemplateLayoutBlock, mode: DragMode) => (event: React.PointerEvent) => {
+    if (event.pointerType === 'touch' && mode === 'move' && block.id !== selectedId) {
+      // Всплытие останавливаем (иначе холст снимет выделение), но действие браузера — нет.
+      event.stopPropagation();
+      setSelectedId(block.id);
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     setSelectedId(block.id);
@@ -138,6 +187,90 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
   const endDrag = useCallback(() => {
     dragRef.current = null;
   }, []);
+
+  /** Отменяет начатое перетаскивание блока и возвращает его туда, где он был. */
+  const cancelDrag = useCallback(() => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    updateBlock(drag.start.id, drag.start);
+  }, [updateBlock]);
+
+  /** Кнопки увеличивают от центра рамки — там, куда врач и смотрит. */
+  const zoomBy = (delta: number) => {
+    const frame = frameRef.current;
+    const canvas = canvasRef.current;
+    if (frame && canvas) {
+      const frameBox = frame.getBoundingClientRect();
+      const box = canvas.getBoundingClientRect();
+      const clientX = frameBox.left + frameBox.width / 2;
+      const clientY = frameBox.top + frameBox.height / 2;
+      keepFocus.current = { fx: (clientX - box.left) / box.width, fy: (clientY - box.top) / box.height, clientX, clientY };
+    }
+    setZoom((current) => clampZoom(current + delta));
+  };
+
+  const handleFramePointerDown = (event: React.PointerEvent) => {
+    if (event.pointerType !== 'touch') return;
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.current.size !== 2) return;
+
+    // Второй палец означает щипок, а не перетаскивание блока: начатое первым пальцем отменяется.
+    cancelDrag();
+    const [a, b] = [...pointers.current.values()];
+    const frame = frameRef.current;
+    const canvas = canvasRef.current;
+    if (!frame || !canvas) return;
+    const clientX = (a.x + b.x) / 2;
+    const clientY = (a.y + b.y) / 2;
+    const box = canvas.getBoundingClientRect();
+    pinchRef.current = {
+      distance: Math.hypot(a.x - b.x, a.y - b.y),
+      zoom,
+      // Доля содержимого под пальцами — то, что обязано остаться на месте.
+      fx: (clientX - box.left) / box.width,
+      fy: (clientY - box.top) / box.height,
+      clientX,
+      clientY,
+    };
+  };
+
+  const handleFramePointerMove = (event: React.PointerEvent) => {
+    if (event.pointerType !== 'touch' || !pointers.current.has(event.pointerId)) return;
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const pinch = pinchRef.current;
+    if (!pinch || pointers.current.size !== 2) return;
+    event.preventDefault();
+    const [a, b] = [...pointers.current.values()];
+    const distance = Math.hypot(a.x - b.x, a.y - b.y);
+    if (distance < 20 || pinch.distance < 20) return;
+    const next = clampZoom(pinch.zoom * (distance / pinch.distance));
+    keepFocus.current = { fx: pinch.fx, fy: pinch.fy, clientX: pinch.clientX, clientY: pinch.clientY };
+    setZoom(next);
+  };
+
+  const handleFramePointerUp = (event: React.PointerEvent) => {
+    pointers.current.delete(event.pointerId);
+    if (pointers.current.size < 2) pinchRef.current = null;
+  };
+
+  /*
+   * После смены ширины холста прокрутка рамки возвращает под пальцы ту же долю содержимого.
+   *
+   * Считается в `useLayoutEffect` — до отрисовки: сделай мы это обычным эффектом, врач успел бы
+   * увидеть кадр, в котором бланк прыгнул, и только потом вернулся.
+   */
+  useLayoutEffect(() => {
+    const focus = keepFocus.current;
+    keepFocus.current = null;
+    const frame = frameRef.current;
+    const canvas = canvasRef.current;
+    if (!focus || !frame || !canvas) return;
+    const frameBox = frame.getBoundingClientRect();
+    frame.scrollLeft = focus.fx * canvas.offsetWidth - (focus.clientX - frameBox.left);
+    frame.scrollTop = focus.fy * canvas.offsetHeight - (focus.clientY - frameBox.top);
+  }, [zoom]);
+
 
   useEffect(() => {
     window.addEventListener('pointermove', handleMove);
@@ -231,7 +364,14 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
           {/* Увеличение меняет ширину холста, а не масштабирует его трансформацией: перетаскивание
               считает проценты от прямоугольника холста, поэтому при изменении ширины арифметика
               остаётся верной без единой правки. */}
-          <div className={classes.canvasFrame}>
+          <div
+            ref={frameRef}
+            className={classes.canvasFrame}
+            onPointerDown={handleFramePointerDown}
+            onPointerMove={handleFramePointerMove}
+            onPointerUp={handleFramePointerUp}
+            onPointerCancel={handleFramePointerUp}
+          >
           <div className={classes.canvasZoom} style={{ width: `${zoom * 100}%` }}>
           {/* The ref sits on a wrapper that shares the page's exact box rather than on the Card,
               whose 1px border would offset every drag calculation by a fraction of a percent. */}
@@ -252,7 +392,8 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
                     width: `${block.widthPct}%`,
                     height: `${block.heightPct}%`,
                     cursor: 'move',
-                    touchAction: 'none',
+                    // Невыбранный блок не перехватывает жест: по нему ведут бланк.
+                    touchAction: isSelected ? 'none' : 'auto',
                     outline: isSelected
                       ? '2px solid var(--mantine-color-brand-6)'
                       : isSuspect
@@ -292,16 +433,32 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
           <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={addBlock}>
             Добавить блок
           </Button>
-          {/* Строка бланка на телефоне выходит высотой 9 px: разглядеть можно, попасть пальцем —
-              нет. Увеличение существует ради попадания, поэтому подписано кратностью, а не
-              процентами: на бумагу оно не влияет никак. */}
-          <SegmentedControl
-            size="xs"
-            aria-label="Увеличение холста"
-            value={String(zoom)}
-            onChange={(value) => setZoom(Number(value))}
-            data={CANVAS_ZOOMS.map((z) => ({ value: String(z), label: `${z}×` }))}
-          />
+          {/* Увеличение существует ради попадания пальцем, поэтому подписано кратностью, а не
+              процентами: на бумагу оно не влияет никак. Кнопки остались рядом со щипком — «во весь
+              экран» нажать проще, чем свести пальцы точно. */}
+          <Group gap={4} wrap="nowrap">
+            <ActionIcon
+              size="sm"
+              variant="light"
+              aria-label="Уменьшить"
+              disabled={zoom <= MIN_ZOOM}
+              onClick={() => zoomBy(-ZOOM_STEP)}
+            >
+              <IconMinus size={14} />
+            </ActionIcon>
+            <Text size="xs" w={38} ta="center" aria-live="polite">
+              {zoomLabel(zoom)}
+            </Text>
+            <ActionIcon
+              size="sm"
+              variant="light"
+              aria-label="Увеличить"
+              disabled={zoom >= MAX_ZOOM}
+              onClick={() => zoomBy(ZOOM_STEP)}
+            >
+              <IconZoomIn size={14} />
+            </ActionIcon>
+          </Group>
           <Text size="xs" c="dimmed">
             блоков: {layout.blocks.length}
             {lowConfidence > 0 && `, сомнительных: ${lowConfidence}`}
