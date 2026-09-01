@@ -355,18 +355,23 @@ export function AnalyzerBuilderPage() {
 
   return (
     <Container size="xl" px={0}>
-      <PageToolbar>
-        <Group justify="space-between" mb="lg">
-          <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/analyzer')}>
-            К анализатору
-          </Button>
-          {editingTest && (
-            <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-              Удалить
+      {/* Между полосами управления — обычный просвет страницы. Отступ снизу внутри самой
+          панели давал бы то же на глаз, но панели при этом стояли бы вплотную: замер на
+          конструкторе анализа — зазор 0 при пустой полосе в 20 px внутри верхней. */}
+      <Box mb="lg">
+        <PageToolbar>
+          <Group justify="space-between">
+            <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/analyzer')}>
+              К анализатору
             </Button>
-          )}
-        </Group>
-      </PageToolbar>
+            {editingTest && (
+              <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                Удалить
+              </Button>
+            )}
+          </Group>
+        </PageToolbar>
+      </Box>
 
       <BuilderLayout
         editor={
@@ -386,7 +391,7 @@ export function AnalyzerBuilderPage() {
             */}
             <Tabs value={section} onChange={(v) => setSection(v ?? 'main')} variant="pills" keepMounted={false}>
               {/* Вкладки разделов конструктора — на поверхности, как верхушка любой страницы. */}
-              <Box mb="md">
+              <Box mb="lg">
                 <PageToolbar
                   tabs={
               <Tabs.List>

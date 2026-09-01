@@ -1,6 +1,6 @@
-import { memo } from 'react';
-import { ActionIcon, Alert, Divider, Grid, Group, NumberInput, Select, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
-import { IconLock, IconPlus, IconX } from '@tabler/icons-react';
+import { memo, useState } from 'react';
+import { ActionIcon, Alert, Button, Divider, Grid, Group, NumberInput, Select, Stack, Switch, Tabs, TagsInput, Text, TextInput } from '@mantine/core';
+import { IconLock, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
 
 import { CollapsibleRow } from './CollapsibleRow';
 
@@ -58,6 +58,147 @@ function RangePair({
         onChange={(v) => onChange({ ...range, max: v === '' ? undefined : Number(v) })}
       />
     </>
+  );
+}
+
+/** Подпись вкладки диапазона: то, чем он отличается от соседних, — его границы. */
+function bandLabel(band: CustomAgeBand, index: number): string {
+  const { minAge, maxAge } = band;
+  if (minAge === undefined && maxAge === undefined) return `Диапазон ${index + 1}`;
+  if (maxAge === undefined) return `${minAge ?? 0} и старше`;
+  if (minAge === undefined) return `до ${maxAge}`;
+  return `${minAge}–${maxAge}`;
+}
+
+/**
+ * Возрастные диапазоны нормы — вкладками, а не списком.
+ *
+ * Списком они шли строками, и у каждой строки набор полей был свой: у последней — лишняя кнопка
+ * «добавить», у первой — подписи над полями, у остальных ни того, ни другого. Поля от строки к
+ * строке поэтому съезжали, а у показателя с нормой и по полу, и по возрасту одна строка занимала
+ * три: шесть числовых полей в ряд не помещаются даже на широком экране.
+ *
+ * Правят при этом **один** диапазон за раз — ровно как один показатель за раз в списке выше.
+ * Поэтому вкладка называет границы («0–1», «18 и старше»), а поля всегда одни и те же и стоят на
+ * одном месте: скакать нечему. Полоса вкладок при нехватке ширины прокручивается вбок — общим
+ * правилом для всех полос вкладок, а не своим.
+ */
+function AgeBandsEditor({
+  bands,
+  bySex,
+  onChange,
+}: {
+  bands: CustomAgeBand[];
+  bySex: boolean;
+  onChange: (bands: CustomAgeBand[]) => void;
+}) {
+  // Открытый диапазон называется своим `id`, а не номером: после удаления соседа номер означал бы
+  // уже другой диапазон.
+  const [openId, setOpenId] = useState<string | null>(null);
+  const index = Math.max(0, bands.findIndex((band) => band.id === openId));
+  const band = bands[index];
+
+  const update = (next: CustomAgeBand) => onChange(bands.map((item, i) => (i === index ? next : item)));
+
+  const add = () => {
+    const created = emptyAgeBand();
+    onChange([...bands, created]);
+    setOpenId(created.id);
+  };
+
+  const remove = () => {
+    const rest = bands.filter((_, i) => i !== index);
+    const next = rest.length > 0 ? rest : [emptyAgeBand()];
+    onChange(next);
+    setOpenId(next[Math.min(index, next.length - 1)].id);
+  };
+
+  if (!band) return null;
+
+  return (
+    <Stack gap="sm">
+      <Group gap="xs" wrap="nowrap" align="center">
+        <Tabs value={band.id} onChange={(value) => setOpenId(value)} variant="pills">
+          <Tabs.List>
+            {bands.map((item, i) => (
+              <Tabs.Tab key={item.id} value={item.id}>
+                {bandLabel(item, i)}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs>
+        <ActionIcon
+          variant="light"
+          color="brand"
+          onClick={add}
+          size="lg"
+          radius="md"
+          style={{ flexShrink: 0 }}
+          aria-label="Добавить возрастной диапазон"
+        >
+          <IconPlus size={16} />
+        </ActionIcon>
+      </Group>
+
+      <Group gap="xs" align="flex-end" wrap="nowrap">
+        <NumberInput
+          label="Возраст от"
+          placeholder="0"
+          min={0}
+          max={120}
+          size="sm"
+          style={{ flex: 1, minWidth: 0 }}
+          value={band.minAge ?? ''}
+          onChange={(v) => update({ ...band, minAge: v === '' ? undefined : Number(v) })}
+        />
+        <NumberInput
+          label="Возраст до"
+          placeholder="и старше"
+          min={0}
+          max={120}
+          size="sm"
+          style={{ flex: 1, minWidth: 0 }}
+          value={band.maxAge ?? ''}
+          onChange={(v) => update({ ...band, maxAge: v === '' ? undefined : Number(v) })}
+        />
+        {!bySex && (
+          <RangePair range={band} labels size="sm" suffix="общая" onChange={(range) => update({ ...band, ...range })} />
+        )}
+      </Group>
+
+      {bySex && (
+        <Stack gap={6}>
+          {SEXES.map(({ field, title }, sexIndex) => (
+            <Group key={field} gap="xs" align="flex-end" wrap="nowrap">
+              <Text size="sm" w={92} style={{ flexShrink: 0 }} mb={6}>
+                {title}
+              </Text>
+              <RangePair
+                range={band[field]}
+                /* Подписи — только над первой парой: вторая стоит ровно под ней теми же колонками. */
+                labels={sexIndex === 0}
+                size="sm"
+                suffix={`${title.toLowerCase()}, ${bandLabel(band, index)}`}
+                onChange={(range) => update({ ...band, [field]: range })}
+              />
+            </Group>
+          ))}
+        </Stack>
+      )}
+
+      <Group justify="flex-end">
+        <Button
+          variant="subtle"
+          color="red"
+          size="xs"
+          leftSection={<IconTrash size={14} />}
+          onClick={remove}
+          disabled={bands.length <= 1}
+        >
+          Удалить диапазон
+        </Button>
+      </Group>
+    </Stack>
   );
 }
 
@@ -139,21 +280,6 @@ function ParameterEditorRowView({ parameter, onChange, onRemove, open, onToggle,
       bySex: enabled || undefined,
       ageBands: parameter.ageBands?.map((band) => ({ ...band, ...move(band) })),
     });
-  };
-
-  const updateAgeBand = (index: number, band: CustomAgeBand) => {
-    const ageBands = [...(parameter.ageBands ?? [])];
-    ageBands[index] = band;
-    onChange({ ...parameter, ageBands });
-  };
-
-  const addAgeBand = () => {
-    onChange({ ...parameter, ageBands: [...(parameter.ageBands ?? []), emptyAgeBand()] });
-  };
-
-  const removeAgeBand = (index: number) => {
-    const ageBands = (parameter.ageBands ?? []).filter((_, i) => i !== index);
-    onChange({ ...parameter, ageBands: ageBands.length > 0 ? ageBands : [emptyAgeBand()] });
   };
 
   return (
@@ -326,88 +452,12 @@ function ParameterEditorRowView({ parameter, onChange, onRemove, open, onToggle,
             <Text size="sm" fw={500} mb={6}>
               Возрастные диапазоны нормы
             </Text>
-            <Stack gap={6} mb={6}>
-              {(parameter.ageBands ?? []).map((band, index) => {
-                const isLast = index === (parameter.ageBands?.length ?? 0) - 1;
-                return (
-                  <Stack key={band.id} gap={4}>
-                    <Group gap={4} wrap="nowrap" align="flex-end">
-                    <NumberInput
-                      label="Возраст от"
-                      placeholder="0"
-                      min={0}
-                      max={120}
-                      size="sm"
-                      style={{ flex: 1, minWidth: 0 }}
-                      value={band.minAge ?? ''}
-                      onChange={(v) => updateAgeBand(index, { ...band, minAge: v === '' ? undefined : Number(v) })}
-                    />
-                    <NumberInput
-                      label="Возраст до"
-                      placeholder="и старше"
-                      min={0}
-                      max={120}
-                      size="sm"
-                      style={{ flex: 1, minWidth: 0 }}
-                      value={band.maxAge ?? ''}
-                      onChange={(v) => updateAgeBand(index, { ...band, maxAge: v === '' ? undefined : Number(v) })}
-                    />
-                    {!bySex && (
-                      <RangePair
-                        range={band}
-                        labels
-                        size="sm"
-                        suffix="общая"
-                        onChange={(range) => updateAgeBand(index, { ...band, ...range })}
-                      />
-                    )}
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      onClick={() => removeAgeBand(index)}
-                      disabled={(parameter.ageBands ?? []).length <= 1}
-                      style={{ flexShrink: 0 }}
-                    >
-                      <IconX size={14} />
-                    </ActionIcon>
-                    {isLast && (
-                      <ActionIcon
-                        variant="light"
-                        color="brand"
-                        onClick={addAgeBand}
-                        size="lg"
-                        radius="md"
-                        style={{ flexShrink: 0 }}
-                      >
-                        <IconPlus size={16} />
-                      </ActionIcon>
-                    )}
-                    </Group>
-                    {/* Шесть числовых полей в одну строку не помещаются даже на широком экране:
-                        нормы по полу уходят под возраст, а не рядом с ним. */}
-                    {bySex && (
-                      <Stack gap={4} pl="md">
-                        {SEXES.map(({ field, title }, sexIndex) => (
-                          <Group key={field} gap="xs" align="flex-end" wrap="nowrap">
-                            <Text size="xs" c="dimmed" w={72} style={{ flexShrink: 0 }} mb={6}>
-                              {title}
-                            </Text>
-                            <RangePair
-                              range={band[field]}
-                              labels={index === 0 && sexIndex === 0}
-                              size="sm"
-                              suffix={`${title.toLowerCase()}, диапазон ${index + 1}`}
-                              onChange={(range) => updateAgeBand(index, { ...band, [field]: range })}
-                            />
-                          </Group>
-                        ))}
-                      </Stack>
-                    )}
-                  </Stack>
-                );
-              })}
-            </Stack>
-            <Text size="xs" c="dimmed">
+            <AgeBandsEditor
+              bands={parameter.ageBands ?? []}
+              bySex={bySex}
+              onChange={(ageBands) => onChange({ ...parameter, ageBands })}
+            />
+            <Text size="xs" c="dimmed" mt="sm">
               Диапазоны проверяются по порядку сверху вниз; оставьте «Возраст от»/«до» пустыми, чтобы не ограничивать границу. Если возраст пациента не указан, используется диапазон для 30 лет.
             </Text>
           </Grid.Col>

@@ -5,6 +5,7 @@ import {
   ActionIcon,
   Alert,
   Badge,
+  Box,
   Button,
   Card,
   Code,
@@ -218,18 +219,23 @@ export function CalculatorBuilderPage() {
 
   return (
     <Container size="xl" px={0}>
-      <PageToolbar>
-        <Group justify="space-between" mb="lg">
-          <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/calculators')}>
-            К списку калькуляторов
-          </Button>
-          {editingCalculator && (
-            <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-              Удалить
+      {/* Между полосами управления — обычный просвет страницы. Отступ снизу внутри самой
+          панели давал бы то же на глаз, но панели при этом стояли бы вплотную: замер на
+          конструкторе анализа — зазор 0 при пустой полосе в 20 px внутри верхней. */}
+      <Box mb="lg">
+        <PageToolbar>
+          <Group justify="space-between">
+            <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/calculators')}>
+              К списку калькуляторов
             </Button>
-          )}
-        </Group>
-      </PageToolbar>
+            {editingCalculator && (
+              <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                Удалить
+              </Button>
+            )}
+          </Group>
+        </PageToolbar>
+      </Box>
 
       <BuilderLayout
         editor={

@@ -68,19 +68,17 @@ export function BookViewPage() {
     <Container size="md" px={0}>
       <Stack gap="lg">
         <PageToolbar>
-          <PageToolbar>
-            <Group justify="space-between" wrap="wrap">
-              <BackButton fallback={{ to: '/library', label: 'К библиотеке' }} />
-              <Group gap="xs">
-                <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-                  Удалить
-                </Button>
-                <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => setEditing(true)}>
-                  Редактировать
-                </Button>
-              </Group>
+          <Group justify="space-between" wrap="wrap">
+            <BackButton fallback={{ to: '/library', label: 'К библиотеке' }} />
+            <Group gap="xs">
+              <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                Удалить
+              </Button>
+              <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => setEditing(true)}>
+                Редактировать
+              </Button>
             </Group>
-          </PageToolbar>
+          </Group>
         </PageToolbar>
 
         {/* Обложка, название и автор — то, ради чего страницу открывают, и на обоях они лежали

@@ -1,4 +1,4 @@
-import { Button, Container, Group, Stack, Text, Title } from '@mantine/core';
+import { Button, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
 
 import { PageToolbar } from '../components/common/PageToolbar';
 import { IconArrowLeft, IconEdit } from '@tabler/icons-react';
@@ -40,14 +40,19 @@ export function QuestionnaireViewPage() {
           </Group>
         </PageToolbar>
 
-        <div>
+        {/*
+          Название и описание панели — на поверхности, как всё содержательное в приложении.
+          Описание здесь не подпись к списку, а несколько строк про то, что панель разграничивает:
+          лёжа прямо на фоне, они на обоях оказывались на фотографии.
+        */}
+        <Card withBorder padding="lg">
           <Title order={3}>{questionnaire.title}</Title>
           {questionnaire.description && (
-            <Text size="sm" c="dimmed" mt={4}>
+            <Text size="sm" c="dimmed" mt={6}>
               {questionnaire.description}
             </Text>
           )}
-        </div>
+        </Card>
 
         <DiagnosticSession diseases={questionnaire.diseases} symptoms={questionnaire.symptoms} />
       </Stack>

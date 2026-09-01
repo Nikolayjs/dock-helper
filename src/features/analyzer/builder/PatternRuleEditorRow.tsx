@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { ActionIcon, Alert, Grid, Group, Select, SegmentedControl, Stack, Switch, TagsInput, Text, TextInput } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
+import { ActionIcon, Alert, Button, Grid, Group, Select, SegmentedControl, Stack, TagsInput, Text, TextInput } from '@mantine/core';
 import { IconLock, IconPlus, IconX } from '@tabler/icons-react';
 
 import { CollapsibleRow } from './CollapsibleRow';
@@ -35,10 +36,21 @@ const SEVERITY_OPTIONS = [
   { value: 'critical', label: 'Критично' },
 ];
 
-const STATUS_OPTIONS = [
+/**
+ * Состояние показателя и отрицание — **одним** списком, а не списком и тумблером рядом.
+ *
+ * Тумблер, подписанный одним словом «не», не говорит ни к чему он относится, ни что значит нажатый:
+ * рядом с ним стоят два безымянных списка, и строка условия читалась как три случайных поля.
+ * Одним списком она читается фразой — «гемоглобин: не повышен», — а состояний ровно шесть, и все
+ * шесть видны сразу, вместо того чтобы складываться в голове из положения переключателя.
+ */
+const STATE_OPTIONS = [
   { value: 'low', label: 'Понижен' },
   { value: 'normal', label: 'В норме' },
   { value: 'high', label: 'Повышен' },
+  { value: '!low', label: 'Не понижен' },
+  { value: '!normal', label: 'Не в норме' },
+  { value: '!high', label: 'Не повышен' },
 ];
 
 const SEX_OPTIONS = [
@@ -96,6 +108,14 @@ function switchSubject(condition: PatternCondition, value: string | null): Patte
 }
 
 function PatternRuleEditorRowView({ rule, paramOptions, lockedSummary, onChange, onRemove, open, onToggle }: PatternRuleEditorRowProps) {
+  /*
+   * На узком экране подписи повторяются у каждого условия, и это не многословие.
+   * Там списки не помещаются в строку и встают друг под друга — то есть пять одинаковых
+   * коробок подряд, из которых не видно, где кончается одно условие и начинается следующее.
+   * На широком они стоят колонками, и одной шапки хватает.
+   */
+  const narrow = useMediaQuery('(max-width: 48em)', false, { getInitialValueInEffect: false });
+  const labelled = (index: number) => narrow || index === 0;
   const updateCondition = (index: number, condition: PatternCondition) => {
     const conditions = [...rule.conditions];
     conditions[index] = condition;
@@ -175,10 +195,18 @@ function PatternRuleEditorRowView({ rule, paramOptions, lockedSummary, onChange,
 
               <Stack gap="xs">
                 {rule.conditions.map((condition, index) => (
-                  <Group key={condition.id} gap={6} wrap="nowrap" align="center">
+                  /*
+                   * Ширины заданы долями, а не «остаток и 150 px»: на широком экране первый список
+                   * растягивался во весь ряд, а состояние оставалось узкой коробкой у самого края.
+                   * Подписи — по правилу `labelled`: шапка над первым условием, а на узком экране,
+                   * где списки встают друг под друга, у каждого своя.
+                   */
+                  <Group key={condition.id} gap={6} wrap="wrap" align="flex-end">
                     <Select
-                      style={{ flex: 1 }}
+                      style={{ flex: '3 1 200px', minWidth: 0 }}
                       size="sm"
+                      label={labelled(index) ? 'Что проверяем' : undefined}
+                      aria-label="Показатель или признак пациента"
                       data={[
                         { group: 'Пациент', items: [{ value: SEX_ITEM, label: 'Пол пациента' }] },
                         {
@@ -193,49 +221,59 @@ function PatternRuleEditorRowView({ rule, paramOptions, lockedSummary, onChange,
                     {condition.kind === 'sex' ? (
                       <Select
                         size="sm"
-                        w={150}
+                        style={{ flex: '2 1 160px', minWidth: 0 }}
+                        label={labelled(index) ? 'Пол пациента' : undefined}
+                        aria-label="Пол пациента"
                         data={SEX_OPTIONS}
-                        value={condition.sex}
+                        /*
+                         * Пол известен всегда и бывает двух видов, поэтому «не женский» — это в
+                         * точности «мужской»: отрицание здесь ничего не добавляет, и правило из
+                         * сида, записанное через него, показывается и сохраняется прямо.
+                         */
+                        value={condition.negate ? (condition.sex === 'male' ? 'female' : 'male') : condition.sex}
                         allowDeselect={false}
-                        onChange={(v) => updateCondition(index, { ...condition, sex: (v as Sex) ?? 'female' })}
+                        onChange={(v) => updateCondition(index, { ...condition, sex: (v as Sex) ?? 'female', negate: undefined })}
                       />
                     ) : (
                       <Select
                         size="sm"
-                        w={150}
-                        data={STATUS_OPTIONS}
-                        value={condition.status}
+                        style={{ flex: '2 1 160px', minWidth: 0 }}
+                        label={labelled(index) ? 'В каком состоянии' : undefined}
+                        aria-label="Состояние показателя"
+                        data={STATE_OPTIONS}
+                        value={`${condition.negate ? '!' : ''}${condition.status}`}
                         allowDeselect={false}
-                        onChange={(v) => updateCondition(index, { ...condition, status: (v as ParamStatus) ?? 'high' })}
+                        onChange={(v) => {
+                          const negate = (v ?? '').startsWith('!');
+                          const status = (negate ? (v ?? '').slice(1) : v) as ParamStatus;
+                          updateCondition(index, { ...condition, status: status ?? 'high', negate: negate || undefined });
+                        }}
                       />
                     )}
-                    <Switch
-                      size="sm"
-                      label="не"
-                      title={
-                        condition.kind === 'sex'
-                          ? 'Условие срабатывает, когда пол пациента ДРУГОЙ'
-                          : 'Условие срабатывает, когда показатель НЕ в этом статусе'
-                      }
-                      checked={condition.negate ?? false}
-                      onChange={(e) => updateCondition(index, { ...condition, negate: e.currentTarget.checked })}
-                    />
-                    <ActionIcon variant="subtle" color="red" onClick={() => removeCondition(index)}>
-                      <IconX size={14} />
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      size="lg"
+                      style={{ flexShrink: 0 }}
+                      onClick={() => removeCondition(index)}
+                      aria-label="Удалить условие"
+                    >
+                      <IconX size={16} />
                     </ActionIcon>
                   </Group>
                 ))}
-                <ActionIcon
-                  variant="light"
-                  color="brand"
+                {/* Кнопка названа словами, как «Добавить правило» выше: значок «+» без подписи в
+                    списке из двух строк не объясняет, что именно он добавит. */}
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  leftSection={<IconPlus size={14} />}
                   onClick={addCondition}
-                  size="lg"
-                  radius="md"
                   disabled={paramOptions.length === 0}
-                  aria-label="Добавить условие"
+                  style={{ alignSelf: 'flex-start' }}
                 >
-                  <IconPlus size={16} />
-                </ActionIcon>
+                  Добавить условие
+                </Button>
               </Stack>
             </>
           )}

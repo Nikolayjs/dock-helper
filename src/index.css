@@ -212,8 +212,14 @@ body {
  *
  * **Правило само находит «карточку раздела», и это несущее решение.** Перечислять селекторами
  * `Container > Stack > Card` значило бы завести список, который разъедется с разметкой при первой
- * же правке страницы. Признак здесь один и верный: карточка, **не лежащая внутри другой карточки**.
- * Вложенную растягивать нельзя — она вылезла бы за края своей родительской.
+ * же правке страницы. Признак здесь один и верный: карточка, **не лежащая внутри другой
+ * поверхности**. Вложенную растягивать нельзя — она вылезла бы за края своей родительской.
+ *
+ * **Поверхностью считается любая, а не только `Card`, и это исправленная ошибка.** Колонка планера —
+ * это `Paper`, а карточки задач внутри неё — `Card`; по прежнему условию они оказывались «карточками
+ * раздела» и вылезали за оба края своей колонки. У Mantine `Card` несёт оба класса сразу
+ * (`mantine-Card-root mantine-Paper-root`), поэтому `:not(.mantine-Paper-root *)` — строго более
+ * широкое условие: всё, что исключалось прежним, исключается и этим.
  *
  * **Скругление при этом остаётся, и убирать его было ошибкой.** Без него поверхность обрывается
  * прямой линией во всю ширину экрана — там, где кончился короткий список, это читается как
@@ -222,7 +228,7 @@ body {
  * крайние пиксели экрана, где от них ничего не остаётся, кроме тонкой засечки.
  */
 @media (max-width: 48em) {
-  .mantine-AppShell-main .mantine-Card-root:not(.mantine-Card-root *) {
+  .mantine-AppShell-main .mantine-Card-root:not(.mantine-Paper-root *) {
     margin-inline: calc(-1 * var(--app-shell-padding, var(--mantine-spacing-md)));
     border-inline: none;
   }
@@ -250,7 +256,7 @@ body {
     background: var(--app-card-bg, var(--mantine-color-body));
   }
 
-  :root:not([data-wallpaper]) .mantine-AppShell-main .mantine-Card-root:not(.mantine-Card-root *) {
+  :root:not([data-wallpaper]) .mantine-AppShell-main .mantine-Card-root:not(.mantine-Paper-root *) {
     border-block: none;
   }
 }
@@ -263,7 +269,7 @@ body {
  * там означает карточку, свисающую за оба края листа. Та же ловушка уже была у `ReadingSheet`.
  */
 @media print {
-  .mantine-AppShell-main .mantine-Card-root:not(.mantine-Card-root *) {
+  .mantine-AppShell-main .mantine-Card-root:not(.mantine-Paper-root *) {
     margin-inline: 0;
   }
 }

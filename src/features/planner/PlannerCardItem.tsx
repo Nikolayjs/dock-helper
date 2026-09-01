@@ -36,7 +36,9 @@ export function PlannerCardItem({ card, onOpen }: PlannerCardItemProps) {
   return (
     <Card
       ref={setNodeRef}
-      style={{ ...style, cursor: 'grab', touchAction: 'none' }}
+      // Сжиматься карточке нельзя: в колонке со своей прокруткой flex сплющил бы весь список
+      // вместо того, чтобы дать ему прокрутиться (замер: двенадцать карточек в полосу по 38 px).
+      style={{ ...style, cursor: 'grab', touchAction: 'none', flexShrink: 0 }}
       withBorder
       radius="md"
       padding="sm"

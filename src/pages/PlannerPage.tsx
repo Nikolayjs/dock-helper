@@ -27,6 +27,7 @@ import { PlannerColumnCard } from '../features/planner/PlannerColumnCard';
 import { positionBetween } from '../features/planner/position';
 import type { PlannerBoard as GlobalTask, PlannerCard, PlannerCardColor, PlannerColumn } from '../features/planner/types';
 import { usePlanner } from '../features/planner/usePlanner';
+import { useScreenFitHeight } from '../components/common/useScreenFitHeight';
 
 type ModalState = { mode: 'closed' } | { mode: 'edit'; card: PlannerCard } | { mode: 'create'; columnId: string };
 
@@ -85,6 +86,20 @@ export function PlannerPage() {
 
   const [board, setBoard] = useState<Board>({ columns: [], cardsByColumn: {} });
   const isDraggingRef = useRef(false);
+
+  /*
+   * Доска занимает экран до низа окна и прокручивается внутри себя — вбок по колонкам, вниз по
+   * карточкам внутри колонки.
+   *
+   * Иначе колонки во всю высоту утаскивают за собой страницу, а горизонтальная полоса прокрутки
+   * оказывается под нижней колонкой, то есть за экраном: врач, читающий начало доски, о колонках
+   * справа не узнаёт вовсе. Та же ловушка, из-за которой рабочее место таблицы меряет свою высоту.
+   */
+  const boardRef = useRef<HTMLDivElement>(null);
+  // `ready` обязателен: пока едут доски, страница показывает скелетоны и доски не рисует вовсе, а о
+  // появлении узла ссылка не сообщает — эффект с неизменными зависимостями второй раз не запустится
+  // и высота осталась бы `null` (замер: доска 1551 px при окне 900).
+  const boardHeight = useScreenFitHeight(boardRef, { gap: 16, min: 320, ready: !isLoading });
 
   useEffect(() => {
     if (isDraggingRef.current) return;
@@ -326,8 +341,16 @@ export function PlannerPage() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <Box style={{ overflowX: 'auto', paddingBottom: 8 }}>
-          <Group align="flex-start" gap="md" wrap="nowrap" style={{ minHeight: 'calc(100vh - 200px)' }}>
+        {/* Пустая обёртка не украшение: высоту хук считает от места **родителя** в документе, а
+            родителем без неё оказался бы `Container` страницы — то есть доска считала бы своим и
+            место под полосой задач над ней (замер: низ доски 972 при окне 900). */}
+        <div>
+        <Box ref={boardRef} style={{ overflowX: 'auto', paddingBottom: 8, height: boardHeight ?? undefined }}>
+          {/*
+            Колонки растягиваются на всю высоту доски (`align="stretch"`), а не облегают свои
+            карточки: цель перетаскивания — весь столбец, а не полоса высотой в две карточки.
+          */}
+          <Group align="stretch" gap="md" wrap="nowrap" style={{ height: '100%', minHeight: 320 }}>
             <SortableContext items={board.columns.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
               {board.columns.map((column) => (
                 <PlannerColumnCard
@@ -342,7 +365,9 @@ export function PlannerPage() {
               ))}
             </SortableContext>
 
-            <Paper style={{ width: 280, flexShrink: 0 }} withBorder radius="lg" p="sm">
+            {/* Заготовка новой колонки ростом со своё содержимое: тянуть её на всю высоту незачем —
+                карточек в ней нет и не будет, пока колонку не создали. */}
+            <Paper style={{ width: 280, flexShrink: 0, alignSelf: 'flex-start' }} withBorder radius="lg" p="sm">
               {addingColumn ? (
                 <Stack gap={8}>
                   <TextInput
@@ -391,6 +416,7 @@ export function PlannerPage() {
             </Paper>
           </Group>
         </Box>
+        </div>
 
         <DragOverlay>{activeCard ? <PlannerCardItem card={activeCard} onOpen={() => {}} /> : null}</DragOverlay>
       </DndContext>

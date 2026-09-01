@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { PageToolbar } from '../components/common/PageToolbar';
-import { Alert, Badge, Button, Card, Container, Group, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Alert, Badge, Box, Button, Card, Container, Group, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -131,18 +131,23 @@ export function QuestionnaireBuilderPage() {
 
   return (
     <Container size="xl" px={0}>
-      <PageToolbar>
-        <Group justify="space-between" mb="lg">
-          <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/diagnostics')}>
-            К анкетам
-          </Button>
-          {editingQuestionnaire && (
-            <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-              Удалить
+      {/* Между полосами управления — обычный просвет страницы. Отступ снизу внутри самой
+          панели давал бы то же на глаз, но панели при этом стояли бы вплотную: замер на
+          конструкторе анализа — зазор 0 при пустой полосе в 20 px внутри верхней. */}
+      <Box mb="lg">
+        <PageToolbar>
+          <Group justify="space-between">
+            <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/diagnostics')}>
+              К анкетам
             </Button>
-          )}
-        </Group>
-      </PageToolbar>
+            {editingQuestionnaire && (
+              <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                Удалить
+              </Button>
+            )}
+          </Group>
+        </PageToolbar>
+      </Box>
 
       <BuilderLayout
         previewLabel="Предпросмотр опроса"

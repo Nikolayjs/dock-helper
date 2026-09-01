@@ -37,8 +37,23 @@ export function PlannerColumnCard({ column, cards, onRename, onDelete, onAddCard
   };
 
   return (
-    <Paper ref={setNodeRef} style={{ ...style, width: 280, flexShrink: 0 }} withBorder radius="lg" p="sm">
-      <Stack gap="sm">
+    /*
+     * Колонка ростом во всю доску, а не по своим карточкам.
+     *
+     * Перетаскивание попадает в колонку через её область сброса, а та облегала стопку карточек:
+     * у колонки с двумя карточками это полоса высотой в две карточки, и мимо неё промахиваешься
+     * чаще, чем попадаешь. Пустая колонка была ещё хуже — `mih={40}`, то есть цель в палец шириной.
+     * Поэтому колонка тянется на всю высоту доски, а свободное место внизу принадлежит области
+     * сброса: попасть в колонку — значит попасть куда угодно в её столбце.
+     */
+    <Paper
+      ref={setNodeRef}
+      style={{ ...style, width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column' }}
+      withBorder
+      radius="lg"
+      p="sm"
+    >
+      <Stack gap="sm" style={{ flex: 1, minHeight: 0 }}>
         <Group justify="space-between" wrap="nowrap" gap={4}>
           <Group gap={4} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
             <Box {...attributes} {...listeners} style={{ cursor: 'grab', touchAction: 'none', display: 'flex', color: 'var(--mantine-color-dimmed)' }}>
@@ -76,6 +91,11 @@ export function PlannerColumnCard({ column, cards, onRename, onDelete, onAddCard
             gap={8}
             mih={40}
             style={{
+              // Свободное место под карточками — часть цели, а не пустота под ней.
+              flex: 1,
+              // Длинный список прокручивается внутри своей колонки, а не растит доску: иначе
+              // горизонтальная полоса доски уезжает за нижний край экрана вместе с ней.
+              overflowY: 'auto',
               borderRadius: 8,
               outline: isOver ? '2px dashed var(--mantine-color-brand-4)' : 'none',
               outlineOffset: 2,
