@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+
+import { PageToolbar } from '../../components/common/PageToolbar';
 import { Alert, Badge, Button, Card, Container, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { IconAlertTriangle, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -86,12 +88,14 @@ export function LabResultViewPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          <BackButton fallback={{ to: patientPath, label: 'К карточке пациента' }} />
-          <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-            Удалить
-          </Button>
-        </Group>
+        <PageToolbar>
+          <Group justify="space-between" wrap="wrap">
+            <BackButton fallback={{ to: patientPath, label: 'К карточке пациента' }} />
+            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+              Удалить
+            </Button>
+          </Group>
+        </PageToolbar>
 
         <Card withBorder padding="lg">
           <Stack gap="xs">

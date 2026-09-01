@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { Alert, Anchor, Badge, Button, Card, Container, Group, Loader, Modal, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconEdit, IconInfoCircle, IconStethoscope } from '@tabler/icons-react';
@@ -82,15 +84,17 @@ export function CalculatorRunPage() {
   return (
     <Container size="md" px={0}>
       <div style={{ marginBottom: 'var(--mantine-spacing-lg)' }}>
-        {/* Пациент едет и в «назад»: кнопка внутри страницы вела на голый список, и выбранный
-            пациент терялся — в отличие от кнопки браузера, которая его сохраняла. Две разные на вид
-            дороги обязаны вести в одно и то же место. */}
-        <BackButton
-          fallback={{
-            to: patientId ? `/calculators?patientId=${patientId}` : '/calculators',
-            label: 'К списку калькуляторов',
-          }}
-        />
+        <PageToolbar>
+          {/* Пациент едет и в «назад»: кнопка внутри страницы вела на голый список, и выбранный
+              пациент терялся — в отличие от кнопки браузера, которая его сохраняла. Две разные на
+              вид дороги обязаны вести в одно и то же место. */}
+          <BackButton
+            fallback={{
+              to: patientId ? `/calculators?patientId=${patientId}` : '/calculators',
+              label: 'К списку калькуляторов',
+            }}
+          />
+        </PageToolbar>
       </div>
 
       <Card withBorder padding="xl">

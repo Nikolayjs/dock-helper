@@ -3,6 +3,7 @@ import { IconAlertTriangle, IconCheck, IconChevronRight, IconInfoCircle, IconSte
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BackButton } from '../../components/common/BackButton';
+import { PageToolbar } from '../../components/common/PageToolbar';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
 import { useAllDocuments } from '../knowledgeBase/useDocuments';
 import { useDiseasesByCode } from '../diseases/useDiseases';
@@ -89,7 +90,9 @@ export function Icd10ViewPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <BackButton fallback={{ to: '/reference?tab=icd10', label: 'К справочнику МКБ-10' }} />
+        <PageToolbar>
+          <BackButton fallback={{ to: '/reference?tab=icd10', label: 'К справочнику МКБ-10' }} />
+        </PageToolbar>
 
         <ReadingSheet>
           <Group gap="xs" mb={8}>

@@ -13,6 +13,8 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, horizontalListSortingStrategy, SortableContext, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Box, Button, Container, Group, Paper, Skeleton, Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { notifications } from '@mantine/notifications';
 import { IconPlus } from '@tabler/icons-react';
 import { useSearchParams } from 'react-router-dom';
@@ -268,7 +270,9 @@ export function PlannerPage() {
     );
   }
 
+  /* Полоса задач — на поверхности, как верхушка любого раздела: см. `PageToolbar`. */
   const boardBar = (
+    <PageToolbar>
     <PlannerBoardBar
       boards={boards}
       activeId={activeBoard?.id ?? null}
@@ -290,6 +294,7 @@ export function PlannerPage() {
       }}
       onDelete={handleDeleteBoard}
     />
+    </PageToolbar>
   );
 
   if (!activeBoard) {

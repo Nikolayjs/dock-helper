@@ -1,4 +1,6 @@
 import { useState } from 'react';
+
+import { PageToolbar } from '../../components/common/PageToolbar';
 import { ActionIcon, Avatar, Badge, Button, Card, Container, Group, Menu, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconClipboardHeart, IconClockExclamation, IconEdit, IconFileText, IconPlus, IconPrinter, IconSettings, IconTrash } from '@tabler/icons-react';
@@ -119,17 +121,19 @@ export function PatientViewPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          <BackButton fallback={{ to: '/patients', label: 'К списку пациентов' }} />
-          <Group gap="xs">
-            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDeletePatient}>
-              Удалить
-            </Button>
-            <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`/patients/${patient.id}/edit`)}>
-              Редактировать
-            </Button>
+        <PageToolbar>
+          <Group justify="space-between" wrap="wrap">
+            <BackButton fallback={{ to: '/patients', label: 'К списку пациентов' }} />
+            <Group gap="xs">
+              <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDeletePatient}>
+                Удалить
+              </Button>
+              <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`/patients/${patient.id}/edit`)}>
+                Редактировать
+              </Button>
+            </Group>
           </Group>
-        </Group>
+        </PageToolbar>
 
         <Card withBorder padding="lg">
           <Group justify="space-between" align="flex-start" wrap="wrap">

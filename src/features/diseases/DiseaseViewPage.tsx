@@ -1,4 +1,6 @@
 import { Alert, Anchor, Badge, Button, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
+
+import { PageToolbar } from '../../components/common/PageToolbar';
 import { IconBook2, IconEdit, IconInfoCircle, IconListSearch, IconNotes } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -64,17 +66,19 @@ export function DiseaseViewPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          <BackButton fallback={{ to: '/reference', label: 'К справочнику' }} />
-          <Button
-            component={Link}
-            to={`/reference/diseases/${disease.id}/edit`}
-            variant="default"
-            leftSection={<IconEdit size={16} />}
-          >
-            {(summary?.hasDescription ?? Boolean(description)) ? 'Править' : 'Дополнить описание'}
-          </Button>
-        </Group>
+        <PageToolbar>
+          <Group justify="space-between" wrap="wrap">
+            <BackButton fallback={{ to: '/reference', label: 'К справочнику' }} />
+            <Button
+              component={Link}
+              to={`/reference/diseases/${disease.id}/edit`}
+              variant="default"
+              leftSection={<IconEdit size={16} />}
+            >
+              {(summary?.hasDescription ?? Boolean(description)) ? 'Править' : 'Дополнить описание'}
+            </Button>
+          </Group>
+        </PageToolbar>
 
         <ReadingSheet>
           <Stack gap="md">

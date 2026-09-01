@@ -1,4 +1,6 @@
 import { Badge, Button, Checkbox, Container, Group, Progress, Stack, Text, Title, Typography } from '@mantine/core';
+
+import { PageToolbar } from '../../components/common/PageToolbar';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -53,21 +55,23 @@ export function NoteViewPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          <BackButton fallback={{ to: '/notes', label: 'К списку заметок' }} />
-          <Group gap="xs">
-            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-              Удалить
-            </Button>
-            <Button
-              variant="light"
-              leftSection={<IconEdit size={16} />}
-              onClick={() => navigate(`/notes/${note.id}/edit`, { state: { from } })}
-            >
-              Редактировать
-            </Button>
+        <PageToolbar>
+          <Group justify="space-between" wrap="wrap">
+            <BackButton fallback={{ to: '/notes', label: 'К списку заметок' }} />
+            <Group gap="xs">
+              <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                Удалить
+              </Button>
+              <Button
+                variant="light"
+                leftSection={<IconEdit size={16} />}
+                onClick={() => navigate(`/notes/${note.id}/edit`, { state: { from } })}
+              >
+                Редактировать
+              </Button>
+            </Group>
           </Group>
-        </Group>
+        </PageToolbar>
 
         {/* Заметка — такой же читаемый текст, как статья, и с обоями он лежал прямо на
             фотографии. Заголовок, дата и содержимое на одной подложке: снаружи остаются только

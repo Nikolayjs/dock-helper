@@ -31,11 +31,13 @@ interface PageToolbarProps {
    * управления. Без него панель — самостоятельная карточка, а содержимое идёт ниже своими.
    */
   content?: ReactNode;
+  /** Например `no-print`: на бумаге панель управления не нужна. */
+  className?: string;
 }
 
-export function PageToolbar({ tabs, children, content }: PageToolbarProps) {
+export function PageToolbar({ tabs, children, content, className }: PageToolbarProps) {
   return (
-    <Card withBorder padding={0}>
+    <Card withBorder padding={0} className={className}>
       <Box p="md">
         <Stack gap="sm">
           {tabs}

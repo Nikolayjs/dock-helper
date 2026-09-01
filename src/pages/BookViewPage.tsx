@@ -1,4 +1,6 @@
 import { useState } from 'react';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { Badge, Button, Container, Group, Image, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { IconBook2, IconBookmark, IconEdit, IconFileTypeDocx, IconFileTypePdf, IconScan, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -65,17 +67,21 @@ export function BookViewPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          <BackButton fallback={{ to: '/library', label: 'К библиотеке' }} />
-          <Group gap="xs">
-            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-              Удалить
-            </Button>
-            <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => setEditing(true)}>
-              Редактировать
-            </Button>
-          </Group>
-        </Group>
+        <PageToolbar>
+          <PageToolbar>
+            <Group justify="space-between" wrap="wrap">
+              <BackButton fallback={{ to: '/library', label: 'К библиотеке' }} />
+              <Group gap="xs">
+                <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                  Удалить
+                </Button>
+                <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => setEditing(true)}>
+                  Редактировать
+                </Button>
+              </Group>
+            </Group>
+          </PageToolbar>
+        </PageToolbar>
 
         {/* Обложка, название и автор — то, ради чего страницу открывают, и на обоях они лежали
             прямо на фотографии. Подложка та же, что под читаемым текстом: на телефоне она занимает

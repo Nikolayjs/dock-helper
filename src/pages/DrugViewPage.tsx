@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import type { ReactNode } from 'react';
 import { Alert, Badge, Button, Card, Container, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
 import { IconAlertTriangle, IconEdit, IconPill, IconPlus, IconTestPipe, IconTrash } from '@tabler/icons-react';
@@ -67,17 +69,19 @@ export function DrugViewPage() {
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          <BackButton fallback={{ to: '/drugs', label: 'К справочнику' }} />
-          <Group gap="xs">
-            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-              Удалить
-            </Button>
-            <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`/drugs/${drug.id}/edit`)}>
-              Редактировать
-            </Button>
+        <PageToolbar>
+          <Group justify="space-between" wrap="wrap">
+            <BackButton fallback={{ to: '/drugs', label: 'К справочнику' }} />
+            <Group gap="xs">
+              <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                Удалить
+              </Button>
+              <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`/drugs/${drug.id}/edit`)}>
+                Редактировать
+              </Button>
+            </Group>
           </Group>
-        </Group>
+        </PageToolbar>
 
         {/* Карточка препарата — это монография: заголовок, подзаголовки, сплошной текст. Читается
             она так же, как статья, и с обоями лежала прямо на фотографии. Снаружи остаются только

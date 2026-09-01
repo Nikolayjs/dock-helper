@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { Badge, Container, Group, Stack } from '@mantine/core';
 import { IconTag } from '@tabler/icons-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -43,19 +45,21 @@ export function KnowledgeTagPage() {
   return (
     <Container size="xl" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          {/*
-            Возврат туда, откуда пришли, а не в раздел рекомендаций.
+        <PageToolbar>
+          <Group justify="space-between" wrap="wrap">
+            {/*
+              Возврат туда, откуда пришли, а не в раздел рекомендаций.
         
-            Кнопка вела на `/guidelines` жёстко, и врач, нажавший тег в статье, оказывался в
-            клинических рекомендациях — то самое враньё, ради которого в приложении заведён
-            `BackButton`: ссылка сообщает происхождение, страница его читает.
-          */}
-          <BackButton fallback={{ to: '/articles', label: 'К статьям' }} />
-          <Badge size="lg" variant="light" color="brand" leftSection={<IconTag size={14} />}>
-            {tag}
-          </Badge>
-        </Group>
+              Кнопка вела на `/guidelines` жёстко, и врач, нажавший тег в статье, оказывался в
+              клинических рекомендациях — то самое враньё, ради которого в приложении заведён
+              `BackButton`: ссылка сообщает происхождение, страница его читает.
+            */}
+            <BackButton fallback={{ to: '/articles', label: 'К статьям' }} />
+            <Badge size="lg" variant="light" color="brand" leftSection={<IconTag size={14} />}>
+              {tag}
+            </Badge>
+          </Group>
+        </PageToolbar>
 
         <KnowledgeGrid
           documents={tagged}

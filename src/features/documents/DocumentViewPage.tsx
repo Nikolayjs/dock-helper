@@ -1,4 +1,6 @@
 import { Badge, Box, Button, Container, Group, Stack, Text, Title, Typography } from '@mantine/core';
+
+import { PageToolbar } from '../../components/common/PageToolbar';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
 import { notifications } from '@mantine/notifications';
 import { IconDownload, IconEdit, IconPrinter, IconTrash, IconUser } from '@tabler/icons-react';
@@ -75,23 +77,25 @@ export function DocumentViewPage() {
   return (
     <Container size={doc.kind === 'sheet' ? 'xl' : 'md'} px={0}>
       <Stack gap="lg">
-        <Group className="no-print" justify="space-between" wrap="wrap">
-          <BackButton fallback={{ to: '/documents', label: 'К документам' }} />
-          <Group gap="xs">
-            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-              Удалить
-            </Button>
-            <Button variant="subtle" leftSection={<IconDownload size={16} />} onClick={() => void handleDownload()}>
-              Скачать .{doc.kind === 'sheet' ? 'xlsx' : 'docx'}
-            </Button>
-            <Button variant="subtle" leftSection={<IconPrinter size={16} />} onClick={() => window.print()}>
-              Печать
-            </Button>
-            <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`/documents/${doc.id}/edit`)}>
-              Редактировать
-            </Button>
+        <PageToolbar className="no-print">
+          <Group justify="space-between" wrap="wrap">
+            <BackButton fallback={{ to: '/documents', label: 'К документам' }} />
+            <Group gap="xs">
+              <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                Удалить
+              </Button>
+              <Button variant="subtle" leftSection={<IconDownload size={16} />} onClick={() => void handleDownload()}>
+                Скачать .{doc.kind === 'sheet' ? 'xlsx' : 'docx'}
+              </Button>
+              <Button variant="subtle" leftSection={<IconPrinter size={16} />} onClick={() => window.print()}>
+                Печать
+              </Button>
+              <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`/documents/${doc.id}/edit`)}>
+                Редактировать
+              </Button>
+            </Group>
           </Group>
-        </Group>
+        </PageToolbar>
 
         {/* Название, теги и дата — часть документа, поэтому лежат на той же подложке, что и текст:
             иначе заголовок оставался бы на обоях, то есть ровно там, где его хуже всего видно.

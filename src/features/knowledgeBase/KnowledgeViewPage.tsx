@@ -1,4 +1,6 @@
 import { Badge, Button, Container, Group, Loader, Space, Stack, Text, Title, Typography } from '@mantine/core';
+
+import { PageToolbar } from '../../components/common/PageToolbar';
 import { notifications } from '@mantine/notifications';
 import { IconDownload, IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -53,27 +55,29 @@ export function KnowledgeViewPage({ kind, basePath, notFoundText, backLabel, del
   return (
     <Container size="md" px={0}>
       <Stack gap="lg">
-        <Group justify="space-between" wrap="wrap">
-          <BackButton fallback={{ to: basePath, label: backLabel }} />
-          <Group gap="xs">
-            <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-              Удалить
-            </Button>
-            <Button
-              variant="subtle"
-              leftSection={<IconDownload size={16} />}
-              /* The stored HTML, not the rendered one: wiki links resolve to routes of this app,
-                 which mean nothing in a file someone opens in Word. */
-              onClick={() => full && void downloadDocx({ title: doc.title, author: doc.author, html: full.content })}
-              disabled={!full}
-            >
-              Скачать .docx
-            </Button>
-            <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`${basePath}/${doc.id}/edit`)}>
-              Редактировать
-            </Button>
+        <PageToolbar>
+          <Group justify="space-between" wrap="wrap">
+            <BackButton fallback={{ to: basePath, label: backLabel }} />
+            <Group gap="xs">
+              <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                Удалить
+              </Button>
+              <Button
+                variant="subtle"
+                leftSection={<IconDownload size={16} />}
+                /* The stored HTML, not the rendered one: wiki links resolve to routes of this app,
+                   which mean nothing in a file someone opens in Word. */
+                onClick={() => full && void downloadDocx({ title: doc.title, author: doc.author, html: full.content })}
+                disabled={!full}
+              >
+                Скачать .docx
+              </Button>
+              <Button variant="light" leftSection={<IconEdit size={16} />} onClick={() => navigate(`${basePath}/${doc.id}/edit`)}>
+                Редактировать
+              </Button>
+            </Group>
           </Group>
-        </Group>
+        </PageToolbar>
 
         {/* Название, теги и дата — часть документа, поэтому лежат на той же подложке, что и текст:
             иначе заголовок оставался бы на обоях, то есть ровно там, где его хуже всего видно.

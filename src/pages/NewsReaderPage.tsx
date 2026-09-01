@@ -1,4 +1,6 @@
 import { useState } from 'react';
+
+import { PageToolbar } from '../components/common/PageToolbar';
 import { Alert, Anchor, Badge, Button, Card, Group, Loader, Stack, Text, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconBookmark, IconBookmarkFilled, IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
@@ -81,25 +83,27 @@ export function NewsReaderPage() {
 
   return (
     <Stack gap="lg">
-      <Group justify="space-between" wrap="wrap" gap="sm">
-        <BackButton fallback={{ to: '/news', label: 'К новостям' }} />
-        <Group gap="sm">
-          <Button
-            variant={isSaved ? 'light' : 'default'}
-            color={isSaved ? 'teal' : undefined}
-            leftSection={
-              isSaving ? <Loader size={16} /> : isSaved ? <IconBookmarkFilled size={16} /> : <IconBookmark size={16} />
-            }
-            onClick={handleSaveAsArticle}
-            disabled={isSaving || isSaved}
-          >
-            {isSaved ? 'Сохранено' : 'Сохранить как статью'}
-          </Button>
-          <Button component="a" href={url} target="_blank" rel="noopener noreferrer" variant="light" leftSection={<IconExternalLink size={16} />}>
-            Открыть в источнике
-          </Button>
+      <PageToolbar>
+        <Group justify="space-between" wrap="wrap" gap="sm">
+          <BackButton fallback={{ to: '/news', label: 'К новостям' }} />
+          <Group gap="sm">
+            <Button
+              variant={isSaved ? 'light' : 'default'}
+              color={isSaved ? 'teal' : undefined}
+              leftSection={
+                isSaving ? <Loader size={16} /> : isSaved ? <IconBookmarkFilled size={16} /> : <IconBookmark size={16} />
+              }
+              onClick={handleSaveAsArticle}
+              disabled={isSaving || isSaved}
+            >
+              {isSaved ? 'Сохранено' : 'Сохранить как статью'}
+            </Button>
+            <Button component="a" href={url} target="_blank" rel="noopener noreferrer" variant="light" leftSection={<IconExternalLink size={16} />}>
+              Открыть в источнике
+            </Button>
+          </Group>
         </Group>
-      </Group>
+      </PageToolbar>
 
       <Card withBorder padding="lg">
         <Group gap={8} mb={4}>
