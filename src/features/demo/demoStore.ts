@@ -95,6 +95,15 @@ const DEMO_STORE_ITEMS: Omit<StoreItem, 'installed' | 'installedId'>[] = [
     specialties: ['therapy', 'pediatrics'],
     price: 0,
   },
+  {
+    kind: 'book',
+    key: 'cr-minzdrav',
+    title: 'Рубрикатор клинических рекомендаций Минздрава',
+    description:
+      'Официальные клинические рекомендации по всем специальностям: полные тексты, приложения и сроки пересмотра.',
+    specialties: [],
+    price: 0,
+  },
 ];
 
 /** Раздел демо-хранилища, в котором лежат записи этого вида. */
@@ -103,6 +112,7 @@ const COLLECTION: Record<StoreItem['kind'], string> = {
   calculator: '/calculators',
   questionnaire: '/questionnaires',
   template: '/document-templates',
+  book: '/library',
 };
 
 export function demoStoreItems(data: Record<string, Record<string, unknown>[]>): StoreItem[] {

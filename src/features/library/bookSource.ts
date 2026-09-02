@@ -69,10 +69,42 @@ export async function getBookBlob(book: Book): Promise<Blob> {
 /**
  * Отпечаток файла — тот же, что считает сервер и под которым книга лежит на устройстве.
  *
- * Считается в браузере: `crypto.subtle` есть везде, где есть https, а книга и так прочитана в
- * память ради разбора метаданных.
+ * Считается **в отдельном потоке**: на учебнике в 200 МБ `crypto.subtle.digest` в основном потоке
+ * подвешивает интерфейс ровно тогда, когда книгу добавляют. Буфер уезжает в воркер передачей, а не
+ * копией, — после разбора метаданных он больше никому не нужен, а вторая копия книги в памяти это
+ * то, из-за чего вкладка на телефоне и падает.
+ *
+ * Воркера может не быть (старый браузер, тесты в jsdom) — тогда считаем здесь же: медленнее, но
+ * верно. Отпечаток обязан совпадать с серверным при любом пути, поэтому оба считают одно и то же.
  */
 export async function sha256Of(buffer: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', buffer);
+  const viaWorker = await digestInWorker(buffer);
+  if (viaWorker) return viaWorker;
+  return hex(await crypto.subtle.digest('SHA-256', buffer));
+}
+
+function hex(digest: ArrayBuffer): string {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function digestInWorker(buffer: ArrayBuffer): Promise<string | null> {
+  if (typeof Worker === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL('./sha256.worker.ts', import.meta.url), { type: 'module' });
+    } catch {
+      resolve(null);
+      return;
+    }
+    const finish = (value: string | null) => {
+      worker.terminate();
+      resolve(value);
+    };
+    worker.onmessage = (event: MessageEvent<{ ok: boolean; hex?: string }>) =>
+      finish(event.data.ok && event.data.hex ? event.data.hex : null);
+    // Сорвавшийся воркер — не повод отказать в добавлении книги: посчитаем в основном потоке.
+    worker.onerror = () => finish(null);
+    worker.postMessage(buffer, [buffer]);
+  });
 }

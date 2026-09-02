@@ -21,6 +21,7 @@ import { BookEditModal } from '../features/library/BookEditModal';
 import type { Book } from '../features/library/types';
 import { QUERY_KEY as LIBRARY_KEY, useBook } from '../features/library/useLibrary';
 import { bookLocation, LOCATION_LABEL, useLocalFiles } from '../features/library/useLocalFiles';
+import { latestProgress } from '../features/library/readingPosition';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { BackButton } from '../components/common/BackButton';
 import { ReadingSheet } from '../components/common/ReadingSheet';
@@ -78,14 +79,16 @@ export function BookViewPage() {
    * У книги по ссылке прогресса нет: читают её на чужом сайте, и «страница 40» была бы выдумкой.
    * Вместо него — дата последнего открытия; её и записывает нажатие на «Открыть первоисточник».
    */
+  // Более позднее из местного и серверного: см. `readingPosition.ts`.
+  const progress = latestProgress(book);
   const progressLabel = book.storage === 'link'
-    ? book.progress
-      ? `Открывали ${dayjs(book.progress.updatedAt).format('D MMMM YYYY')}`
+    ? progress
+      ? `Открывали ${dayjs(progress.updatedAt).format('D MMMM YYYY')}`
       : null
-    : book.progress
+    : progress
     ? book.pageCount
-      ? `Стр. ${book.progress.location} из ${book.pageCount}`
-      : `Прочитано ${Math.round(book.progress.location * 100)}%`
+      ? `Стр. ${progress.location} из ${book.pageCount}`
+      : `Прочитано ${Math.round(progress.location * 100)}%`
     : null;
 
   return (

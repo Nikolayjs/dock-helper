@@ -12,6 +12,7 @@ import {
 } from '@tabler/icons-react';
 
 import type { Book } from './types';
+import { latestProgress } from './readingPosition';
 import { LOCATION_LABEL, type BookLocation } from './useLocalFiles';
 
 interface BookCardProps {
@@ -48,10 +49,13 @@ function formatSize(bytes: number): string {
 }
 
 function progressPercent(book: Book): number | null {
-  if (!book.progress) return null;
+  // Место берётся более позднее из местного и серверного: на сервер оно уезжает раз в двенадцать
+  // секунд, и до этого карточка показывала бы позапрошлую страницу.
+  const progress = latestProgress(book);
+  if (!progress) return null;
   // Reflowable formats have no pages, so their progress is already a fraction of the whole.
-  if (book.format === 'fb2' || book.format === 'docx') return Math.round(book.progress.location * 100);
-  return book.pageCount ? Math.round((book.progress.location / book.pageCount) * 100) : null;
+  if (book.format === 'fb2' || book.format === 'docx') return Math.round(progress.location * 100);
+  return book.pageCount ? Math.round((progress.location / book.pageCount) * 100) : null;
 }
 
 export function BookCard({ book, location, onOpen, onEdit, onDelete }: BookCardProps) {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Card, FileButton, Group, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Alert, Button, Card, FileButton, Group, Stack, Text, ThemeIcon, Tooltip } from '@mantine/core';
 import { IconDeviceMobile, IconUpload } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 
@@ -60,13 +60,30 @@ export function MissingBookFile({ book, onRestored }: MissingBookFileProps) {
           книгу добавляли. Выберите его здесь, и книга откроется: прогресс и заметки останутся на месте.
         </Text>
 
-        <FileButton onChange={accept} accept=".pdf,.docx,.fb2,.djvu,.djv">
-          {(props) => (
-            <Button {...props} leftSection={<IconUpload size={16} />} loading={checking} mt="xs">
-              Добавить файл
-            </Button>
-          )}
-        </FileButton>
+        {/* Файл не обязан лежать на этой машине: системное окно выбора на всех живых системах
+            показывает Яндекс.Диск, Google Drive и iCloud обычной папкой. Это и закрывает случай
+            «сел за другой компьютер» — без единой интеграции с их стороны и с нашей. */}
+        <Tooltip
+          label="Файл можно взять и из облака: в окне выбора Яндекс.Диск, Google Drive и iCloud видны как обычные папки"
+          withArrow
+          multiline
+          w={280}
+        >
+          <div>
+            <FileButton onChange={accept} accept=".pdf,.docx,.fb2,.djvu,.djv">
+              {(props) => (
+                <Button {...props} leftSection={<IconUpload size={16} />} loading={checking} mt="xs">
+                  Добавить файл
+                </Button>
+              )}
+            </FileButton>
+          </div>
+        </Tooltip>
+
+        <Text size="xs" c="dimmed" ta="center" maw={420}>
+          Файл можно выбрать и из облачного диска — в окне выбора Яндекс.Диск, Google&nbsp;Drive и iCloud видны как
+          обычные папки.
+        </Text>
 
         {book.fileName && (
           <Text size="xs" c="dimmed">

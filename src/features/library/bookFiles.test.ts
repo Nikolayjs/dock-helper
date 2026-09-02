@@ -14,8 +14,18 @@ import { backendKind, BookStorageError, deleteFile, getFile, hasFile, putFile, r
 describe('файлы книг на устройстве (IndexedDB)', () => {
   const sha = 'a'.repeat(64);
 
-  beforeEach(() => {
+  /** В jsdom `navigator.storage` нет вовсе — подставляем ровно то, чем пользуется модуль. */
+  function stubStorage(estimate: { usage: number; quota: number }) {
+    Object.defineProperty(navigator, 'storage', {
+      configurable: true,
+      value: { estimate: async () => estimate, persist: async () => true },
+    });
+  }
+
+  beforeEach(async () => {
     resetBackendForTests();
+    await deleteFile(sha);
+    Reflect.deleteProperty(navigator, 'storage');
   });
 
   it('выбирает IndexedDB, когда OPFS недоступен', async () => {
@@ -73,5 +83,29 @@ describe('файлы книг на устройстве (IndexedDB)', () => {
 
   it('занятое место отдаётся нулями, когда браузер не умеет считать', async () => {
     expect(await usage()).toEqual({ used: 0, quota: 0 });
+  });
+
+  it('книга, которая не влезает, отвергается **до** записи и с числами', async () => {
+    // Обрыв на середине двухсотмегабайтного файла оставляет огрызок и невнятную ошибку; отказ
+    // заранее говорит, сколько нужно и сколько есть.
+    stubStorage({ usage: 900 * 1024 * 1024, quota: 1000 * 1024 * 1024 });
+
+    await expect(putFile(sha, new Blob([new Uint8Array(200 * 1024 * 1024)]))).rejects.toThrow(
+      /Книга занимает 200 МБ, а на устройстве свободно 100 МБ/,
+    );
+    expect(await hasFile(sha)).toBe(false);
+  });
+
+  it('книга, которая влезает, пишется', async () => {
+    stubStorage({ usage: 10 * 1024 * 1024, quota: 1000 * 1024 * 1024 });
+    await putFile(sha, new Blob(['книга']));
+    expect(await hasFile(sha)).toBe(true);
+  });
+
+  it('браузер, не сказавший про место, записи не мешает', async () => {
+    // «Не знаю» — не то же самое, что «не влезет»: узнаем по факту записи, как и раньше.
+    stubStorage({ usage: 0, quota: 0 });
+    await putFile(sha, new Blob(['книга']));
+    expect(await hasFile(sha)).toBe(true);
   });
 });

@@ -5,8 +5,9 @@ import { QUERY_KEY as LAB_TESTS_KEY } from '../analyzer/useCustomAnalyzers';
 import { QUERY_KEY as CALCULATORS_KEY } from '../calculators/useCalculators';
 import { QUERY_KEY as QUESTIONNAIRES_KEY } from '../diagnostics/useQuestionnaires';
 import { QUERY_KEY as TEMPLATES_KEY } from '../patients/documents/useDocumentTemplates';
+import { QUERY_KEY as LIBRARY_KEY } from '../library/useLibrary';
 
-export type StoreKind = 'analyzer' | 'calculator' | 'questionnaire' | 'template';
+export type StoreKind = 'analyzer' | 'calculator' | 'questionnaire' | 'template' | 'book';
 
 export interface StoreItem {
   kind: StoreKind;
@@ -29,6 +30,7 @@ const SECTION_KEY: Record<StoreKind, string[]> = {
   calculator: CALCULATORS_KEY,
   questionnaire: QUESTIONNAIRES_KEY,
   template: TEMPLATES_KEY,
+  book: LIBRARY_KEY,
 };
 
 /** Куда ведёт «Открыть» у установленной позиции. */
@@ -43,6 +45,8 @@ export function installedPath(item: StoreItem): string {
       return `/diagnostics/${id}`;
     case 'template':
       return `/documents/templates/${id}/edit`;
+    case 'book':
+      return `/library/${id}`;
   }
 }
 

@@ -5,6 +5,8 @@ import { createCrudResource, useCrudResource } from '../../lib/createCrudResourc
 import * as bookFiles from './bookFiles';
 import { sha256Of } from './bookSource';
 import { decodeFb2Text, parseFb2 } from './fb2';
+import { resizeImageSrcToDataUrl } from '../../lib/imageResize';
+import { forgetLocalPosition } from './readingPosition';
 import { findByFingerprint, fileStillUsed } from './shelf';
 import { createDeviceBook, createLinkBook, dropServerFile, fetchBookFile, updateBookProgress, uploadBook } from './libraryApi';
 import { readDocx } from '../../lib/docx/readDocx';
@@ -32,10 +34,47 @@ interface ParsedBookMeta {
   sha256: string;
 }
 
+/**
+ * Обложка книги приводится к одному виду, каким бы ни был формат.
+ *
+ * `coverDataUrl` лежит строкой прямо в записи, а запись едет **в каждом ответе списка** — в том
+ * числе на дашборд, где стоит полка начатых книг. PDF рендерился в 320 px, но FB2 отдавал картинку
+ * из файла как есть, а внутри FB2 обложка бывает в полмегабайта; DOCX — то же самое. Одна такая
+ * книга отменяет всю экономию, ради которой файлы уехали на устройство.
+ *
+ * 320 px хватает: на карточке обложка занимает 200 px по высоте, на странице книги — 220 по ширине.
+ * WebP вместо JPEG — потому что на обложках он заметно легче при том же виде; чужая картинка,
+ * которую не удалось перекодировать, возвращается как есть: обложка не то, ради чего стоит ронять
+ * добавление книги.
+ */
+const COVER_WIDTH = 320;
+const COVER_QUALITY = 0.75;
+
+async function normalizeCover(coverDataUrl: string | null): Promise<string | null> {
+  if (!coverDataUrl) return null;
+  try {
+    const normalized = await resizeImageSrcToDataUrl(coverDataUrl, COVER_WIDTH, 'image/webp', COVER_QUALITY);
+    return normalized.length < coverDataUrl.length ? normalized : coverDataUrl;
+  } catch {
+    return coverDataUrl;
+  }
+}
+
+/**
+ * Файл читается **один раз**, и порядок здесь несущий.
+ *
+ * Сначала метаданные — они разбирают буфер; отпечаток считается последним, потому что буфер уезжает
+ * в воркер **передачей** и после этого в основном потоке его больше нет. Обратный порядок оставил
+ * бы разбору пустой буфер, а сохранение книги — файлом без обложки и названия.
+ */
 async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookMeta> {
-  const fallbackTitle = file.name.replace(/\.(pdf|docx|fb2|djvu|djv)$/i, '');
   const buffer = await file.arrayBuffer();
-  const sha256 = await sha256Of(buffer);
+  const parsed = await parseBookMeta(file, format, buffer);
+  return { ...parsed, sha256: await sha256Of(buffer) };
+}
+
+async function parseBookMeta(file: File, format: BookFormat, buffer: ArrayBuffer): Promise<Omit<ParsedBookMeta, 'sha256'>> {
+  const fallbackTitle = file.name.replace(/\.(pdf|docx|fb2|djvu|djv)$/i, '');
 
   if (format === 'docx') {
     // Word records a title only when someone filled it in, which is rare — the filename is usually
@@ -45,9 +84,8 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
       title: parsed.title || fallbackTitle,
       author: parsed.author,
       description: '',
-      coverDataUrl: parsed.coverDataUrl,
+      coverDataUrl: await normalizeCover(parsed.coverDataUrl),
       pageCount: null,
-      sha256,
     };
   }
 
@@ -57,9 +95,8 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
       title: parsed.title || fallbackTitle,
       author: parsed.author,
       description: parsed.description,
-      coverDataUrl: parsed.coverDataUrl,
+      coverDataUrl: await normalizeCover(parsed.coverDataUrl),
       pageCount: null,
-      sha256,
     };
   }
 
@@ -74,9 +111,8 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
       title: fallbackTitle,
       author: '',
       description: '',
-      coverDataUrl: meta.coverDataUrl,
+      coverDataUrl: await normalizeCover(meta.coverDataUrl),
       pageCount: meta.pageCount,
-      sha256,
     };
   }
 
@@ -86,9 +122,8 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
     title: meta.title || fallbackTitle,
     author: meta.author,
     description: '',
-    coverDataUrl: meta.coverDataUrl,
+    coverDataUrl: await normalizeCover(meta.coverDataUrl),
     pageCount: meta.pageCount,
-    sha256,
   };
 }
 
@@ -161,10 +196,18 @@ export function useLibrary() {
     onSuccess: replaceInCache,
   });
 
-  // Место в книге сохраняется на каждой прокрутке: перезагружать ради него весь список нельзя.
+  /**
+   * Место в книге правится точечно: ни списка, ни самой записи ради него не перезагружаем.
+   *
+   * Сервер отвечает `{ id, progress }`, а не книгой, поэтому в кэше меняется одно поле. Раньше он
+   * возвращал запись целиком — вместе с обложкой строкой `data:`, на каждое сохранение позиции.
+   */
   const updateProgressMutation = useMutation({
     mutationFn: ({ id, location }: { id: string; location: number }) => updateBookProgress(id, location),
-    onSuccess: replaceInCache,
+    onSuccess: ({ id, progress }) => {
+      const current = booksRef.current.find((b) => b.id === id);
+      if (current) replaceInCache({ ...current, progress });
+    },
   });
 
   /**
@@ -180,6 +223,7 @@ export function useLibrary() {
    */
   const deleteBook = async (book: Book) => {
     await remove(book.id);
+    forgetLocalPosition(book.id);
     if (!book.sha256) return;
     if (!fileStillUsed(booksRef.current, book.id, book.sha256)) {
       await bookFiles.deleteFile(book.sha256).catch(() => undefined);

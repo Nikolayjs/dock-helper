@@ -9,6 +9,8 @@ import { FlowReader } from '../features/library/FlowReader';
 import { ReadingSheet } from '../components/common/ReadingSheet';
 import { decodeFb2Text, parseFb2 } from '../features/library/fb2';
 import { BookFileMissingError, BookIsLinkError, getBookBlob, useBook } from '../features/library/useLibrary';
+import { sendFinalProgress } from '../features/library/libraryApi';
+import { latestProgress, saveLocalPosition, SERVER_SAVE_INTERVAL_MS } from '../features/library/readingPosition';
 import { MissingBookFile } from '../features/library/MissingBookFile';
 import { readDocx } from '../lib/docx/readDocx';
 import { BackButton } from '../components/common/BackButton';
@@ -26,7 +28,11 @@ import { useScrollDirection } from '../components/layout/useScrollDirection';
 const PdfReader = lazy(() => import('../features/library/PdfReader').then((module) => ({ default: module.PdfReader })));
 const DjvuReader = lazy(() => import('../features/library/DjvuReader').then((module) => ({ default: module.DjvuReader })));
 
-const SAVE_DEBOUNCE_MS = 800;
+/**
+ * На устройство позиция пишется почти сразу — это `localStorage`, ноль сети и ноль ожидания.
+ * На сервер она уезжает раз в `SERVER_SAVE_INTERVAL_MS` и обязательно при уходе со страницы.
+ */
+const LOCAL_SAVE_DEBOUNCE_MS = 800;
 /** Ниже этого читать нечем: на невысоком экране «до низа окна» вырождается в полоску. */
 const MIN_STAGE_HEIGHT = 320;
 
@@ -150,6 +156,8 @@ export function BookReaderPage() {
 
   const progressRef = useRef<number | null>(null);
   const saveTimeoutRef = useRef<number | undefined>(undefined);
+  /** Когда позиция последний раз уезжала на сервер. Ноль — значит в этой сессии ещё ни разу. */
+  const lastServerSaveRef = useRef(0);
   const pageRef = useRef<HTMLDivElement>(null);
 
   // Fullscreen (not just "hide the reader's own toolbar") takes the whole app shell — sidebar,
@@ -218,12 +226,36 @@ export function BookReaderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [book?.id, book?.format, attempt]);
 
+  /**
+   * Уход со страницы — последняя возможность сохранить место, и она бывает внезапной: вкладку
+   * закрыли, приложение свернули. `visibilitychange` ловит и то, и другое; `pagehide` — крайний
+   * случай, когда страницу выгружают без перехода в фон.
+   */
   useEffect(() => {
+    if (!book) return;
+    // Уходя со страницы, позиция отправляется `keepalive`-запросом: он доживает после закрытия
+    // вкладки. Возвращаемый ответ там некому принять, и это нормально — место уже на устройстве.
+    const flushOnLeave = () => {
+      if (progressRef.current === null) return;
+      lastServerSaveRef.current = Date.now();
+      saveLocalPosition(book.id, progressRef.current);
+      sendFinalProgress(book.id, progressRef.current);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushOnLeave();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flushOnLeave);
     return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flushOnLeave);
       window.clearTimeout(saveTimeoutRef.current);
-      if (book && progressRef.current !== null) {
-        updateProgress(book.id, progressRef.current);
-      }
+      if (progressRef.current === null) return;
+      saveLocalPosition(book.id, progressRef.current);
+      // Обычный переход по приложению: здесь отвечает не `keepalive`, а мутация — она же обновит
+      // прогресс в кэше, чтобы полка и карточка книги показали новое место сразу.
+      lastServerSaveRef.current = Date.now();
+      void updateProgress(book.id, progressRef.current).catch(() => undefined);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [book?.id]);
@@ -231,10 +263,16 @@ export function BookReaderPage() {
   const handleProgress = (location: number) => {
     progressRef.current = location;
     if (!book) return;
+
+    // На устройство — сразу и без сети: это то место, куда читалка вернётся в следующий раз.
     window.clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = window.setTimeout(() => {
-      updateProgress(book.id, location);
-    }, SAVE_DEBOUNCE_MS);
+    saveTimeoutRef.current = window.setTimeout(() => saveLocalPosition(book.id, location), LOCAL_SAVE_DEBOUNCE_MS);
+
+    // На сервер — редко: он нужен, чтобы место знало другое устройство, а не эта вкладка.
+    const now = Date.now();
+    if (now - lastServerSaveRef.current < SERVER_SAVE_INTERVAL_MS) return;
+    lastServerSaveRef.current = now;
+    void updateProgress(book.id, location).catch(() => undefined);
   };
 
   // Обработчик отдаётся мемоизированной читалке и потому обязан быть постоянным; всё, что в нём
@@ -261,6 +299,14 @@ export function BookReaderPage() {
       </Container>
     );
   }
+
+  /**
+   * Открывается книга на более позднем из двух мест — местном и серверном.
+   *
+   * Местное могло не доехать (закрыли вкладку), серверное — прийти с другого устройства. Выбирает
+   * время, а не источник; см. `readingPosition.ts`.
+   */
+  const startAt = latestProgress(book)?.location;
 
   const readerBar = (
     <ReaderBar
@@ -334,7 +380,7 @@ export function BookReaderPage() {
             pdfData ? (
               <AppErrorBoundary what="Читалка PDF" compact>
                 <Suspense fallback={<Center py={100}><Loader /></Center>}>
-                  <PdfReader data={pdfData} initialPage={book.progress?.location ?? 1} {...pagedProps} />
+                  <PdfReader data={pdfData} initialPage={startAt ?? 1} {...pagedProps} />
                 </Suspense>
               </AppErrorBoundary>
             ) : (
@@ -345,7 +391,7 @@ export function BookReaderPage() {
           ) : djvuData ? (
             <AppErrorBoundary what="Читалка DjVu" compact>
               <Suspense fallback={<Center py={100}><Loader /></Center>}>
-                <DjvuReader data={djvuData} initialPage={book.progress?.location ?? 1} {...pagedProps} />
+                <DjvuReader data={djvuData} initialPage={startAt ?? 1} {...pagedProps} />
               </Suspense>
             </AppErrorBoundary>
           ) : (
@@ -371,7 +417,7 @@ export function BookReaderPage() {
                 <FlowReader
                   bodyHtml={flowHtml}
                   contentClassName={book.format === 'docx' ? 'docx-content' : 'fb2-content'}
-                  initialProgress={book.progress?.location ?? 0}
+                  initialProgress={startAt ?? 0}
                   immersive={immersive}
                   toolbarSlot={toolbarSlot}
                   onProgressChange={handleFlowProgress}

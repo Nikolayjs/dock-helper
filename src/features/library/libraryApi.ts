@@ -6,7 +6,7 @@
 import { API_BASE_URL } from '../../lib/apiConfig';
 import { backendErrorMessage } from '../newsFeed/backendError';
 import { getAuthToken } from '../../lib/tokenStore';
-import type { Book } from './types';
+import type { Book, BookProgress } from './types';
 
 export class LibraryApiError extends Error {}
 
@@ -123,7 +123,18 @@ export async function fetchBookFile(id: string): Promise<Blob | undefined> {
   return response.blob();
 }
 
-export async function updateBookProgress(id: string, location: number): Promise<Book> {
+/**
+ * Ответ ручки прогресса: нас интересуют только эти два поля.
+ *
+ * Сервер отдаёт запись **без обложки** — ради вкладок, открытых до деплоя (см. `updateProgress` в
+ * `library.service.ts`); всё остальное здесь сознательно не читается: в кэш идёт только прогресс.
+ */
+export interface BookProgressUpdate {
+  id: string;
+  progress: BookProgress;
+}
+
+export async function updateBookProgress(id: string, location: number): Promise<BookProgressUpdate> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/library/${id}/progress`, {
@@ -135,5 +146,26 @@ export async function updateBookProgress(id: string, location: number): Promise<
     throw new LibraryApiError('Не удалось подключиться к серверу.');
   }
   if (!response.ok) throw new LibraryApiError(await backendErrorMessage(response, `Не удалось сохранить прогресс (${response.status}).`));
-  return (await response.json()) as Book;
+  return (await response.json()) as BookProgressUpdate;
+}
+
+/**
+ * Последняя отправка позиции — при уходе со страницы.
+ *
+ * `keepalive` доживает запрос после того, как вкладку закрыли, — ровно то, ради чего существует
+ * `sendBeacon`. Взят он, а не маяк, по одной причине: **маяк не умеет заголовков**, а наш API
+ * закрыт `Authorization: Bearer`. С маяком пришлось бы возить токен в теле и открывать ручку
+ * наружу — дороже, чем стоит само сохранение позиции.
+ */
+export function sendFinalProgress(id: string, location: number): void {
+  try {
+    void fetch(`${API_BASE_URL}/library/${id}/progress`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ location }),
+      keepalive: true,
+    }).catch(() => undefined);
+  } catch {
+    // Позиция уже записана на устройстве: не доехала — не потерялась.
+  }
 }

@@ -1,4 +1,13 @@
 /**
+ * Форматы, в которые умеет уменьшатель.
+ *
+ * WebP здесь ради обложек: на них он даёт заметно меньше при том же виде. Он есть во всех живых
+ * браузерах, но `canvas.toDataURL` при незнакомом типе **не отказывает, а молча возвращает PNG** —
+ * поэтому результат проверяется по префиксу, а не по наличию поддержки.
+ */
+export type ResizeMime = 'image/png' | 'image/jpeg' | 'image/webp';
+
+/**
  * Downscales an image client-side (canvas) and returns it as a data URL, so avatars, signatures and
  * article covers never store a multi-megabyte photo as text in the database — same idea as the
  * cover-thumbnail extraction already done for library books (see features/library/pdfMeta.ts).
@@ -6,8 +15,8 @@
 export function resizeImageToDataUrl(
   file: File,
   maxDimension: number,
-  mimeType: 'image/png' | 'image/jpeg' = 'image/png',
-  /** Учитывается только для JPEG. Обоям хватает и меньшего: их видно приглушёнными и под карточками. */
+  mimeType: ResizeMime = 'image/png',
+  /** Учитывается только для JPEG и WebP. Обоям хватает и меньшего: их видно приглушёнными и под карточками. */
   quality = 0.9,
   background?: string,
 ): Promise<string> {
@@ -37,7 +46,7 @@ export function resizeImageToDataUrl(
 export function resizeImageSrcToDataUrl(
   src: string,
   maxDimension: number,
-  mimeType: 'image/png' | 'image/jpeg' = 'image/png',
+  mimeType: ResizeMime = 'image/png',
   quality = 0.9,
   background?: string,
 ): Promise<string> {
@@ -60,7 +69,14 @@ export function resizeImageSrcToDataUrl(
       }
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       try {
-        resolve(canvas.toDataURL(mimeType, quality));
+        const encoded = canvas.toDataURL(mimeType, quality);
+        // `toDataURL` с незнакомым типом молча отдаёт PNG — а PNG фотографии втрое тяжелее JPEG.
+        // Проверяется не поддержка «вообще», а то, что вернул этот самый холст.
+        if (mimeType === 'image/webp' && !encoded.startsWith('data:image/webp')) {
+          resolve(canvas.toDataURL('image/jpeg', quality));
+          return;
+        }
+        resolve(encoded);
       } catch (error) {
         reject(error instanceof Error ? error : new Error('Картинку не удалось перекодировать'));
       }

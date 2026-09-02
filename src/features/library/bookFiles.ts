@@ -56,10 +56,38 @@ function opfsAvailable(): boolean {
   return (
     typeof navigator !== 'undefined' &&
     typeof navigator.storage?.getDirectory === 'function' &&
-    // Safari до 17 отдаёт OPFS, но писать в него умеет только из воркера (`createSyncAccessHandle`).
     typeof FileSystemFileHandle !== 'undefined' &&
-    'createWritable' in FileSystemFileHandle.prototype
+    // Писать можно двумя способами, и хватает любого: обычным потоком либо синхронной ручкой из
+    // воркера. Второй — единственный путь в Safari до 17: там OPFS есть, а `createWritable` нет.
+    ('createWritable' in FileSystemFileHandle.prototype || 'createSyncAccessHandle' in FileSystemFileHandle.prototype)
   );
+}
+
+function canWriteInPlace(): boolean {
+  return typeof FileSystemFileHandle !== 'undefined' && 'createWritable' in FileSystemFileHandle.prototype;
+}
+
+/** Запись синхронной ручкой — только из воркера: она блокирует поток, в котором работает. */
+function writeThroughWorker(sha256: string, blob: Blob): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let worker: Worker;
+    try {
+      worker = new Worker(new URL('./opfsWrite.worker.ts', import.meta.url), { type: 'module' });
+    } catch (error) {
+      reject(error);
+      return;
+    }
+    worker.onmessage = (event: MessageEvent<{ ok: boolean; message?: string }>) => {
+      worker.terminate();
+      if (event.data.ok) resolve();
+      else reject(new Error(event.data.message ?? 'Не удалось записать файл'));
+    };
+    worker.onerror = (event) => {
+      worker.terminate();
+      reject(new Error(event.message || 'Не удалось записать файл'));
+    };
+    worker.postMessage({ directory: DIRECTORY, name: sha256, blob });
+  });
 }
 
 async function booksDirectory(create: boolean): Promise<FileSystemDirectoryHandle> {
@@ -70,6 +98,10 @@ async function booksDirectory(create: boolean): Promise<FileSystemDirectoryHandl
 const opfsBackend: FilesBackend = {
   kind: 'opfs',
   async put(sha256, blob) {
+    if (!canWriteInPlace()) {
+      await writeThroughWorker(sha256, blob);
+      return;
+    }
     const dir = await booksDirectory(true);
     const handle = await dir.getFileHandle(sha256, { create: true });
     const writable = await handle.createWritable();
@@ -209,9 +241,36 @@ async function askPersistence(): Promise<void> {
   }
 }
 
+/**
+ * Хватит ли места — спрашивается **до** записи.
+ *
+ * Обрыв на середине двухсотмегабайтной книги оставляет огрызок файла и невнятную ошибку где-то в
+ * середине сохранения. Отказ заранее говорит числами: сколько нужно и сколько есть.
+ *
+ * Запас в 5 % — не суеверие: браузер округляет и `usage`, и `quota`, а место рядом занимают
+ * настройки, кэш и другие книги, которые пишутся в этот же момент.
+ */
+async function assertRoomFor(size: number): Promise<void> {
+  const { used, quota } = await usage();
+  if (!quota) return; // Браузер не сказал — значит, узнаем по факту записи.
+  const free = quota - used;
+  if (size * 1.05 <= free) return;
+  throw new BookStorageError(
+    `Книга занимает ${formatBytes(size)}, а на устройстве свободно ${formatBytes(Math.max(0, free))}. ` +
+      'Удалите ненужные книги или сохраните эту в облаке.',
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} МБ`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} ГБ`;
+}
+
 export async function putFile(sha256: string, blob: Blob): Promise<void> {
   try {
     await askPersistence();
+    await assertRoomFor(blob.size);
     await (await backend()).put(sha256, blob);
     notifyFilesChanged();
   } catch (error) {

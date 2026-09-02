@@ -31,6 +31,7 @@ const KIND_LABEL: Record<StoreKind, string> = {
   calculator: 'Калькулятор',
   questionnaire: 'Диагностика',
   template: 'Бланк',
+  book: 'Источник',
 };
 
 const KIND_COLOR: Record<StoreKind, string> = {
@@ -38,6 +39,7 @@ const KIND_COLOR: Record<StoreKind, string> = {
   calculator: 'blue',
   questionnaire: 'teal',
   template: 'orange',
+  book: 'indigo',
 };
 
 const TABS: { value: string; label: string }[] = [
@@ -46,6 +48,7 @@ const TABS: { value: string; label: string }[] = [
   { value: 'calculator', label: 'Калькуляторы' },
   { value: 'questionnaire', label: 'Диагностика' },
   { value: 'template', label: 'Бланки' },
+  { value: 'book', label: 'Источники' },
 ];
 
 function matchesSearch(item: StoreItem, query: string): boolean {
