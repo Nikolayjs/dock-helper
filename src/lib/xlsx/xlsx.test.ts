@@ -49,6 +49,9 @@ describe('numericValue', () => {
     expect(numericValue('-3')).toBe(-3);
     expect(numericValue('5.25')).toBe(5.25);
     expect(numericValue(' 42 ')).toBe(42);
+    // Запятая — так дробь набирают по-русски, и движок таблицы считает её числом; отдай мы её
+    // текстом, Excel пересчитал бы нашу формулу и показал в файле другой итог.
+    expect(numericValue('3,5')).toBe(3.5);
   });
 
   it('оставляет текстом то, что числом быть не должно', () => {
@@ -58,7 +61,6 @@ describe('numericValue', () => {
     expect(numericValue('007')).toBeNull();
     expect(numericValue('12.09.2026')).toBeNull();
     expect(numericValue('1 000')).toBeNull();
-    expect(numericValue('3,5')).toBeNull();
     expect(numericValue('')).toBeNull();
     expect(numericValue('до 3 дней')).toBeNull();
   });

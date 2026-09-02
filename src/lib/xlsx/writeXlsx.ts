@@ -15,7 +15,7 @@ import { zipSync, strToU8 } from 'fflate';
 import type { CellFormat, SheetFormats } from '../../features/documents/types';
 import { numberFormatCode } from '../../features/documents/sheetFormat';
 import { columnLetter } from '../sheet/cellRef';
-import { evaluateCell, excelError, formatNumber, formulaForExcel, isError, isFormula } from '../sheet/formula';
+import { cellNumber, evaluateCell, excelError, formatNumber, formulaForExcel, isError, isFormula } from '../sheet/formula';
 
 export interface XlsxInput {
   /** Имя листа; берётся из названия документа и приводится к тому, что разрешает Excel. */
@@ -75,10 +75,10 @@ function escapeXml(value: string): string {
  * нечего. Текст сохраняет ровно то, что врач напечатал.
  */
 export function numericValue(value: string): number | null {
-  const trimmed = value.trim();
-  if (!/^-?(0|[1-9]\d{0,8})(\.\d{1,6})?$/.test(trimmed)) return null;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : null;
+  // Правило одно и живёт рядом с вычислителем: числом в файле обязано стать ровно то, что движок
+  // считает числом на экране. Иначе Excel пересчитает нашу же формулу по своим правилам и покажет
+  // другой итог — тот же разлад, что был у `1,5` между `=СУММ` и `=B2+B3`.
+  return cellNumber(value);
 }
 
 /**
