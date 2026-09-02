@@ -1,4 +1,4 @@
-import { getFile, hasFile, putFile } from './bookFiles';
+import { getFile, putFile } from './bookFiles';
 import { fetchBookFile } from './libraryApi';
 import type { Book } from './types';
 
@@ -39,12 +39,24 @@ export async function getBookBlob(book: Book): Promise<Blob> {
     return file;
   }
 
+  /*
+   * Облачная книга: сначала кэш на устройстве, потом сеть.
+   *
+   * Кэш назван отпечатком, а он — про содержимое: файл с таким именем это в точности тот же файл,
+   * и «устареть» он не может. Поэтому второе открытие книги из облака не стоит ни байта — ровно
+   * та экономия, ради которой всё и затевалось, только для тех, кто выбрал облачную полку.
+   *
+   * Живёт кэш здесь, а не в Cache API: ключ — содержимое, а не адрес (две записи одной книги делят
+   * файл), и чистится он вместе с книгой, о чём Cache API не узнал бы.
+   */
+  if (book.sha256) {
+    const cached = await getFile(book.sha256);
+    if (cached) return cached;
+  }
+
   const blob = await fetchBookFile(book.id);
   if (!blob) throw new BookFileMissingError();
-  // Облачная книга кладётся в хранилище браузера кэшем по отпечатку: второе открытие не стоит
-  // трафика вовсе. Кэш живёт здесь, а не в Cache API, потому что ключ — содержимое, а не адрес:
-  // две записи с одним файлом делят его, и чистится он вместе с книгой.
-  if (book.sha256 && !(await hasFile(book.sha256))) {
+  if (book.sha256) {
     try {
       await putFile(book.sha256, blob);
     } catch {
