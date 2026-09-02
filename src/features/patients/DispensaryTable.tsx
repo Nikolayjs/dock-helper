@@ -120,6 +120,9 @@ export function DispensaryTable({ records, patientsById, sort, onSort, icdNames,
   const columns: DataColumn<DispensaryRow, DispensarySortKey>[] = [
     {
       key: 'name',
+      // На телефоне остаются имя, срок явки и кнопки: диагноз, код, дата постановки, число
+      // наблюдений и статус видны в самой карте, а вместе они давали 1060 px в экране 390.
+      compact: true,
       // Ради имени реестр и читают; без нижней границы оно теряет ширину в пользу столбцов с
       // жёсткой шириной и обрезается до «Харина…».
       miw: 220,
@@ -159,6 +162,7 @@ export function DispensaryTable({ records, patientsById, sort, onSort, icdNames,
     },
     {
       key: 'nextVisit',
+      compact: true,
       header: 'Следующий осмотр',
       w: 172,
       render: ({ record, nextVisitStatus }) =>
@@ -208,6 +212,7 @@ export function DispensaryTable({ records, patientsById, sort, onSort, icdNames,
       w: 80,
       // Строка сама открывает карту, поэтому кнопки не должны заодно открывать её же.
       stopClick: true,
+      compact: true,
       render: ({ record }) => (
         <Group gap={2} wrap="nowrap" justify="flex-end">
           <Tooltip label="Изменить" withArrow>

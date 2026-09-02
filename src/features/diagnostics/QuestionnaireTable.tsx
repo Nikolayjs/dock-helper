@@ -1,8 +1,9 @@
-import { ActionIcon, Group, Table, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
-import { SortableTh } from '../../components/common/SortableTh';
+import { DataTable } from '../../components/common/DataTable';
+import type { DataColumn } from '../../components/common/DataTable';
 import type { SortState, SortValue } from '../../lib/tableSort';
 import type { Questionnaire } from './types';
 
@@ -48,65 +49,61 @@ export function QuestionnaireTable({
   onEdit,
   onDelete,
 }: QuestionnaireTableProps) {
+  const columns: DataColumn<Questionnaire, QuestionnaireSortKey>[] = [
+    {
+      key: 'title',
+      header: 'Название',
+      miw: 260,
+      // На телефоне остаются название с описанием и кнопки: числа заболеваний и симптомов видно на
+      // самой панели, а вчетвером столбцы давали 860 px в экране 390.
+      compact: true,
+      render: (questionnaire) => (
+        <>
+          <Text fw={600} size="sm" lineClamp={1}>
+            {questionnaire.title}
+          </Text>
+          {/* Описание — то, чем две панели про одну жалобу отличаются друг от друга, поэтому оно
+              остаётся: строкой под названием, а не отдельным столбцом. */}
+          <Text size="xs" c="dimmed" lineClamp={1}>
+            {questionnaire.description || 'Без описания'}
+          </Text>
+        </>
+      ),
+    },
+    { key: 'diseases', header: 'Заболеваний', w: 140, render: (q) => q.diseases.length },
+    { key: 'symptoms', header: 'Симптомов', w: 130, render: (q) => q.symptoms.length },
+    { key: 'updated', header: 'Изменена', w: 140, render: (q) => dayjs(q.updatedAt).format('DD.MM.YYYY') },
+    {
+      w: 80,
+      // Строка сама открывает панель, поэтому кнопки не должны заодно открывать её же.
+      stopClick: true,
+      compact: true,
+      render: (questionnaire) => (
+        <Group gap={2} wrap="nowrap" justify="flex-end">
+          <Tooltip label="Изменить" withArrow>
+            <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={() => onEdit(questionnaire)}>
+              <IconEdit size={16} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Удалить" withArrow>
+            <ActionIcon aria-label="Удалить" variant="subtle" color="red" size="sm" onClick={() => onDelete(questionnaire)}>
+              <IconTrash size={16} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+    },
+  ];
+
   return (
-    <Table.ScrollContainer minWidth={860}>
-      <Table highlightOnHover verticalSpacing="sm" fz="sm">
-        <Table.Thead>
-          <Table.Tr>
-            <SortableTh column="title" sort={sort} onSort={onSort} miw={260}>
-              Название
-            </SortableTh>
-            <SortableTh column="diseases" sort={sort} onSort={onSort} w={140}>
-              Заболеваний
-            </SortableTh>
-            <SortableTh column="symptoms" sort={sort} onSort={onSort} w={130}>
-              Симптомов
-            </SortableTh>
-            <SortableTh column="updated" sort={sort} onSort={onSort} w={140}>
-              Изменена
-            </SortableTh>
-            <Table.Th w={80} />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {questionnaires.map((questionnaire) => (
-            <Table.Tr
-              key={questionnaire.id}
-              style={{ cursor: 'pointer' }}
-              onClick={() => onOpen(questionnaire)}
-            >
-              <Table.Td>
-                <Text fw={600} size="sm" lineClamp={1}>
-                  {questionnaire.title}
-                </Text>
-                {/* The description is what tells two panels for the same complaint apart, so it
-                    stays — one line under the name rather than a paragraph of its own column. */}
-                <Text size="xs" c="dimmed" lineClamp={1}>
-                  {questionnaire.description || 'Без описания'}
-                </Text>
-              </Table.Td>
-              <Table.Td>{questionnaire.diseases.length}</Table.Td>
-              <Table.Td>{questionnaire.symptoms.length}</Table.Td>
-              <Table.Td>{dayjs(questionnaire.updatedAt).format('DD.MM.YYYY')}</Table.Td>
-              {/* The row itself opens the panel, so the buttons must not also trigger it. */}
-              <Table.Td onClick={(e) => e.stopPropagation()}>
-                <Group gap={2} wrap="nowrap" justify="flex-end">
-                  <Tooltip label="Изменить" withArrow>
-                    <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={() => onEdit(questionnaire)}>
-                      <IconEdit size={16} />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Tooltip label="Удалить" withArrow>
-                    <ActionIcon aria-label="Удалить" variant="subtle" color="red" size="sm" onClick={() => onDelete(questionnaire)}>
-                      <IconTrash size={16} />
-                    </ActionIcon>
-                  </Tooltip>
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Table.ScrollContainer>
+    <DataTable
+      rows={questionnaires}
+      columns={columns}
+      rowKey={(questionnaire) => questionnaire.id}
+      sort={sort}
+      onSort={onSort}
+      onRowClick={onOpen}
+      minWidth={860}
+    />
   );
 }

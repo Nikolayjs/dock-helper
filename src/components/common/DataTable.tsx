@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Table } from '@mantine/core';
 
 import { SortableTh } from './SortableTh';
+import { useIsMobile } from './useIsMobile';
 import { useIncrementalList } from '../../lib/useIncrementalList';
 import type { SortState } from '../../lib/tableSort';
 
@@ -32,6 +33,19 @@ export interface DataColumn<Row, K extends string> {
    * открывать её же.
    */
   stopClick?: boolean;
+  /**
+   * Столбец остаётся в компактном виде — на телефоне.
+   *
+   * Таблица на телефоне не переносится, а уезжает вбок: картотека — 980 px в экране 390, реестр
+   * диспансерного учёта — 1060, то есть две с половиной ширины экрана, и кнопки правки в самом
+   * правом столбце. Приём «узкий экран → короткий список» в приложении уже работает у препаратов и
+   * рекомендаций, но там он написан руками в каждой таблице; здесь он объявляется данными, поэтому
+   * достаётся всем сразу.
+   *
+   * **Пока ни один столбец не помечен, таблица ведёт себя как раньше** — иначе правка каркаса
+   * молча урезала бы те таблицы, о которых при ней не думали.
+   */
+  compact?: boolean;
 }
 
 interface DataTableProps<Row, K extends string> {
@@ -60,12 +74,18 @@ export function DataTable<Row, K extends string>({
   // Отбор и сортировка идут по всему набору — порционно только рисуется.
   const { visible, hasMore, remaining, setSentinel } = useIncrementalList(rows, step);
 
+  const isMobile = useIsMobile();
+  const compactColumns = columns.filter((column) => column.compact);
+  const shown = isMobile && compactColumns.length > 0 ? compactColumns : columns;
+  // Ширина, ниже которой таблица уезжает вбок, в компактном виде не нужна: столбцов осталось два-три.
+  const scrollFrom = shown === columns ? minWidth : 0;
+
   return (
-    <Table.ScrollContainer minWidth={minWidth}>
+    <Table.ScrollContainer minWidth={scrollFrom}>
       <Table highlightOnHover verticalSpacing="sm" fz="sm">
         <Table.Thead>
           <Table.Tr>
-            {columns.map((column, index) =>
+            {shown.map((column, index) =>
               column.key ? (
                 <SortableTh key={column.key} column={column.key} sort={sort} onSort={onSort} w={column.w} miw={column.miw}>
                   {column.header}
@@ -105,7 +125,7 @@ export function DataTable<Row, K extends string>({
                   : undefined
               }
             >
-              {columns.map((column, index) => (
+              {shown.map((column, index) => (
                 <Table.Td
                   key={column.key ?? `plain-${index}`}
                   onClick={column.stopClick ? (event) => event.stopPropagation() : undefined}
@@ -117,7 +137,7 @@ export function DataTable<Row, K extends string>({
           ))}
           {hasMore && (
             <Table.Tr ref={setSentinel}>
-              <Table.Td colSpan={columns.length} ta="center" c="dimmed" fz="xs" py="md">
+              <Table.Td colSpan={shown.length} ta="center" c="dimmed" fz="xs" py="md">
                 Загружается ещё… осталось {remaining}
               </Table.Td>
             </Table.Tr>

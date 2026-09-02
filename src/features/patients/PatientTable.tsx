@@ -118,6 +118,10 @@ export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete 
       // Ради имени список и читают; без нижней границы оно теряет ширину в пользу столбцов с
       // жёсткой шириной и обрезается до «Харина…».
       miw: 220,
+      // На телефоне остаются три столбца из семи: имя с телефоном, дата последнего приёма и
+      // кнопки. Остальное — пол, возраст, диагноз, число визитов, напоминание — видно в карточке,
+      // а на 390 px они превращали таблицу в две с половиной ширины экрана.
+      compact: true,
       header: 'ФИО',
       render: ({ patient }) => (
         <>
@@ -136,6 +140,7 @@ export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete 
     { key: 'age', header: 'Возраст', w: 112, render: ({ age }) => (age !== null ? formatAge(age) : DASH) },
     {
       key: 'lastVisit',
+      compact: true,
       header: 'Последний визит',
       w: 148,
       render: ({ lastVisit }) =>
@@ -194,6 +199,7 @@ export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete 
       w: 80,
       // Строка сама открывает пациента, поэтому кнопки не должны заодно открывать его же.
       stopClick: true,
+      compact: true,
       render: ({ patient }) => (
         <Group gap={2} wrap="nowrap" justify="flex-end">
           <Tooltip label="Изменить" withArrow>
