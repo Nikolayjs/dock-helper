@@ -3,7 +3,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { PageToolbar } from '../../components/common/PageToolbar';
 import { ActionIcon, Avatar, Badge, Button, Card, Container, Group, Menu, Stack, Text, Title, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconClipboardHeart, IconClockExclamation, IconEdit, IconFileText, IconPlus, IconPrinter, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconClipboardHeart, IconClockExclamation, IconCopy, IconEdit, IconFileText, IconPlus, IconPrinter, IconSettings, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -24,6 +24,7 @@ import { QUERY_KEY as PATIENTS_KEY, usePatients } from './usePatients';
 import type { VisitInput } from './usePatients';
 import { calcAge, formatAge, getInitials, getReminderStatus, sortedVisits } from './utils';
 import { VisitForm } from './VisitForm';
+import { suggestedDiagnosis } from './suggestDiagnosis';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { labResultsWarning, medicationsWarning, observationsWarning, visitsWarning } from './deleteWarnings';
 import { hideVisit } from './hideNested';
@@ -52,6 +53,12 @@ export function PatientViewPage() {
   const patient = patients.find((p) => p.id === id);
 
   const [visitEditor, setVisitEditor] = useState<PatientVisit | 'new' | null>(null);
+  /**
+   * С чего начинается новый визит: диагноз из карты учёта или прошлого приёма — а при дублировании
+   * и всё остальное, кроме даты. Врач заводит приём тому же человеку с тем же диагнозом изо дня в
+   * день, и перепечатывать это заново он не должен.
+   */
+  const [visitSeed, setVisitSeed] = useState<PatientVisit | undefined>(undefined);
 
   /**
    * Бланки в меню печати — в порядке частоты, а не в том, в каком их отдал сервер.
@@ -122,6 +129,24 @@ export function PatientViewPage() {
     setVisitEditor(null);
   };
 
+  /** Новый приём: дата — сегодня, диагноз — тот, с которым человек наблюдается или приходил в прошлый раз. */
+  const startNewVisit = (from?: PatientVisit) => {
+    setVisitSeed(
+      from
+        ? { ...from, id: '', date: dayjs().format('YYYY-MM-DD'), createdAt: '' }
+        : {
+            id: '',
+            date: dayjs().format('YYYY-MM-DD'),
+            ...suggestedDiagnosis(patient, patientDispensaryRecords),
+            note: '',
+            referralCategory: null,
+            referralDestination: '',
+            createdAt: '',
+          },
+    );
+    setVisitEditor('new');
+  };
+
   const handleDeleteVisit = (visitId: string) => {
     const visit = patient.visits.find((item) => item.id === visitId);
     confirmDelete({
@@ -185,7 +210,7 @@ export function PatientViewPage() {
                   </Menu.Dropdown>
                 </Menu>
               ) : (
-                <Button variant="subtle" leftSection={<IconPrinter size={16} />} onClick={() => setVisitEditor('new')}>
+                <Button variant="subtle" leftSection={<IconPrinter size={16} />} onClick={() => startNewVisit()}>
                   Напечатать
                 </Button>
               )}
@@ -302,13 +327,15 @@ export function PatientViewPage() {
           title="История визитов"
           action={
             visitEditor === null ? (
-              <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setVisitEditor('new')}>
+              <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => startNewVisit()}>
                 Добавить визит
               </Button>
             ) : null
           }
         >
-          {visitEditor === 'new' && <VisitForm onSubmit={handleSaveVisit} onCancel={() => setVisitEditor(null)} />}
+          {visitEditor === 'new' && (
+            <VisitForm initialVisit={visitSeed} onSubmit={handleSaveVisit} onCancel={() => setVisitEditor(null)} />
+          )}
 
           {visits.length === 0 && visitEditor !== 'new' ? (
             <Stack align="center" gap="sm" py="lg">
@@ -384,6 +411,11 @@ export function PatientViewPage() {
                           </Menu.Item>
                         </Menu.Dropdown>
                       </Menu>
+                      <Tooltip label="Дублировать визит">
+                        <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => startNewVisit(visit)}>
+                          <IconCopy size={14} />
+                        </ActionIcon>
+                      </Tooltip>
                       <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setVisitEditor(visit)}>
                         <IconEdit size={14} />
                       </ActionIcon>

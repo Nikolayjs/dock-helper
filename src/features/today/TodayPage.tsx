@@ -18,7 +18,8 @@ import { useDispensary } from '../patients/useDispensary';
 import type { Patient } from '../patients/types';
 import { usePatients } from '../patients/usePatients';
 import type { VisitInput } from '../patients/usePatients';
-import { calcAge, formatAge, lastVisitOf } from '../patients/utils';
+import { calcAge, formatAge } from '../patients/utils';
+import { suggestedDiagnosis } from '../patients/suggestDiagnosis';
 import { useIsMobile } from '../../components/common/useIsMobile';
 import { VisitForm } from '../patients/VisitForm';
 import { getSeenToday, getTodayQueue } from './todayQueue';
@@ -107,18 +108,6 @@ export function TodayPage() {
   const queue = useMemo(() => getTodayQueue(patients, records), [patients, records]);
   const seen = useMemo(() => getSeenToday(patients), [patients]);
 
-  /**
-   * Диагноз в форме приёма подставляется из карты учёта или прошлого визита.
-   *
-   * Это не догадка: человек пришёл по диспансерной явке именно с этим диагнозом. Поле остаётся
-   * обычным — врач правит его, если пришли с другим.
-   */
-  const suggestedDiagnosis = (patient: Patient) => {
-    const record = records.find((item) => item.patientId === patient.id && item.status === 'active');
-    if (record) return { diagnosis: record.diagnosis, diagnosisCode: record.diagnosisCode };
-    const last = lastVisitOf(patient);
-    return { diagnosis: last?.diagnosis ?? '', diagnosisCode: last?.diagnosisCode };
-  };
 
   const handleSave = async (input: VisitInput) => {
     if (!receiving) return;
@@ -222,7 +211,7 @@ export function TodayPage() {
             initialVisit={{
               id: '',
               date: dayjs().format('YYYY-MM-DD'),
-              ...suggestedDiagnosis(receiving),
+              ...suggestedDiagnosis(receiving, records),
               note: '',
               referralCategory: null,
               referralDestination: '',
