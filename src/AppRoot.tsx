@@ -1,4 +1,5 @@
 import { MantineProvider } from '@mantine/core';
+import { cssVariablesResolver } from './theme';
 import { DatesProvider } from '@mantine/dates';
 import { Notifications } from '@mantine/notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -38,7 +39,7 @@ function ThemedApp() {
   const { theme } = useAppearance();
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
+    <MantineProvider theme={theme} defaultColorScheme="light" cssVariablesResolver={cssVariablesResolver}>
       <DatesProvider settings={{ locale: 'ru' }}>
         <Notifications position="top-right" />
         <AuthProvider>

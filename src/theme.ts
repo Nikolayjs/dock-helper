@@ -1,3 +1,4 @@
+import type { CSSVariablesResolver } from '@mantine/core';
 import { createTheme, type MantineColorsTuple } from '@mantine/core';
 
 /**
@@ -97,4 +98,26 @@ export const theme = createTheme({
       },
     },
   },
+});
+
+/**
+ * Приглушённый текст — на ступень контрастнее заводского.
+ *
+ * Заводской `dimmed` — `gray.6` (#868e96): на белой карточке это 3,3:1, а набран им обычно
+ * `size="xs"`, то есть мелкий текст, которому AA требует 4,5:1. Таких мест в интерфейсе больше
+ * полутора сотен — подписи под числами, даты, единицы измерения, пояснения в формах.
+ *
+ * **Задавать это правилом в `index.css` нельзя, и это проверенная ошибка.** Mantine печатает свои
+ * переменные не в файле стилей, а в `<style data-mantine-styles>` **в голове документа, во время
+ * работы**, — то есть позже любого нашего файла, с той же специфичностью, и выигрывает она. Замер:
+ * при объявленном в `:root` `gray.7` браузер отдавал `--mantine-color-dimmed` = `#868e96`.
+ * Resolver — то самое место, куда Mantine и предлагает класть такие правки.
+ *
+ * Значение то же, что уже выбрано и измерено для случая с обоями (`AppLayout.module.css`), поэтому
+ * особый случай там теперь просто совпадает с общим.
+ */
+export const cssVariablesResolver: CSSVariablesResolver = () => ({
+  variables: {},
+  light: { '--mantine-color-dimmed': 'var(--mantine-color-gray-7)' },
+  dark: { '--mantine-color-dimmed': 'var(--mantine-color-dark-1)' },
 });

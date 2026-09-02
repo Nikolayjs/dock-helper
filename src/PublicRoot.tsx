@@ -6,7 +6,7 @@ import './publicBase.css';
 
 import { PublicRouter } from './publicRouter';
 import { AppErrorBoundary } from './components/common/AppErrorBoundary';
-import { theme } from './theme';
+import { theme, cssVariablesResolver } from './theme';
 
 /**
  * Providers for the public site — and only those it actually needs.
@@ -19,7 +19,7 @@ import { theme } from './theme';
  */
 export function PublicRoot() {
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
+    <MantineProvider theme={theme} defaultColorScheme="light" cssVariablesResolver={cssVariablesResolver}>
       <AppErrorBoundary>
         <PublicRouter />
       </AppErrorBoundary>
