@@ -31,29 +31,88 @@ const CONSTANTS: Record<string, number> = {
   e: Math.E,
 };
 
-const FUNCTIONS: Record<string, (...args: number[]) => number> = {
-  sqrt: Math.sqrt,
-  abs: Math.abs,
-  round: (v) => Math.round(v),
-  floor: Math.floor,
-  ceil: Math.ceil,
-  min: (...args) => Math.min(...args),
-  max: (...args) => Math.max(...args),
-  pow: (base, exp) => Math.pow(base, exp),
-  log: (v) => Math.log10(v),
-  ln: Math.log,
-  exp: Math.exp,
-  sign: Math.sign,
+/**
+ * Функция движка вместе с числом аргументов, которое она принимает.
+ *
+ * **Арность объявляется, а не подразумевается**, потому что лишние аргументы иначе теряются молча:
+ * `round(x, 1)` считался как `round(x)` и давал целый ИМТ без единого предупреждения. Ловушка не
+ * случайная — **табличный движок этого же приложения** понимает `ОКРУГЛ(B2/3;2)` со вторым
+ * аргументом, и врач переносит привычку. Поэтому `round` здесь теперь тоже принимает знаки после
+ * запятой, а всё остальное проверяется по объявленной арности.
+ */
+interface FormulaFunction {
+  /** Наименьшее допустимое число аргументов. */
+  min: number;
+  /** Наибольшее; `Infinity` — сколько угодно, как у `min`/`max`/`and`. */
+  max: number;
+  fn: (...args: number[]) => number;
+}
+
+/** Функция ровно с таким числом аргументов. */
+function fixed(count: number, fn: (...args: number[]) => number): FormulaFunction {
+  return { min: count, max: count, fn };
+}
+
+const FUNCTIONS: Record<string, FormulaFunction> = {
+  sqrt: fixed(1, Math.sqrt),
+  abs: fixed(1, Math.abs),
+  // Второй аргумент — знаки после запятой, как в `ОКРУГЛ` табличного движка. Без него — до целого.
+  round: { min: 1, max: 2, fn: (v, digits) => roundTo(v, digits ?? 0) },
+  floor: fixed(1, Math.floor),
+  ceil: fixed(1, Math.ceil),
+  min: { min: 1, max: Infinity, fn: (...args) => Math.min(...args) },
+  max: { min: 1, max: Infinity, fn: (...args) => Math.max(...args) },
+  pow: fixed(2, (base, exp) => Math.pow(base, exp)),
+  log: fixed(1, (v) => Math.log10(v)),
+  ln: fixed(1, Math.log),
+  exp: fixed(1, Math.exp),
+  sign: fixed(1, Math.sign),
   // Условие и логика. Ложь — это ноль, истина — единица, потому что движок умеет только числа;
   // сравнение возвращает то же самое, и `if(x > 5, 1, 0)` совпадает с `x > 5`.
   //
   // Ветви вычисляются обе, до выбора. Для арифметики это безразлично — `1/0` даёт бесконечность,
   // а не падение, — и позволяет оставить функции обычными значениями, а не особым случаем разбора.
-  if: (condition, whenTrue, whenFalse) => (condition !== 0 ? whenTrue : whenFalse),
-  and: (...args) => (args.every((value) => value !== 0) ? 1 : 0),
-  or: (...args) => (args.some((value) => value !== 0) ? 1 : 0),
-  not: (value) => (value === 0 ? 1 : 0),
+  if: fixed(3, (condition, whenTrue, whenFalse) => (condition !== 0 ? whenTrue : whenFalse)),
+  and: { min: 1, max: Infinity, fn: (...args) => (args.every((value) => value !== 0) ? 1 : 0) },
+  or: { min: 1, max: Infinity, fn: (...args) => (args.some((value) => value !== 0) ? 1 : 0) },
+  not: fixed(1, (value) => (value === 0 ? 1 : 0)),
 };
+
+/**
+ * Округление до знака.
+ *
+ * Через экспоненциальную запись, а не умножением на степень десяти: `Math.round(1.005 * 100) / 100`
+ * даёт 1, потому что `1.005 * 100` в двоичной дроби чуть меньше `100.5`.
+ */
+function roundTo(value: number, digits: number): number {
+  if (!Number.isFinite(value)) return value;
+  const places = Math.max(0, Math.min(15, Math.trunc(digits)));
+  return Number(`${Math.round(Number(`${value}e${places}`))}e-${places}`);
+}
+
+/** «один аргумент», «два аргумента» — то, что стоит после «принимает». */
+function argsWord(count: number): string {
+  const names = ['ноль аргументов', 'один аргумент', 'два аргумента', 'три аргумента'];
+  return names[count] ?? `${count} аргументов`;
+}
+
+/** «одного аргумента», «двух аргументов» — то, что стоит после «не менее». */
+function argsWordGenitive(count: number): string {
+  const names = ['нуля аргументов', 'одного аргумента', 'двух аргументов', 'трёх аргументов'];
+  return names[count] ?? `${count} аргументов`;
+}
+
+/** Сообщение о неверном числе аргументов — от него зависит, поймёт ли врач, что поправить. */
+function arityMessage(name: string, spec: FormulaFunction): string {
+  if (spec.max === Infinity) return `функция ${name} принимает не менее ${argsWordGenitive(spec.min)}`;
+  if (spec.min === spec.max) return `функция ${name} принимает ${argsWord(spec.min)}`;
+  return `функция ${name} принимает от ${spec.min} до ${spec.max} аргументов`;
+}
+
+/** Подпись функции для справки в конструкторе: `round(значение; знаки)`. */
+export const FORMULA_FUNCTION_ARITY: Record<string, { min: number; max: number }> = Object.fromEntries(
+  Object.entries(FUNCTIONS).map(([name, spec]) => [name, { min: spec.min, max: spec.max }]),
+);
 
 export const FORMULA_FUNCTION_NAMES = Object.keys(FUNCTIONS);
 export const FORMULA_CONSTANT_NAMES = Object.keys(CONSTANTS);
@@ -290,9 +349,14 @@ function evaluateNode(node: AstNode, variables: Record<string, number>): number 
     case 'unary':
       return -evaluateNode(node.arg, variables);
     case 'call': {
-      const fn = FUNCTIONS[node.name];
-      if (!fn) throw new FormulaError(`Неизвестная функция «${node.name}»`);
-      return fn(...node.args.map((arg) => evaluateNode(arg, variables)));
+      const spec = FUNCTIONS[node.name];
+      if (!spec) throw new FormulaError(`Неизвестная функция «${node.name}»`);
+      // Лишний аргумент — это опечатка, а не мелочь: молча отброшенный, он даёт правдоподобное
+      // неверное число (целый ИМТ вместо ИМТ с десятыми) и ничем себя не выдаёт.
+      if (node.args.length < spec.min || node.args.length > spec.max) {
+        throw new FormulaError(arityMessage(node.name, spec));
+      }
+      return spec.fn(...node.args.map((arg) => evaluateNode(arg, variables)));
     }
     case 'cmp': {
       const left = evaluateNode(node.left, variables);

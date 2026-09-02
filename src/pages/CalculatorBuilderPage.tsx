@@ -38,6 +38,7 @@ import { createDraftPreset, PresetEditorRow, type DraftPreset } from '../feature
 import { RangeEditorRow } from '../features/calculators/builder/RangeEditorRow';
 import {
   FORMULA_CONSTANT_NAMES,
+  FORMULA_FUNCTION_ARITY,
   FORMULA_FUNCTION_NAMES,
   getFormulaVariables,
   parseFormula,
@@ -53,6 +54,19 @@ import { useSaveAction } from '../components/common/useSaveAction';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const RESERVED_NAMES = new Set([...FORMULA_FUNCTION_NAMES, ...FORMULA_CONSTANT_NAMES]);
+
+/**
+ * Список функций с числом аргументов: `round(x; знаки)`, а не голое `round`.
+ *
+ * Без арности справка обещала одно и то же и `round`, и `if` — а движок отвергает лишний аргумент.
+ * Число берётся у самого движка, поэтому справка не может разойтись с тем, что он считает.
+ */
+const functionsHint = FORMULA_FUNCTION_NAMES.map((name) => {
+  const { min, max } = FORMULA_FUNCTION_ARITY[name];
+  if (max === Infinity) return `${name}(…)`;
+  const args = Array.from({ length: max }, (_, index) => (index < min ? 'x' : '[x]')).join('; ');
+  return `${name}(${args})`;
+}).join(', ');
 
 function emptyField(): DraftField {
   return { uid: crypto.randomUUID(), key: '', label: '', type: 'number' };
@@ -367,7 +381,7 @@ export function CalculatorBuilderPage() {
               </Title>
               <Text size="sm" c="dimmed" mb="sm">
                 Переменные полей, операторы <Code>+ − * / % ^</Code>, сравнения{' '}
-                <Code>{'< <= > >= = <>'}</Code> и функции: {FORMULA_FUNCTION_NAMES.join(', ')}.
+                <Code>{'< <= > >= = <>'}</Code> и функции: {functionsHint}.
               </Text>
               <Text size="sm" c="dimmed" mb="sm">
                 Условие пишется как <Code>if(условие; если да; если нет)</Code> — например{' '}

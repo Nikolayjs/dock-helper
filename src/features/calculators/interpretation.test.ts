@@ -5,9 +5,9 @@ import type { InterpretationRange } from './types';
 
 /** Полосы клиренса креатинина: ровно те, на которых ловушка и нашлась. */
 const CLEARANCE: InterpretationRange[] = [
-  { max: 30, label: 'Тяжёлое снижение', color: 'red' },
-  { min: 30, max: 60, label: 'Умеренное снижение', color: 'orange' },
-  { min: 60, label: 'Норма', color: 'teal' },
+  { id: 'r1', max: 30, label: 'Тяжёлое снижение', color: 'red' },
+  { id: 'r2', min: 30, max: 60, label: 'Умеренное снижение', color: 'orange' },
+  { id: 'r3', min: 60, label: 'Норма', color: 'teal' },
 ];
 
 describe('полоса толкования выбирается по показанному числу', () => {

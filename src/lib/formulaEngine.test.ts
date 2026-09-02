@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   FORMULA_CONSTANT_NAMES,
+  FORMULA_FUNCTION_ARITY,
   FORMULA_FUNCTION_NAMES,
   FormulaError,
   evaluateFormula,
@@ -142,13 +143,28 @@ describe('функции', () => {
   });
 
   it('все объявленные функции действительно считаются', () => {
-    // Каждой — столько аргументов, сколько она берёт; список сверяется с самим движком, чтобы
-    // новая функция без проверки сюда не проскочила.
-    const ARITY: Record<string, number> = { pow: 2, if: 3 };
+    // Арность берётся у самого движка, а не из списка рядом: список разошёлся бы с ним при первой
+    // же новой функции — ровно так `round` и оказался объявлен «одноаргументным» на словах.
     for (const name of FORMULA_FUNCTION_NAMES) {
-      const args = Array.from({ length: ARITY[name] ?? 1 }, () => '2').join(', ');
+      const args = Array.from({ length: FORMULA_FUNCTION_ARITY[name].min }, () => '2').join(', ');
       expect(Number.isFinite(calc(name + '(' + args + ')'))).toBe(true);
     }
+  });
+
+  it('лишний аргумент — ошибка, а не молча отброшенное', () => {
+    // `round(x, 1)` считался как `round(x)`: целый ИМТ там, где врач просил десятые.
+    expect(() => calc('sqrt(4, 2)')).toThrow(/принимает один аргумент/);
+    expect(() => calc('if(1, 2)')).toThrow(/принимает три аргумента/);
+    expect(() => calc('round(1.234, 1, 5)')).toThrow(/от 1 до 2 аргументов/);
+    expect(() => calc('min()')).toThrow(/не менее одного аргумента/);
+  });
+
+  it('round принимает знаки после запятой — как ОКРУГЛ в таблицах документа', () => {
+    expect(calc('round(2.567, 1)')).toBe(2.6);
+    expect(calc('round(2.567)')).toBe(3);
+    expect(calc('round(70 / 3, 2)')).toBe(23.33);
+    // Через степень десяти `round(1.005, 2)` дало бы 1: двоичная дробь чуть меньше 100,5.
+    expect(calc('round(1.005, 2)')).toBe(1.01);
   });
 
   it('неизвестная функция — ошибка', () => {
