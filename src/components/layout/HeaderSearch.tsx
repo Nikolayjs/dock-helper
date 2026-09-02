@@ -22,6 +22,7 @@ import { useDocuments } from '../../features/knowledgeBase/useDocuments';
 import { useNotes } from '../../features/notes/useNotes';
 import { stripHtml } from '../../features/notes/textPreview';
 import { usePatients } from '../../features/patients/usePatients';
+import { lastVisitOf } from '../../features/patients/utils';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const MAX_RESULTS_PER_GROUP = 4;
@@ -154,7 +155,7 @@ export function HeaderSearch() {
           .map((patient) => ({
             id: patient.id,
             title: patient.fullName,
-            description: patient.visits[0]?.diagnosis ?? '',
+            description: lastVisitOf(patient)?.diagnosis ?? '',
             path: `/patients/${patient.id}`,
             icon: IconUsers,
             group: 'Пациенты',

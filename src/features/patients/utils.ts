@@ -1,5 +1,7 @@
 import dayjs from 'dayjs';
 
+import type { PatientVisit } from './types';
+
 export function calcAge(birthDate: string | null): number | null {
   if (!birthDate) return null;
   const age = dayjs().diff(dayjs(birthDate), 'year');
@@ -43,4 +45,28 @@ export function bodyMassIndex(heightCm: number | null, weightKg: number | null):
   if (!heightCm || !weightKg) return null;
   const metres = heightCm / 100;
   return Math.round((weightKg / (metres * metres)) * 10) / 10;
+}
+
+/**
+ * Визиты по убыванию давности: сначала последний приём.
+ *
+ * **Порядок массива визитов ничем не гарантирован**, и полагаться на нулевой элемент нельзя. Сервер
+ * отдаёт их так, как отдаёт, а демо-режим дописывает новый визит в конец — то есть добавленный
+ * сегодня приём оказывался бы в конце списка, и картотека показывала бы прошлогоднюю дату и
+ * прошлогодний диагноз. Сортировка по дате приёма, а при равной дате — по времени создания записи:
+ * два приёма в один день ставит по порядку, в котором их завели.
+ */
+export function sortedVisits(visits: PatientVisit[]): PatientVisit[] {
+  return [...visits].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Последний приём пациента — или `undefined`, если приёмов ещё не было. */
+export function lastVisitOf(patient: { visits: PatientVisit[] }): PatientVisit | undefined {
+  let latest: PatientVisit | undefined;
+  for (const visit of patient.visits) {
+    if (!latest || visit.date > latest.date || (visit.date === latest.date && visit.createdAt > latest.createdAt)) {
+      latest = visit;
+    }
+  }
+  return latest;
 }

@@ -21,7 +21,7 @@ import type { PatientVisit } from './types';
 import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from './useDispensary';
 import { QUERY_KEY as PATIENTS_KEY, usePatients } from './usePatients';
 import type { VisitInput } from './usePatients';
-import { calcAge, formatAge, getInitials, getReminderStatus } from './utils';
+import { calcAge, formatAge, getInitials, getReminderStatus, sortedVisits } from './utils';
 import { VisitForm } from './VisitForm';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { labResultsWarning, medicationsWarning, observationsWarning, visitsWarning } from './deleteWarnings';
@@ -67,7 +67,7 @@ export function PatientViewPage() {
 
   const age = calcAge(patient.birthDate);
   const reminderStatus = patient.reminderDate ? getReminderStatus(patient.reminderDate) : null;
-  const sortedVisits = [...patient.visits].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  const visits = sortedVisits(patient.visits);
   const patientDispensaryRecords = dispensaryRecords.filter((r) => r.patientId === patient.id);
   const ownLabResults = labResults.filter((r) => r.patientId === patient.id);
   const ownMedications = medications.filter((m) => m.patientId === patient.id);
@@ -246,7 +246,7 @@ export function PatientViewPage() {
         >
           {visitEditor === 'new' && <VisitForm onSubmit={handleSaveVisit} onCancel={() => setVisitEditor(null)} />}
 
-          {sortedVisits.length === 0 && visitEditor !== 'new' ? (
+          {visits.length === 0 && visitEditor !== 'new' ? (
             <Stack align="center" gap="sm" py="lg">
               <Text fw={600}>Визитов ещё не было</Text>
               <Text size="sm" c="dimmed" ta="center">
@@ -255,7 +255,7 @@ export function PatientViewPage() {
             </Stack>
           ) : (
           <Stack gap="sm">
-            {sortedVisits.map((visit) =>
+            {visits.map((visit) =>
               visitEditor !== 'new' && visitEditor?.id === visit.id ? (
                 <VisitForm key={visit.id} initialVisit={visit} onSubmit={handleSaveVisit} onCancel={() => setVisitEditor(null)} />
               ) : (

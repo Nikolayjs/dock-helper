@@ -6,15 +6,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CatalogToolbar } from '../../../components/common/CatalogPanel';
 import { stripHtml } from '../../notes/textPreview';
 import { usePatients } from '../usePatients';
+import { lastVisitOf } from '../utils';
 import { isDemoSession } from '../../demo/demoSession';
 import type { DocumentTemplate } from './templateTypes';
 import { useDocumentTemplates } from './useDocumentTemplates';
 
-/** Same recency rule as the visit list on a patient's own page: newest visit date, ties broken by creation order. */
+/** Same recency rule as everywhere else: newest visit date, ties broken by creation order. */
 function latestVisitId(patientId: string, patients: ReturnType<typeof usePatients>['patients']): string | null {
   const patient = patients.find((p) => p.id === patientId);
-  if (!patient || patient.visits.length === 0) return null;
-  return [...patient.visits].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0].id;
+  return patient ? (lastVisitOf(patient)?.id ?? null) : null;
 }
 
 export function DocumentTemplatesPage({ hint }: { hint?: string }) {

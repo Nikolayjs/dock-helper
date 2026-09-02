@@ -7,7 +7,7 @@ import { DataTable } from '../../components/common/DataTable';
 import type { DataColumn } from '../../components/common/DataTable';
 import type { SortState, SortValue } from '../../lib/tableSort';
 import type { Patient, PatientVisit } from './types';
-import { calcAge, formatAge, getReminderStatus } from './utils';
+import { calcAge, formatAge, getReminderStatus, lastVisitOf } from './utils';
 
 /**
  * Список пациентов, по человеку на строку.
@@ -80,9 +80,9 @@ export function patientSortValue(patient: Patient, key: PatientSortKey): SortVal
     case 'age':
       return calcAge(patient.birthDate);
     case 'lastVisit':
-      return patient.visits[0]?.date ?? null;
+      return lastVisitOf(patient)?.date ?? null;
     case 'diagnosis':
-      return patient.visits[0]?.diagnosis || null;
+      return lastVisitOf(patient)?.diagnosis || null;
     case 'visits':
       return patient.visits.length || null;
     case 'reminder':
@@ -106,7 +106,7 @@ export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete 
       patients.map((patient) => ({
         patient,
         age: calcAge(patient.birthDate),
-        lastVisit: patient.visits[0],
+        lastVisit: lastVisitOf(patient),
         reminderStatus: patient.reminderDate ? getReminderStatus(patient.reminderDate) : null,
       })),
     [patients],

@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { useSaveAction } from '../../components/common/useSaveAction';
 import type { Patient } from '../patients/types';
 import { usePatients } from '../patients/usePatients';
+import { sortedVisits } from '../patients/utils';
 import { appendToNote } from './resultLine';
 
 /** Значение выбора «завести новый визит», а не дописать в существующий. */
@@ -31,9 +32,7 @@ interface SaveToVisitModalProps {
  */
 export function SaveToVisitModal({ patient, line, onClose }: SaveToVisitModalProps) {
   const { addVisit, updateVisit } = usePatients();
-  const visits = [...patient.visits].sort(
-    (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
-  );
+  const visits = sortedVisits(patient.visits);
   const [target, setTarget] = useState<string>(visits[0]?.id ?? NEW_VISIT);
 
   const { saving, save } = useSaveAction(undefined, async () => {

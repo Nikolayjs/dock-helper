@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { Link } from 'react-router-dom';
 
 import { NoteCard } from '../../notes/NoteCard';
-import { calcAge, getInitials } from '../../patients/utils';
+import { calcAge, getInitials, lastVisitOf } from '../../patients/utils';
 import { CardHeading } from '../CardHeading';
 import linkClasses from '../dashboardLinks.module.css';
 import type { DashboardWidget } from './types';
@@ -200,7 +200,7 @@ export const TODO_WIDGETS: DashboardWidget[] = [
         <Stack gap="md">
           {recentPatients.map((patient) => {
             const age = calcAge(patient.birthDate);
-            const lastVisit = patient.visits[0];
+            const lastVisit = lastVisitOf(patient);
             return (
               <Link
                 key={patient.id}
@@ -219,12 +219,12 @@ export const TODO_WIDGETS: DashboardWidget[] = [
                         {age !== null ? `, ${age}` : ''}
                       </Text>
                       <Text size="xs" c="dimmed" truncate>
-                        {lastVisit.diagnosis || 'Без диагноза'}
+                        {lastVisit?.diagnosis || 'Без диагноза'}
                       </Text>
                     </div>
                   </Group>
                   <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-                    {dayjs(lastVisit.date).format('D MMM')}
+                    {lastVisit ? dayjs(lastVisit.date).format('D MMM') : ''}
                   </Text>
                 </Group>
               </Link>

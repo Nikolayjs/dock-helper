@@ -18,7 +18,7 @@ import { useDispensary } from '../patients/useDispensary';
 import type { Patient } from '../patients/types';
 import { usePatients } from '../patients/usePatients';
 import type { VisitInput } from '../patients/usePatients';
-import { calcAge, formatAge } from '../patients/utils';
+import { calcAge, formatAge, lastVisitOf } from '../patients/utils';
 import { VisitForm } from '../patients/VisitForm';
 import { getSeenToday, getTodayQueue } from './todayQueue';
 import type { TodayEntry } from './todayQueue';
@@ -114,7 +114,7 @@ export function TodayPage() {
   const suggestedDiagnosis = (patient: Patient) => {
     const record = records.find((item) => item.patientId === patient.id && item.status === 'active');
     if (record) return { diagnosis: record.diagnosis, diagnosisCode: record.diagnosisCode };
-    const last = [...patient.visits].sort((a, b) => b.date.localeCompare(a.date))[0];
+    const last = lastVisitOf(patient);
     return { diagnosis: last?.diagnosis ?? '', diagnosisCode: last?.diagnosisCode };
   };
 

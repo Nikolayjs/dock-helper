@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import type { Note, TodoItem } from "../notes/types";
 import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from "../patients/referralUtils";
 import type { Patient, ReferralCategory } from "../patients/types";
-import { getReminderStatus, type ReminderStatus } from "../patients/utils";
+import { getReminderStatus, lastVisitOf, type ReminderStatus } from "../patients/utils";
 
 export interface ChecklistItem extends TodoItem {
   noteId: string;
@@ -25,9 +25,10 @@ export function getTodayNotes(notes: Note[]): Note[] {
 }
 
 export function getRecentPatients(patients: Patient[], limit: number): Patient[] {
+  // Сравниваются последние приёмы, а не нулевые элементы: порядок массива визитов ничем не задан.
   return [...patients]
     .filter((patient) => patient.visits.length > 0)
-    .sort((a, b) => b.visits[0].date.localeCompare(a.visits[0].date))
+    .sort((a, b) => (lastVisitOf(b)?.date ?? '').localeCompare(lastVisitOf(a)?.date ?? ''))
     .slice(0, limit);
 }
 
