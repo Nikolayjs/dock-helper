@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Button, Box, Container, Group, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconBuildingStore, IconInfoCircle, IconPlus, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { CatalogPanel } from '../components/common/CatalogPanel';
@@ -12,9 +13,22 @@ import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext'
 
 export function QuestionnairesPage() {
   const navigate = useNavigate();
-  const { questionnaires, deleteQuestionnaire } = useQuestionnaires();
+  const { questionnaires, addQuestionnaire, deleteQuestionnaire } = useQuestionnaires();
   const confirmDelete = useDeleteWithConfirm();
   const [search, setSearch] = useState('');
+
+  /**
+   * Копия панели — с пометкой в названии и сразу в редакторе.
+   *
+   * Панель — это сорок заболеваний, полторы сотни симптомов и матрица частот между ними; вариант
+   * «то же, но для детского приёма» иначе собирается только заново. Открывается копия в редакторе,
+   * потому что её первым делом и правят.
+   */
+  const handleDuplicate = async (questionnaire: Questionnaire) => {
+    const created = await addQuestionnaire({ ...questionnaire, title: `${questionnaire.title} — копия` });
+    notifications.show({ message: 'Создана копия', color: 'teal' });
+    navigate(`/diagnostics/${created.id}/edit`);
+  };
   const { sort, toggle } = useTableSort<QuestionnaireSortKey>(
     { key: 'title', direction: 'asc' },
     { storageKey: 'medassist:sort:diagnostics', keys: QUESTIONNAIRE_SORT_KEYS },
@@ -111,6 +125,7 @@ export function QuestionnairesPage() {
             onOpen={(q) => navigate(`/diagnostics/${q.id}`)}
             onEdit={(q) => navigate(`/diagnostics/${q.id}/edit`)}
             onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
           />
         )}
         </CatalogPanel>

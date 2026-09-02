@@ -23,6 +23,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertTriangle,
+  IconCopy,
   IconArrowLeft,
   IconCheck,
   IconDeviceFloppy,
@@ -223,6 +224,20 @@ export function CalculatorBuilderPage() {
       notifications.show({ message: 'Калькулятор создан', color: 'teal' });
       navigate(`/calculators/${created.id}`);
     }
+  });
+
+  /**
+   * Копия записи — с пометкой в названии и сразу в редакторе.
+   *
+   * Копируется **то, что сейчас в форме**, а не то, что лежит на сервере: врач мог уже начать
+   * править, и копия «как было» удивила бы его больше, чем помогла. Охрана несохранённого при этом
+   * снимается на один переход — уходим-то мы к сохранённой записи.
+   */
+  const { saving: duplicating, save: handleDuplicate } = useSaveAction(guard, async () => {
+    if (errors.length > 0) return;
+    const created = await addCalculator({ ...previewDefinition, title: `${previewDefinition.title} — копия` });
+    notifications.show({ message: 'Создана копия', color: 'teal' });
+    navigate(`/calculators/${created.id}/edit`);
   });
 
   const handleDelete = () => {
@@ -493,6 +508,24 @@ export function CalculatorBuilderPage() {
         actions={
           <FormActions>
             <Group justify="flex-end">
+              {/*
+                «Дублировать» есть только у существующей записи и делает ровно то, чего иначе нет:
+                вариант «то же, но для детей» приходилось собирать заново — двенадцать полей,
+                формула, полосы толкования и пресеты. Копия сохраняется сразу и открывается в
+                редакторе, потому что её всё равно первым делом правят.
+              */}
+              {editingCalculator && (
+                <Button
+                  size="md"
+                  variant="light"
+                  leftSection={<IconCopy size={18} />}
+                  onClick={handleDuplicate}
+                  loading={duplicating}
+                  disabled={errors.length > 0}
+                >
+                  Дублировать
+                </Button>
+              )}
               <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
                 {editingCalculator ? 'Сохранить изменения' : 'Создать калькулятор'}
               </Button>

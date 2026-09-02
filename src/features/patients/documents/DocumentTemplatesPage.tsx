@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActionIcon, Alert, Button, Card, Group, Modal, Select, SimpleGrid, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core';
-import { IconBuildingStore, IconFileText, IconFileOff, IconInfoCircle, IconPhotoScan, IconPlus, IconPrinter, IconSearch } from '@tabler/icons-react';
+import { IconBuildingStore, IconCopy, IconFileText, IconFileOff, IconInfoCircle, IconPhotoScan, IconPlus, IconPrinter, IconSearch } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { CatalogToolbar } from '../../../components/common/CatalogPanel';
@@ -19,10 +20,21 @@ function latestVisitId(patientId: string, patients: ReturnType<typeof usePatient
 
 export function DocumentTemplatesPage({ hint }: { hint?: string }) {
   const navigate = useNavigate();
-  const { templates, isLoading } = useDocumentTemplates();
+  const { templates, isLoading, addTemplate } = useDocumentTemplates();
   const { patients } = usePatients();
   const [search, setSearch] = useState('');
   const [printTemplate, setPrintTemplate] = useState<DocumentTemplate | null>(null);
+
+  /** Копия бланка — с пометкой в названии и сразу в редакторе. */
+  const handleDuplicate = async (template: DocumentTemplate) => {
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = template as DocumentTemplate & {
+      createdAt?: string;
+      updatedAt?: string;
+    };
+    const created = await addTemplate({ ...rest, title: `${template.title} — копия` });
+    notifications.show({ message: 'Создана копия', color: 'teal' });
+    navigate(`/documents/templates/${created.id}/edit`);
+  };
   const [patientId, setPatientId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -151,19 +163,41 @@ export function DocumentTemplatesPage({ hint }: { hint?: string }) {
                 <ThemeIcon size={44} radius="md" variant="light" color="brand">
                   {template.kind === 'layout' ? <IconPhotoScan size={22} /> : <IconFileText size={22} />}
                 </ThemeIcon>
-                <Tooltip label="Напечатать для пациента">
-                  <ActionIcon aria-label="Напечатать для пациента"
-                    variant="light"
-                    color="brand"
-                    size="lg"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setPrintTemplate(template);
-                    }}
-                  >
-                    <IconPrinter size={18} />
-                  </ActionIcon>
-                </Tooltip>
+                <Group gap={4}>
+                  {/*
+                    Бланк-раскладку по снимку собирают блок за блоком; вариант «то же, но для
+                    детского приёма» иначе делается только заново. Копия открывается в редакторе —
+                    её первым делом и правят.
+                  */}
+                  <Tooltip label="Дублировать">
+                    <ActionIcon
+                      aria-label="Дублировать"
+                      variant="subtle"
+                      color="gray"
+                      size="lg"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void handleDuplicate(template);
+                      }}
+                    >
+                      <IconCopy size={18} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Напечатать для пациента">
+                    <ActionIcon
+                      aria-label="Напечатать для пациента"
+                      variant="light"
+                      color="brand"
+                      size="lg"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setPrintTemplate(template);
+                      }}
+                    >
+                      <IconPrinter size={18} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
               </Group>
               <Text fw={600} size="md" mb={4}>
                 {template.title}

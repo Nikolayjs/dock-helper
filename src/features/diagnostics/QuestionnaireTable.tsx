@@ -1,5 +1,5 @@
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
-import { IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconCopy, IconEdit, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 
 import { DataTable } from '../../components/common/DataTable';
@@ -26,6 +26,8 @@ interface QuestionnaireTableProps {
   onOpen: (questionnaire: Questionnaire) => void;
   onEdit: (questionnaire: Questionnaire) => void;
   onDelete: (questionnaire: Questionnaire) => void;
+  /** Копия панели: сорок заболеваний и три с половиной тысячи связей заново не собирают. */
+  onDuplicate: (questionnaire: Questionnaire) => void;
 }
 
 export function questionnaireSortValue(questionnaire: Questionnaire, key: QuestionnaireSortKey): SortValue {
@@ -48,6 +50,7 @@ export function QuestionnaireTable({
   onOpen,
   onEdit,
   onDelete,
+  onDuplicate,
 }: QuestionnaireTableProps) {
   const columns: DataColumn<Questionnaire, QuestionnaireSortKey>[] = [
     {
@@ -80,6 +83,11 @@ export function QuestionnaireTable({
       compact: true,
       render: (questionnaire) => (
         <Group gap={2} wrap="nowrap" justify="flex-end">
+          <Tooltip label="Дублировать" withArrow>
+            <ActionIcon aria-label="Дублировать" variant="subtle" color="gray" size="sm" onClick={() => onDuplicate(questionnaire)}>
+              <IconCopy size={16} />
+            </ActionIcon>
+          </Tooltip>
           <Tooltip label="Изменить" withArrow>
             <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={() => onEdit(questionnaire)}>
               <IconEdit size={16} />

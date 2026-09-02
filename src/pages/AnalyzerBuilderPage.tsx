@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { PageToolbar } from '../components/common/PageToolbar';
 import { Alert, Badge, Box, Button, Card, Container, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Tabs, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowLeft, IconCopy, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { analyzeTest } from '../features/analyzer/analyzerEngine';
@@ -330,6 +330,21 @@ export function AnalyzerBuilderPage() {
     }
   });
 
+  /**
+   * Копия анализа — с пометкой в названии и сразу в редакторе.
+   *
+   * Тридцать показателей с нормами и двадцать правил собрать заново — это вечер; вариант «то же,
+   * но для детей» иначе никак и не сделать. Копируется то, что сейчас в форме: врач мог уже начать
+   * править, и копия «как было» удивила бы его больше, чем помогла.
+   */
+  const { saving: duplicating, save: handleDuplicate } = useSaveAction(guard, async () => {
+    if (errors.length > 0) return;
+    const payload = labTestDraftToPayload(previewDraft);
+    const created = await addTest({ ...payload, title: `${payload.title} — копия` });
+    notifications.show({ message: 'Создана копия', color: 'teal' });
+    navigate(`/analyzer/${created.id}/edit`);
+  });
+
   if (isEditMode && !hydrated) {
     return (
       <Container size="xl" px={0}>
@@ -522,6 +537,18 @@ export function AnalyzerBuilderPage() {
         actions={
           <FormActions>
             <Group justify="flex-end">
+              {editingTest && (
+                <Button
+                  size="md"
+                  variant="light"
+                  leftSection={<IconCopy size={18} />}
+                  onClick={handleDuplicate}
+                  loading={duplicating}
+                  disabled={errors.length > 0}
+                >
+                  Дублировать
+                </Button>
+              )}
               <Button size="md" leftSection={<IconDeviceFloppy size={18} />} onClick={handleSave} loading={saving} disabled={errors.length > 0}>
                 {editingTest ? 'Сохранить изменения' : 'Создать анализ'}
               </Button>
