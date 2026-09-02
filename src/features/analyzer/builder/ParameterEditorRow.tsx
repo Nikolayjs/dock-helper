@@ -2,6 +2,7 @@ import { memo, useState } from 'react';
 import { ActionIcon, Alert, Button, Divider, Grid, Group, NumberInput, Select, Stack, Switch, Tabs, TagsInput, Text, TextInput } from '@mantine/core';
 import { IconLock, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
 
+import { ageBandWarnings } from './ageBands';
 import { CollapsibleRow } from './CollapsibleRow';
 
 import type { CustomAgeBand, CustomLabParameter, CustomLabParameterOption, CustomRange } from '../customTypes';
@@ -115,6 +116,10 @@ function AgeBandsEditor({
 
   if (!band) return null;
 
+  // Перекрытия и разрывы полос ничем себя не выдают: движок берёт первую подходящую, а на разрыве
+  // честно помечает результат «нормы взяты приблизительно» — симптом виден, причина нет.
+  const warnings = ageBandWarnings(bands);
+
   return (
     <Stack gap="sm">
       <Group gap="xs" wrap="nowrap" align="center">
@@ -139,6 +144,18 @@ function AgeBandsEditor({
           <IconPlus size={16} />
         </ActionIcon>
       </Group>
+
+      {warnings.length > 0 && (
+        <Alert color="orange" variant="light" p="xs">
+          <Stack gap={2}>
+            {warnings.map((warning, i) => (
+              <Text size="xs" key={i}>
+                {warning}
+              </Text>
+            ))}
+          </Stack>
+        </Alert>
+      )}
 
       <Group gap="xs" align="flex-end" wrap="nowrap">
         <NumberInput
