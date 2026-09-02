@@ -189,7 +189,7 @@ export function NoteForm({ initialNote, initialDate, onSubmit, onCancel, onDelet
                   setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, text } : it)));
                 }}
               />
-              <ActionIcon
+              <ActionIcon aria-label="Удалить пункт"
                 variant="subtle"
                 color="red"
                 onClick={() => setItems((prev) => (prev.length > 1 ? prev.filter((it) => it.id !== item.id) : prev))}

@@ -227,10 +227,10 @@ export function DispensaryViewPage() {
                       )}
                     </Stack>
                     <Group gap={2} wrap="nowrap">
-                      <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setObservationEditor(observation)}>
+                      <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={() => setObservationEditor(observation)}>
                         <IconEdit size={14} />
                       </ActionIcon>
-                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleDeleteObservation(observation.id)}>
+                      <ActionIcon aria-label="Удалить" variant="subtle" color="red" size="sm" onClick={() => handleDeleteObservation(observation.id)}>
                         <IconTrash size={14} />
                       </ActionIcon>
                     </Group>

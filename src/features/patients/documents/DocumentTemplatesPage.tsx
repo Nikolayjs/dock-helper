@@ -152,7 +152,7 @@ export function DocumentTemplatesPage({ hint }: { hint?: string }) {
                   {template.kind === 'layout' ? <IconPhotoScan size={22} /> : <IconFileText size={22} />}
                 </ThemeIcon>
                 <Tooltip label="Напечатать для пациента">
-                  <ActionIcon
+                  <ActionIcon aria-label="Напечатать для пациента"
                     variant="light"
                     color="brand"
                     size="lg"

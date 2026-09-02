@@ -39,7 +39,7 @@ export function PresetEditorRow({ preset, fields, onChange, onRemove }: PresetEd
             Пресет
           </Text>
         </Group>
-        <ActionIcon color="red" variant="subtle" onClick={onRemove} radius="md">
+        <ActionIcon aria-label="Удалить" color="red" variant="subtle" onClick={onRemove} radius="md">
           <IconTrash size={16} />
         </ActionIcon>
       </Group>

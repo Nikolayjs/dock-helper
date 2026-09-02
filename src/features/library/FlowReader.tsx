@@ -139,10 +139,10 @@ function FlowReaderView({
       {!immersive && (
         <ToolbarSlot target={toolbarSlot}>
           <Group gap="xs" wrap="nowrap">
-            <ActionIcon variant="subtle" color="gray" onClick={() => adjustFontScale(-0.1)} title="Мельче">
+            <ActionIcon aria-label="Мельче шрифт" variant="subtle" color="gray" onClick={() => adjustFontScale(-0.1)} title="Мельче">
               <IconMinus size={16} />
             </ActionIcon>
-            <ActionIcon variant="subtle" color="gray" onClick={() => adjustFontScale(0.1)} title="Крупнее">
+            <ActionIcon aria-label="Крупнее шрифт" variant="subtle" color="gray" onClick={() => adjustFontScale(0.1)} title="Крупнее">
               <IconPlus size={16} />
             </ActionIcon>
           </Group>

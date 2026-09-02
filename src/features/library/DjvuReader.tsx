@@ -255,13 +255,13 @@ export function DjvuReader({ data, initialPage = 1, immersive, onPageChange, too
       {!immersive && (
         <ToolbarSlot target={toolbarSlot}>
           <Group>
-            <ActionIcon variant="light" onClick={() => jumpToPage(currentPage - 1)} disabled={currentPage <= 1}>
+            <ActionIcon aria-label="Предыдущая страница" variant="light" onClick={() => jumpToPage(currentPage - 1)} disabled={currentPage <= 1}>
               <IconChevronLeft size={18} />
             </ActionIcon>
             <Text size="sm">
               Стр. {currentPage} из {pageCount}
             </Text>
-            <ActionIcon variant="light" onClick={() => jumpToPage(currentPage + 1)} disabled={currentPage >= pageCount}>
+            <ActionIcon aria-label="Следующая страница" variant="light" onClick={() => jumpToPage(currentPage + 1)} disabled={currentPage >= pageCount}>
               <IconChevronRight size={18} />
             </ActionIcon>
             <ActionIcon variant="subtle" color="gray" onClick={() => adjust(-0.2)} ml="md" aria-label="Мельче">

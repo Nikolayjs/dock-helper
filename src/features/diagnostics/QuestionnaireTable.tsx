@@ -92,12 +92,12 @@ export function QuestionnaireTable({
               <Table.Td onClick={(e) => e.stopPropagation()}>
                 <Group gap={2} wrap="nowrap" justify="flex-end">
                   <Tooltip label="Изменить" withArrow>
-                    <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(questionnaire)}>
+                    <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={() => onEdit(questionnaire)}>
                       <IconEdit size={16} />
                     </ActionIcon>
                   </Tooltip>
                   <Tooltip label="Удалить" withArrow>
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(questionnaire)}>
+                    <ActionIcon aria-label="Удалить" variant="subtle" color="red" size="sm" onClick={() => onDelete(questionnaire)}>
                       <IconTrash size={16} />
                     </ActionIcon>
                   </Tooltip>

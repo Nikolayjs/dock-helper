@@ -331,7 +331,7 @@ export function BookReaderPage() {
               {positionLabel}
             </Text>
           )}
-          <ActionIcon
+          <ActionIcon aria-label="Выйти из полноэкранного режима"
             variant="subtle"
             color="gray"
             onClick={toggleFullscreen}

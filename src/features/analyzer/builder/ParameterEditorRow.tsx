@@ -501,12 +501,12 @@ function ParameterEditorRowView({ parameter, onChange, onRemove, open, onToggle,
                     value={option.value}
                     onChange={(v) => updateOption(index, { ...option, value: Number(v) || 0 })}
                   />
-                  <ActionIcon variant="subtle" color="red" onClick={() => removeOption(index)}>
+                  <ActionIcon aria-label="Удалить возрастной диапазон" variant="subtle" color="red" onClick={() => removeOption(index)}>
                     <IconX size={14} />
                   </ActionIcon>
                 </Group>
               ))}
-              <ActionIcon variant="light" color="brand" onClick={addOption} size="lg" radius="md">
+              <ActionIcon aria-label="Добавить возрастной диапазон" variant="light" color="brand" onClick={addOption} size="lg" radius="md">
                 <IconPlus size={16} />
               </ActionIcon>
             </Group>

@@ -379,7 +379,7 @@ export function PatientViewPage() {
                       <Menu position="bottom-end" withinPortal>
                         <Menu.Target>
                           <Tooltip label="Напечатать документ">
-                            <ActionIcon variant="light" color="brand" size="md">
+                            <ActionIcon aria-label="Напечатать документ" variant="light" color="brand" size="md">
                               <IconPrinter size={18} />
                             </ActionIcon>
                           </Tooltip>
@@ -412,14 +412,14 @@ export function PatientViewPage() {
                         </Menu.Dropdown>
                       </Menu>
                       <Tooltip label="Дублировать визит">
-                        <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => startNewVisit(visit)}>
+                        <ActionIcon aria-label="Дублировать визит" variant="subtle" color="gray" size="sm" onClick={() => startNewVisit(visit)}>
                           <IconCopy size={14} />
                         </ActionIcon>
                       </Tooltip>
-                      <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setVisitEditor(visit)}>
+                      <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={() => setVisitEditor(visit)}>
                         <IconEdit size={14} />
                       </ActionIcon>
-                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleDeleteVisit(visit.id)}>
+                      <ActionIcon aria-label="Удалить" variant="subtle" color="red" size="sm" onClick={() => handleDeleteVisit(visit.id)}>
                         <IconTrash size={14} />
                       </ActionIcon>
                     </Group>

@@ -40,7 +40,7 @@ export function FieldEditorRow({ field, onChange, onRemove, keyError }: FieldEdi
             Поле
           </Text>
         </Group>
-        <ActionIcon color="red" variant="subtle" onClick={onRemove} radius="md">
+        <ActionIcon aria-label="Удалить" color="red" variant="subtle" onClick={onRemove} radius="md">
           <IconTrash size={16} />
         </ActionIcon>
       </Group>
@@ -148,12 +148,12 @@ export function FieldEditorRow({ field, onChange, onRemove, keyError }: FieldEdi
                     value={option.value}
                     onChange={(v) => updateOption(index, { ...option, value: Number(v) || 0 })}
                   />
-                  <ActionIcon variant="subtle" color="red" onClick={() => removeOption(index)}>
+                  <ActionIcon aria-label="Удалить вариант" variant="subtle" color="red" onClick={() => removeOption(index)}>
                     <IconX size={14} />
                   </ActionIcon>
                 </Group>
               ))}
-              <ActionIcon variant="light" color="brand" onClick={addOption} size="lg" radius="md">
+              <ActionIcon aria-label="Добавить вариант" variant="light" color="brand" onClick={addOption} size="lg" radius="md">
                 <IconPlus size={16} />
               </ActionIcon>
             </Group>

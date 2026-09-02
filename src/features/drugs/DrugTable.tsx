@@ -137,12 +137,12 @@ export function DrugTable({
       render: (drug) => (
         <Group gap={2} wrap="nowrap" justify="flex-end">
           <Tooltip label="Изменить" withArrow>
-            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(drug)}>
+            <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={() => onEdit(drug)}>
               <IconEdit size={16} />
             </ActionIcon>
           </Tooltip>
           <Tooltip label="Удалить" withArrow>
-            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(drug)}>
+            <ActionIcon aria-label="Удалить" variant="subtle" color="red" size="sm" onClick={() => onDelete(drug)}>
               <IconTrash size={16} />
             </ActionIcon>
           </Tooltip>

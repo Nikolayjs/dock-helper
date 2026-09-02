@@ -119,12 +119,12 @@ export function PatientMedications({ patientId }: { patientId: string }) {
                   </Stack>
                   <Group gap={2} wrap="nowrap">
                     <Tooltip label="Изменить">
-                      <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setEditor(medication)}>
+                      <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={() => setEditor(medication)}>
                         <IconEdit size={14} />
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Убрать из терапии">
-                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleDelete(medication)}>
+                      <ActionIcon aria-label="Убрать из терапии" variant="subtle" color="red" size="sm" onClick={() => handleDelete(medication)}>
                         <IconTrash size={14} />
                       </ActionIcon>
                     </Tooltip>

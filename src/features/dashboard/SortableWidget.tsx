@@ -152,7 +152,7 @@ export function SortableWidget({ widget, ctx, editing, span, wide, onHide, onRes
               </Badge>
             )}
             <Tooltip label="Перетащить — или тяните саму карточку" withArrow>
-              <ActionIcon component="div" variant="default" size="md" aria-hidden tabIndex={-1}>
+              <ActionIcon aria-label="Перетащить — или тяните саму карточку" component="div" variant="default" size="md" aria-hidden tabIndex={-1}>
                 <IconGripVertical size={16} />
               </ActionIcon>
             </Tooltip>

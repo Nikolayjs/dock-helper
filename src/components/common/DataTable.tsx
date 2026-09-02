@@ -84,6 +84,26 @@ export function DataTable<Row, K extends string>({
               key={rowKey(row)}
               style={onRowClick ? { cursor: 'pointer' } : undefined}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
+              /*
+               * Строка открывается и с клавиатуры.
+               *
+               * Открывалась она только щелчком по `<tr>`, а до `<tr>` табуляцией не добраться:
+               * запись, у которой в строке нет своей ссылки, была недостижима без мыши вовсе — а
+               * это картотека, справочник и ещё пять списков. Enter и пробел делают то же, что
+               * щелчок; пробелу отменяется прокрутка страницы, иначе он листает её под руками.
+               */
+              tabIndex={onRowClick ? 0 : undefined}
+              role={onRowClick ? 'button' : undefined}
+              onKeyDown={
+                onRowClick
+                  ? (event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      event.preventDefault();
+                      onRowClick(row);
+                    }
+                  : undefined
+              }
             >
               {columns.map((column, index) => (
                 <Table.Td

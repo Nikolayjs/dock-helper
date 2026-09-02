@@ -194,7 +194,7 @@ export function HeaderSearch() {
             isSearching ? (
               <Loader size={14} />
             ) : query ? (
-              <ActionIcon
+              <ActionIcon aria-label="Очистить поиск"
                 variant="subtle"
                 color="gray"
                 size="sm"

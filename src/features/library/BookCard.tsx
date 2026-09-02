@@ -102,10 +102,10 @@ export function BookCard({ book, location, onOpen, onEdit, onDelete }: BookCardP
             {book.title}
           </Text>
           <Group gap={2} wrap="nowrap" onClick={(e) => e.stopPropagation()}>
-            <ActionIcon variant="subtle" color="gray" size="sm" onClick={onEdit}>
+            <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={onEdit}>
               <IconEdit size={14} />
             </ActionIcon>
-            <ActionIcon variant="subtle" color="red" size="sm" onClick={onDelete}>
+            <ActionIcon aria-label="Удалить" variant="subtle" color="red" size="sm" onClick={onDelete}>
               <IconTrash size={14} />
             </ActionIcon>
           </Group>

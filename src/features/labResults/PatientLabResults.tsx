@@ -110,7 +110,7 @@ export function PatientLabResults({ patientId }: { patientId: string }) {
                     </Text>
                   </Stack>
                   <Tooltip label="Удалить анализ">
-                    <ActionIcon
+                    <ActionIcon aria-label="Удалить анализ"
                       variant="subtle"
                       color="red"
                       size="sm"

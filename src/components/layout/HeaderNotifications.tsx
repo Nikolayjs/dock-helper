@@ -39,7 +39,7 @@ export function HeaderNotifications() {
     <Menu position="bottom-end" width={320} shadow="md" withinPortal onOpen={handleOpen}>
       <Menu.Target>
         <Indicator color="red" size={8} offset={4} disabled={unseen === 0}>
-          <ActionIcon variant="light" color="gray" size="lg" radius="md">
+          <ActionIcon aria-label="Уведомления" variant="light" color="gray" size="lg" radius="md">
             <IconBell size={18} />
           </ActionIcon>
         </Indicator>

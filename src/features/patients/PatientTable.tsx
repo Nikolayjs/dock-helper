@@ -197,12 +197,12 @@ export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete 
       render: ({ patient }) => (
         <Group gap={2} wrap="nowrap" justify="flex-end">
           <Tooltip label="Изменить" withArrow>
-            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(patient)}>
+            <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={() => onEdit(patient)}>
               <IconEdit size={16} />
             </ActionIcon>
           </Tooltip>
           <Tooltip label="Удалить" withArrow>
-            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(patient)}>
+            <ActionIcon aria-label="Удалить" variant="subtle" color="red" size="sm" onClick={() => onDelete(patient)}>
               <IconTrash size={16} />
             </ActionIcon>
           </Tooltip>

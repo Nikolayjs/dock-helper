@@ -211,12 +211,12 @@ export function DispensaryTable({ records, patientsById, sort, onSort, icdNames,
       render: ({ record }) => (
         <Group gap={2} wrap="nowrap" justify="flex-end">
           <Tooltip label="Изменить" withArrow>
-            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(record)}>
+            <ActionIcon aria-label="Изменить" variant="subtle" color="gray" size="sm" onClick={() => onEdit(record)}>
               <IconEdit size={16} />
             </ActionIcon>
           </Tooltip>
           <Tooltip label="Удалить" withArrow>
-            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onDelete(record)}>
+            <ActionIcon aria-label="Удалить" variant="subtle" color="red" size="sm" onClick={() => onDelete(record)}>
               <IconTrash size={16} />
             </ActionIcon>
           </Tooltip>

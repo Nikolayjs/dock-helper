@@ -29,7 +29,12 @@ export function SortableTh<K extends string>({ column, sort, onSort, children, w
   const Icon = !active ? IconArrowsSort : sort.direction === 'asc' ? IconSortAscending : IconSortDescending;
 
   return (
-    <Table.Th w={w} miw={miw} p={0}>
+    /*
+     * `aria-sort` — то же, что стрелка, только для диктора: без него читающий с экрана слышит
+     * «Сортировать по «Фамилия»» и не узнаёт, что таблица уже отсортирована по ней и в какую
+     * сторону. Значение стоит на ячейке заголовка, как того требует разметка таблицы.
+     */
+    <Table.Th w={w} miw={miw} p={0} aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
       <UnstyledButton
         className={classes.button}
         onClick={() => onSort(column)}

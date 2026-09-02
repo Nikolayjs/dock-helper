@@ -50,7 +50,7 @@ export function RangeEditorRow({ range, onChange, onRemove }: RangeEditorRowProp
       </Grid.Col>
       <Grid.Col span={{ base: 3, sm: 1 }}>
         <Group justify="flex-end">
-          <ActionIcon color="red" variant="subtle" onClick={onRemove} radius="md">
+          <ActionIcon aria-label="Удалить" color="red" variant="subtle" onClick={onRemove} radius="md">
             <IconTrash size={16} />
           </ActionIcon>
         </Group>
