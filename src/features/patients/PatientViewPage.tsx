@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 
 import { PageToolbar } from '../../components/common/PageToolbar';
 import { ActionIcon, Avatar, Badge, Button, Card, Container, Group, Menu, Stack, Text, Title, Tooltip } from '@mantine/core';
@@ -16,6 +16,7 @@ import { PatientMedications } from '../medications/PatientMedications';
 import { usePatientMedications } from '../medications/usePatientMedications';
 import { useLabResults } from '../labResults/useLabResults';
 import { useDocumentTemplates } from './documents/useDocumentTemplates';
+import { rankTemplates, readUsage } from '../dashboard/documentUsage';
 import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from './referralUtils';
 import type { PatientVisit } from './types';
 import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from './useDispensary';
@@ -52,6 +53,24 @@ export function PatientViewPage() {
 
   const [visitEditor, setVisitEditor] = useState<PatientVisit | 'new' | null>(null);
 
+  /**
+   * Бланки в меню печати — в порядке частоты, а не в том, в каком их отдал сервер.
+   *
+   * Счётчик печати уже копится (`documentUsage`) и до сих пор кормил только виджет дашборда, тогда
+   * как выбирают бланк именно здесь: у врача их десятки, а печатает он изо дня в день три-четыре.
+   * Частые идут первыми и отделены чертой, остальные — как были, чтобы список не перетасовывался
+   * целиком и бланк не приходилось искать заново.
+   */
+  const { orderedTemplates, frequentCount } = useMemo(() => {
+    const known = new Set(templates.map((template) => template.id));
+    const frequent = rankTemplates(readUsage(), known).map((ranked) => ranked.id);
+    const byId = new Map(templates.map((template) => [template.id, template]));
+    const head = frequent.map((id) => byId.get(id)!).filter(Boolean);
+    const tail = templates.filter((template) => !frequent.includes(template.id));
+    return { orderedTemplates: [...head, ...tail], frequentCount: head.length };
+  }, [templates]);
+
+
   if (!patient) {
     return (
       <Container size="md" px={0}>
@@ -68,6 +87,7 @@ export function PatientViewPage() {
   const age = calcAge(patient.birthDate);
   const reminderStatus = patient.reminderDate ? getReminderStatus(patient.reminderDate) : null;
   const visits = sortedVisits(patient.visits);
+  const lastVisit = visits[0];
   const patientDispensaryRecords = dispensaryRecords.filter((r) => r.patientId === patient.id);
   const ownLabResults = labResults.filter((r) => r.patientId === patient.id);
   const ownMedications = medications.filter((m) => m.patientId === patient.id);
@@ -125,6 +145,50 @@ export function PatientViewPage() {
           <Group justify="space-between" wrap="wrap">
             <BackButton fallback={{ to: '/patients', label: 'К списку пациентов' }} />
             <Group gap="xs">
+              {/*
+                Печать вынесена в шапку карточки, а не живёт только внутри визита.
+
+                Раньше попасть к бланку можно было **только** через строку визита, то есть у
+                пациента без визитов пути к бумаге не было вовсе. Печатается всегда последний
+                приём — тот же, что подставляется в подстановки бланка; когда приёмов нет,
+                кнопка ведёт к их заведению, потому что справка датируется приёмом.
+              */}
+              {lastVisit ? (
+                <Menu position="bottom-end" withinPortal>
+                  <Menu.Target>
+                    <Button variant="subtle" leftSection={<IconPrinter size={16} />}>
+                      Напечатать
+                    </Button>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    {orderedTemplates.length === 0 ? (
+                      <Menu.Item disabled>Нет доступных бланков</Menu.Item>
+                    ) : (
+                      orderedTemplates.map((template, index) => (
+                        <Fragment key={template.id}>
+                          {index === frequentCount && frequentCount > 0 && <Menu.Divider />}
+                          <Menu.Item
+                            leftSection={<IconFileText size={14} />}
+                            onClick={() =>
+                              navigate(`/patients/${patient.id}/documents/${lastVisit.id}?templateId=${template.id}`)
+                            }
+                          >
+                            {template.title}
+                          </Menu.Item>
+                        </Fragment>
+                      ))
+                    )}
+                    <Menu.Divider />
+                    <Menu.Item leftSection={<IconSettings size={14} />} component={Link} to="/documents?tab=templates">
+                      Управление шаблонами
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
+              ) : (
+                <Button variant="subtle" leftSection={<IconPrinter size={16} />} onClick={() => setVisitEditor('new')}>
+                  Напечатать
+                </Button>
+              )}
               <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={handleDeletePatient}>
                 Удалить
               </Button>
@@ -297,16 +361,21 @@ export function PatientViewPage() {
                           {templates.length === 0 ? (
                             <Menu.Item disabled>Нет доступных документов</Menu.Item>
                           ) : (
-                            templates.map((template) => (
-                              <Menu.Item
-                                key={template.id}
-                                leftSection={<IconFileText size={14} />}
-                                onClick={() =>
-                                  navigate(`/patients/${patient.id}/documents/${visit.id}?templateId=${template.id}`)
-                                }
-                              >
-                                {template.title}
-                              </Menu.Item>
+                            orderedTemplates.map((template, index) => (
+                              <Fragment key={template.id}>
+                                {/* Черта отделяет то, что врач печатает постоянно, от остального
+                                    списка: без неё частые бланки просто стоят выше, и понять, что
+                                    список отсортирован не по алфавиту, не по чему. */}
+                                {index === frequentCount && frequentCount > 0 && <Menu.Divider />}
+                                <Menu.Item
+                                  leftSection={<IconFileText size={14} />}
+                                  onClick={() =>
+                                    navigate(`/patients/${patient.id}/documents/${visit.id}?templateId=${template.id}`)
+                                  }
+                                >
+                                  {template.title}
+                                </Menu.Item>
+                              </Fragment>
                             ))
                           )}
                           <Menu.Divider />
