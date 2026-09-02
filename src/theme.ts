@@ -42,6 +42,18 @@ export const theme = createTheme({
     mint,
   },
   fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+  /*
+   * `xs` — 13 px, а не заводские 12.
+   *
+   * Этим размером набрано больше трёхсот мест, и в большинстве из них он идёт вместе с `c="dimmed"`:
+   * подписи под числами, даты, единицы измерения. Двенадцать пикселей приглушённым серым читаются
+   * плохо на любом экране, а на телефоне — особенно; лишний пиксель не ломает ни одну раскладку
+   * (это подпись, а не колонка), а вместе со ступенью контраста у `dimmed` возвращает такой текст
+   * в область читаемого. Остальные ступени заводские.
+   */
+  fontSizes: {
+    xs: '0.8125rem',
+  },
   fontFamilyMonospace: 'ui-monospace, SFMono-Regular, monospace',
   headings: {
     fontFamily: 'Lexend, Inter, -apple-system, sans-serif',
