@@ -19,9 +19,11 @@ interface LayoutSheetProps {
   layout: TemplateLayout;
   copies: number;
   resolveText?: (text: string) => string;
+  /** Блоки, в которых подставленный текст не поместился. Спрашивает только первый оттиск: остальные — его копии. */
+  onOverflow?: (blockIds: string[]) => void;
 }
 
-export function LayoutSheet({ layout, copies, resolveText }: LayoutSheetProps) {
+export function LayoutSheet({ layout, copies, resolveText, onOverflow }: LayoutSheetProps) {
   const plan = planSheet(layout, copies);
 
   return (
@@ -44,7 +46,13 @@ export function LayoutSheet({ layout, copies, resolveText }: LayoutSheetProps) {
           // Each copy is centred in its cell, so the gaps between forms stay even and a single
           // straight cut separates them however the grid came out.
           <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            <LayoutDocument layout={layout} printSized scale={plan.scale} resolveText={resolveText} />
+            <LayoutDocument
+              layout={layout}
+              printSized
+              scale={plan.scale}
+              resolveText={resolveText}
+              onOverflow={index === 0 ? onOverflow : undefined}
+            />
           </div>
         ))}
       </div>

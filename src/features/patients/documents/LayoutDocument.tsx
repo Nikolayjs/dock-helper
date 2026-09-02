@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 
 import type { TemplateLayout } from './layoutTypes';
 
@@ -25,16 +25,71 @@ interface LayoutDocumentProps {
    */
   scale?: number;
   backdropOpacity?: number;
+  /**
+   * Блоки, в которых текст не поместился в свою рамку.
+   *
+   * У блока жёсткая высота и `overflow: hidden` — иначе он наехал бы на соседние графы бланка, —
+   * поэтому длинный диагноз или список аллергий теряет хвост **молча**: на экране ровно то же, что
+   * на бумаге, и ничто не говорит, что текст кончился не сам. Мерить это может только браузер, и
+   * только там, где блок нарисован; поэтому измерение живёт здесь, а показывают его редактор (где
+   * это ещё можно поправить) и страница печати (где видно настоящие данные пациента).
+   */
+  onOverflow?: (blockIds: string[]) => void;
   children?: React.ReactNode;
 }
 
-export function LayoutDocument({ layout, resolveText, printSized, scale = 1, backdropOpacity = 0, children }: LayoutDocumentProps) {
+export function LayoutDocument({
+  layout,
+  resolveText,
+  printSized,
+  scale = 1,
+  backdropOpacity = 0,
+  onOverflow,
+  children,
+}: LayoutDocumentProps) {
+  const pageRef = useRef<HTMLDivElement>(null);
+  const reported = useRef<string | null>(null);
+  const onOverflowRef = useRef(onOverflow);
+  onOverflowRef.current = onOverflow;
+
+  // Подпись того, от чего зависит переполнение: сам текст (уже подставленный), рамка и кегль.
+  const shown = useMemo(
+    () => layout.blocks.map((block) => (resolveText ? resolveText(block.text) : block.text)),
+    [layout.blocks, resolveText],
+  );
+  const signature = useMemo(
+    () => layout.blocks.map((b, i) => `${b.id}:${b.widthPct}:${b.heightPct}:${b.fontSizePct}:${shown[i]}`).join('|'),
+    [layout.blocks, shown],
+  );
+
+  useEffect(() => {
+    if (!onOverflowRef.current) return;
+    const measure = () => {
+      const root = pageRef.current;
+      if (!root) return;
+      const ids = [...root.querySelectorAll<HTMLElement>('[data-layout-text]')]
+        .filter((el) => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1)
+        .map((el) => el.dataset.layoutText ?? '');
+      const key = ids.join(',');
+      if (key === reported.current) return;
+      reported.current = key;
+      onOverflowRef.current?.(ids);
+    };
+    measure();
+    // Шрифт доезжает позже разметки, и до него замер врёт в обе стороны.
+    void document.fonts?.ready.then(measure);
+    const observer = new ResizeObserver(measure);
+    if (pageRef.current) observer.observe(pageRef.current);
+    return () => observer.disconnect();
+  }, [signature]);
+
   const pageStyle: CSSProperties = printSized
     ? { width: `${layout.pageWidthMm * scale}mm`, height: `${layout.pageHeightMm * scale}mm` }
     : { width: '100%', aspectRatio: `${layout.pageWidthMm} / ${layout.pageHeightMm}` };
 
   return (
     <div
+      ref={pageRef}
       style={{
         ...pageStyle,
         position: 'relative',
@@ -61,9 +116,10 @@ export function LayoutDocument({ layout, resolveText, printSized, scale = 1, bac
         />
       )}
 
-      {layout.blocks.map((block) => (
+      {layout.blocks.map((block, index) => (
         <div
           key={block.id}
+          data-layout-text={block.id}
           style={{
             position: 'absolute',
             left: `${block.xPct}%`,
@@ -78,7 +134,7 @@ export function LayoutDocument({ layout, resolveText, printSized, scale = 1, bac
             overflow: 'hidden',
           }}
         >
-          {resolveText ? resolveText(block.text) : block.text}
+          {shown[index]}
         </div>
       ))}
 

@@ -17,9 +17,11 @@ interface TemplateDocumentProps {
   visit: PatientVisit;
   /** Overrides the template's stored imposition for this one print. */
   copiesOverride?: number;
+  /** Блоки бланка, в которых подставленный текст не поместился: страница печати говорит об этом. */
+  onOverflow?: (blockIds: string[]) => void;
 }
 
-export function TemplateDocument({ template, patient, visit, copiesOverride }: TemplateDocumentProps) {
+export function TemplateDocument({ template, patient, visit, copiesOverride, onOverflow }: TemplateDocumentProps) {
   const user = useAuth();
   const context = {
     patient,
@@ -38,6 +40,7 @@ export function TemplateDocument({ template, patient, visit, copiesOverride }: T
         layout={template.layout}
         copies={copiesOverride ?? copiesPerSheet(template.layout)}
         resolveText={(text) => substitutePlaceholdersText(text, context)}
+        onOverflow={onOverflow}
       />
     );
   }

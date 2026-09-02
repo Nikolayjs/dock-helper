@@ -19,6 +19,15 @@ export function PrintableDocumentPage() {
   // Null means "whatever the template says". Kept out of the URL: it is a property of this one
   // trip to the printer, not of the document being looked at.
   const [copiesOverride, setCopiesOverride] = useState<number | null>(null);
+  /**
+   * Блоки бланка, в которые подставленный текст не поместился.
+   *
+   * У блока жёсткая высота и `overflow: hidden`, поэтому длинный диагноз или список аллергий
+   * теряет хвост **молча**: предпросмотр показывает ровно то же, что напечатает принтер, и понять,
+   * что текст кончился не сам, не по чему. Здесь видны настоящие данные пациента — то есть это
+   * единственное место, где обрезка вообще может проявиться.
+   */
+  const [clipped, setClipped] = useState<string[]>([]);
 
   const patient = patients.find((p) => p.id === id);
   const visit = patient?.visits.find((v) => v.id === visitId);
@@ -134,10 +143,20 @@ export function PrintableDocumentPage() {
                 patient={patient}
                 visit={visit}
                 copiesOverride={copiesOverride ?? undefined}
+                onOverflow={setClipped}
               />
             </div>
           </SheetPreview>
         </Card>
+
+        {clipped.length > 0 && (
+          <Alert color="orange" variant="light" className="no-print" icon={<IconInfoCircle size={18} />} title="Текст не помещается">
+            {clipped.length === 1
+              ? 'В одной графе бланка текст длиннее её рамки — на бумаге он будет обрезан.'
+              : `Граф с текстом длиннее рамки: ${clipped.length}. На бумаге такой текст будет обрезан.`}{' '}
+            Поправить размер графы можно в шаблоне.
+          </Alert>
+        )}
 
         <Text size="xs" c="dimmed" className="no-print">
           {sheetSummary ?? 'Реквизиты клиники и врача можно задать в профиле врача.'}

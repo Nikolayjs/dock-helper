@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import {
   ActionIcon,
+  Alert,
   Badge,
   Box,
   Button,
@@ -18,7 +19,7 @@ import {
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useFormActionsHeight } from '../../../components/common/formActionsSlot';
-import { IconMinus, IconPlus, IconTrash, IconZoomIn } from '@tabler/icons-react';
+import { IconAlertTriangle, IconMinus, IconPlus, IconTrash, IconZoomIn } from '@tabler/icons-react';
 
 import { SCROLL_ROOT_ID } from '../../../components/layout/scrollRoot';
 
@@ -76,6 +77,14 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /**
+   * Блоки, в которых текст не помещается в свою рамку.
+   *
+   * У блока жёсткая высота и `overflow: hidden`, поэтому длинный текст теряет хвост молча — на
+   * экране ровно то же, что на бумаге. Здесь это ещё можно поправить: раздвинуть рамку или
+   * уменьшить кегль, — поэтому пометка стоит и на самом блоке, и в его свойствах.
+   */
+  const [overflowing, setOverflowing] = useState<string[]>([]);
   const [backdropOpacity, setBackdropOpacity] = useState(0.35);
   const [zoom, setZoom] = useState(1);
   const dragRef = useRef<{ mode: DragMode; startX: number; startY: number; start: TemplateLayoutBlock } | null>(null);
@@ -376,10 +385,11 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
           {/* The ref sits on a wrapper that shares the page's exact box rather than on the Card,
               whose 1px border would offset every drag calculation by a fraction of a percent. */}
           <div ref={canvasRef} style={{ position: 'relative' }}>
-          <LayoutDocument layout={layout} backdropOpacity={backdropOpacity}>
+          <LayoutDocument layout={layout} backdropOpacity={backdropOpacity} onOverflow={setOverflowing}>
             {layout.blocks.map((block) => {
               const isSelected = block.id === selectedId;
               const isSuspect = block.confidence !== null && block.confidence < LOW_CONFIDENCE_THRESHOLD;
+              const isClipped = overflowing.includes(block.id);
               return (
                 <div
                   key={`hit-${block.id}`}
@@ -396,12 +406,18 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
                     touchAction: isSelected ? 'none' : 'auto',
                     outline: isSelected
                       ? '2px solid var(--mantine-color-brand-6)'
-                      : isSuspect
-                        ? '1px dashed var(--mantine-color-orange-6)'
-                        : '1px solid rgba(0,0,0,0.12)',
+                      : isClipped
+                        ? '2px solid var(--mantine-color-red-6)'
+                        : isSuspect
+                          ? '1px dashed var(--mantine-color-orange-6)'
+                          : '1px solid rgba(0,0,0,0.12)',
                     // Tinting what recognition was unsure about puts attention where it is needed,
                     // instead of spreading it evenly over lines that came back perfectly.
-                    background: isSuspect ? 'rgba(255, 170, 0, 0.10)' : 'transparent',
+                    background: isClipped
+                      ? 'rgba(255, 0, 0, 0.08)'
+                      : isSuspect
+                        ? 'rgba(255, 170, 0, 0.10)'
+                        : 'transparent',
                   }}
                 >
                   {isSelected && (
@@ -462,6 +478,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
           <Text size="xs" c="dimmed">
             блоков: {layout.blocks.length}
             {lowConfidence > 0 && `, сомнительных: ${lowConfidence}`}
+            {overflowing.length > 0 && `, текст не помещается: ${overflowing.length}`}
           </Text>
         </Group>
       </Stack>
@@ -470,6 +487,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
         <Card withBorder padding="md" className={classes.panel}>
           <BlockInspector
             selected={selected}
+            clipped={selected !== null && overflowing.includes(selected.id)}
             textareaRef={textareaRef}
             onUpdate={updateBlock}
             onRemove={removeSelected}
@@ -515,6 +533,7 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
         >
           <BlockInspector
             selected={selected}
+            clipped={selected !== null && overflowing.includes(selected.id)}
             textareaRef={textareaRef}
             onUpdate={updateBlock}
             onRemove={removeSelected}
@@ -529,6 +548,8 @@ export function LayoutEditor({ layout, onChange }: LayoutEditorProps) {
 
 interface BlockInspectorProps {
   selected: TemplateLayoutBlock | null;
+  /** Текст выбранного блока не помещается в его рамку и будет обрезан — и на экране, и на бумаге. */
+  clipped?: boolean;
   /** У шторки заголовок свой, и второе слово «Блок» под ним было бы повтором. */
   withHeading?: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -542,7 +563,7 @@ interface BlockInspectorProps {
  * шторка на узком. Правка бланка не должна зависеть от того, с чего врач открыл страницу, поэтому
  * урезанного варианта для телефона нет.
  */
-function BlockInspector({ selected, textareaRef, onUpdate, onRemove, onInsertToken, withHeading = true }: BlockInspectorProps) {
+function BlockInspector({ selected, clipped, textareaRef, onUpdate, onRemove, onInsertToken, withHeading = true }: BlockInspectorProps) {
   return !selected ? (
           <Stack gap="xs" py="lg">
             <Text fw={600} size="sm">
@@ -580,6 +601,15 @@ function BlockInspector({ selected, textareaRef, onUpdate, onRemove, onInsertTok
                 </ActionIcon>
               </Group>
             </Group>
+
+            {clipped && (
+              <Alert color="red" variant="light" icon={<IconAlertTriangle size={16} />} p="xs">
+                <Text size="xs">
+                  Текст не помещается в рамку и будет обрезан — на бумаге тоже. Раздвиньте блок или
+                  уменьшите кегль.
+                </Text>
+              </Alert>
+            )}
 
             <Textarea
               ref={textareaRef}
