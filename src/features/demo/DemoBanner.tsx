@@ -35,10 +35,18 @@ export function DemoBanner() {
           </Text>
         </Group>
         <Group gap="sm" wrap="nowrap">
-          <Anchor href="/" size="sm">
+          <Anchor href="/" size="sm" visibleFrom="sm">
             О продукте
           </Anchor>
-          <Button size="compact-sm" variant="light" color="orange" onClick={logout}>
+          {/*
+            Основное действие в демо — завести аккаунт, и до этого его в полосе не было вовсе:
+            гостю, которому продукт понравился, предлагалось только выйти. Ссылка обычная, а не
+            через роутер: регистрация живёт в другом роутере, это полная загрузка страницы.
+          */}
+          <Button size="compact-sm" component="a" href="/login?mode=register">
+            Завести аккаунт
+          </Button>
+          <Button size="compact-sm" variant="subtle" color="orange" onClick={logout}>
             Выйти из демо
           </Button>
         </Group>

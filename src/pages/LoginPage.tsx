@@ -20,7 +20,13 @@ type Mode = 'login' | 'register';
  */
 export function LoginPage() {
   const [searchParams] = useSearchParams();
-  const [mode, setMode] = useState<Mode>('login');
+  /**
+   * `?mode=register` открывает сразу регистрацию.
+   *
+   * По этой ссылке приходят из демо-режима, где кнопка называется «Завести аккаунт»: открыть ей
+   * форму входа значило бы попросить сперва найти маленькую ссылку внизу.
+   */
+  const [mode, setMode] = useState<Mode>(() => (new URLSearchParams(window.location.search).get('mode') === 'register' ? 'register' : 'login'));
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

@@ -1,21 +1,35 @@
-import { Box, Button, Container, Group, Image, Stack, Text, Title } from '@mantine/core';
+import { Box, Button, Container, Group, Image, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { Link } from 'react-router-dom';
 
 /**
- * Until the real screenshot is dropped into `public/landing/`, the page shows a labelled grey
- * frame of the right proportions rather than a broken image icon: the layout below it has to be
- * judged at the size the picture will actually take.
+ * Снимки — настоящие, из демо-режима.
+ *
+ * До этого на первом экране стоял серый прямоугольник с надписью «Скриншот дашборда»: лендинг
+ * обещал продукт и показывал заглушку. Сняты они с демо-сессии, то есть на **вымышленных** данных —
+ * ни одной настоящей записи пациента на сайте быть не может; полоса «демо-режим» на снимке скрыта:
+ * она про сессию, а не про продукт.
+ *
+ * WebP и 1700 px по ширине: три снимка в оригинале весили под мегабайт, а лендинг обязан
+ * открываться быстро — это та же причина, по которой у публичной части свой набор стилей.
+ * `loading="lazy"` у всех, кроме первого: остальные лежат ниже первого экрана.
  */
-const SCREENSHOT_PLACEHOLDER =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
-       <rect width="1600" height="900" fill="#eef1ff"/>
-       <text x="800" y="460" text-anchor="middle" font-family="sans-serif" font-size="42" fill="#93a9ff">
-         Скриншот дашборда
-       </text>
-     </svg>`,
-  );
+const SHOTS = [
+  {
+    src: '/landing/dashboard.webp',
+    alt: 'Дашборд MedAssist: просроченный диспансерный контроль, нагрузка на приёме и карточки, которые врач расставляет сам',
+    caption: 'Дашборд: то, из чего сегодня что-то следует',
+  },
+  {
+    src: '/landing/patient.webp',
+    alt: 'Карточка пациента: константы, визиты с диагнозами, постоянная терапия и сохранённые анализы',
+    caption: 'Карточка пациента: визиты, терапия, анализы',
+  },
+  {
+    src: '/landing/print.webp',
+    alt: 'Печатный бланк справки с шапкой клиники, диагнозом и подписью врача',
+    caption: 'Бланк с шапкой клиники — сразу на печать',
+  },
+];
 
 /**
  * The first screen: what the product is, in one sentence a doctor can check against their own day.
@@ -37,7 +51,6 @@ export function HeroSection() {
               взаимодействий, анализы с референсами и калькуляторы. Без МИС и без бумаги.
             </Text>
             <Group gap="sm" mt="xs">
-              {/* Демо-режим — шаг 5 задачи; до него кнопка ведёт на страницу-заглушку. */}
               <Button component={Link} to="/demo" size="md">
                 Попробовать демо
               </Button>
@@ -50,14 +63,30 @@ export function HeroSection() {
             </Text>
           </Stack>
 
-          {/* TODO: положить настоящий снимок дашборда в public/landing/dashboard.png. */}
           <Image
-            src="/landing/dashboard.png"
-            fallbackSrc={SCREENSHOT_PLACEHOLDER}
-            alt="Дашборд MedAssist: карточки с очередью диспансерного контроля, календарём и избранными калькуляторами"
+            src={SHOTS[0].src}
+            alt={SHOTS[0].alt}
             radius="lg"
             style={{ border: '1px solid var(--mantine-color-default-border)', boxShadow: 'var(--mantine-shadow-md)' }}
           />
+
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
+            {SHOTS.slice(1).map((shot) => (
+              <Stack key={shot.src} gap={6}>
+                <Image
+                  src={shot.src}
+                  alt={shot.alt}
+                  loading="lazy"
+                  radius="lg"
+                  style={{ border: '1px solid var(--mantine-color-default-border)', boxShadow: 'var(--mantine-shadow-sm)' }}
+                />
+                <Text size="sm" c="dimmed">
+                  {shot.caption}
+                </Text>
+              </Stack>
+            ))}
+          </SimpleGrid>
+
         </Stack>
       </Container>
     </Box>
