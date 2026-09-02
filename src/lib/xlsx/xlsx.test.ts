@@ -7,7 +7,7 @@ import { unzipSync, strFromU8 } from 'fflate';
 import readXlsxFile from 'read-excel-file/node';
 
 import { cellsToStrings } from './readSheet';
-import { columnLetter, numericValue, sheetNameFrom, sheetToXlsxBytes, xlsxFileName } from './writeXlsx';
+import { columnLetter, numericValue, sheetNameFrom, sheetToXlsxBytes, workbookToXlsxBytes, xlsxFileName } from './writeXlsx';
 import { ERRORS } from '../sheet/formula';
 
 /**
@@ -393,5 +393,41 @@ describe('оформление ячеек', () => {
       'xl/worksheets/sheet1.xml',
     );
     expect(wide).toContain('<col min="1" max="1" width="12"');
+  });
+});
+
+describe('книга из нескольких листов', () => {
+  /**
+   * Выгрузка картотеки — это пациенты **и** их визиты: в одном листе пришлось бы либо повторять
+   * пациента на каждый приём, либо потерять приёмы. Круговой тест здесь тот же, что и у одного
+   * листа, и проверяет он ровно то, что могло разъехаться: имена листов, их порядок и содержимое.
+   */
+  it('оба листа читаются обратно тем же разборщиком', async () => {
+    const bytes = workbookToXlsxBytes([
+      { sheetName: 'Пациенты', columns: ['ФИО', 'Пол'], rows: [['Иванов Иван', 'Мужской']] },
+      { sheetName: 'Визиты', columns: ['ФИО', 'Дата', 'Диагноз'], rows: [['Иванов Иван', '01.09.2026', 'J18.9']] },
+    ]);
+    const sheets = (await readXlsxFile(new Blob([bytes as unknown as BlobPart]) as never)) as unknown as {
+      sheet: string;
+      data: unknown[][];
+    }[];
+
+    expect(sheets.map((sheet) => sheet.sheet)).toEqual(['Пациенты', 'Визиты']);
+    expect(sheets[0].data[1]).toEqual(['Иванов Иван', 'Мужской']);
+    expect(sheets[1].data[0]).toEqual(['ФИО', 'Дата', 'Диагноз']);
+    expect(sheets[1].data[1][2]).toBe('J18.9');
+  });
+
+  it('в пакете объявлены оба листа и таблица стилей', () => {
+    const bytes = workbookToXlsxBytes([
+      { sheetName: 'Первый', columns: ['A'], rows: [['1']] },
+      { sheetName: 'Второй', columns: ['B'], rows: [['2']] },
+    ]);
+    const rels = partOf(bytes, 'xl/_rels/workbook.xml.rels');
+    expect(rels).toContain('worksheets/sheet1.xml');
+    expect(rels).toContain('worksheets/sheet2.xml');
+    // Стили — последний идентификатор: их номер зависит от числа листов, и разъехаться ему нельзя.
+    expect(rels).toContain('Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"');
+    expect(partOf(bytes, '[Content_Types].xml')).toContain('/xl/worksheets/sheet2.xml');
   });
 });

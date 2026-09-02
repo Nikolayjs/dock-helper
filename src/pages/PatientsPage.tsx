@@ -1,6 +1,7 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
 import { Alert, Badge, Box, Button, Card, Collapse, Container, Group, SegmentedControl, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { IconAdjustmentsHorizontal, IconChartBar, IconClipboardHeart, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
+import { IconAdjustmentsHorizontal, IconChartBar, IconClipboardHeart, IconFileDownload, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 import { useNavigate } from 'react-router-dom';
 
 import { DISPENSARY_SORT_KEYS, DispensaryTable, dispensarySortValue, type DispensarySortKey } from '../features/patients/DispensaryTable';
@@ -54,6 +55,26 @@ export function PatientsPage() {
     { storageKey: 'medassist:sort:dispensary', keys: DISPENSARY_SORT_KEYS },
   );
   const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * Выгрузка идёт по **всей** картотеке, а не по тому, что осталось на экране после отбора.
+   *
+   * Это резервная копия и переезд, а не «сохранить найденное»: выгрузка, молча урезанная фильтром,
+   * который врач включил полчаса назад, — худший вид потери, потому что файл выглядит целым.
+   * Писатель .xlsx подключается по нажатию: до него он в сборке не нужен.
+   */
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { patientsWorkbook } = await import('../features/patients/import/exportPatients');
+      const { downloadXlsx } = await import('../lib/xlsx/downloadXlsx');
+      await downloadXlsx(patientsWorkbook(patients));
+      notifications.show({ message: `Выгружено записей: ${patients.length}`, color: 'teal' });
+    } finally {
+      setExporting(false);
+    }
+  };
   // Окно снимается не по закрытию, а никогда: иначе Mantine нечего показывать во время
   // анимации ухода, и окно исчезало бы рывком.
   const [importMounted, setImportMounted] = useState(false);
@@ -209,6 +230,21 @@ export function PatientsPage() {
                   }}
                 >
                   Загрузить базу
+                </Button>
+                {/*
+                  Обратная операция к загрузке, и для медицинского продукта это условие доверия:
+                  записи принадлежат врачу, а не нам. Заголовки те же, что понимает импорт, — файл
+                  загружается обратно; визиты идут вторым листом, потому что в одном пришлось бы
+                  либо повторять пациента на каждый приём, либо потерять приёмы.
+                */}
+                <Button
+                  variant="light"
+                  leftSection={<IconFileDownload size={18} />}
+                  onClick={handleExport}
+                  loading={exporting}
+                  disabled={patients.length === 0}
+                >
+                  Выгрузить .xlsx
                 </Button>
                 <Button leftSection={<IconPlus size={18} />} onClick={() => navigate('/patients/new')}>
                   Добавить пациента

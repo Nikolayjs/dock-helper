@@ -345,11 +345,14 @@ class StyleTable {
   }
 }
 
-function workbookXml(sheetName: string): string {
+function workbookXml(sheetNames: string[]): string {
+  const sheets = sheetNames
+    .map((name, index) => `<sheet name="${escapeXml(name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`)
+    .join('');
   return (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     `<workbook xmlns="${MAIN_NS}" xmlns:r="${REL_BASE}">` +
-    `<sheets><sheet name="${escapeXml(sheetName)}" sheetId="1" r:id="rId1"/></sheets>` +
+    `<sheets>${sheets}</sheets>` +
     '</workbook>'
   );
 }
@@ -368,15 +371,19 @@ function corePropsXml(title: string): string {
   );
 }
 
-function contentTypesXml(): string {
+function contentTypesXml(sheetCount: number): string {
   const spreadsheet = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+  const sheets = Array.from(
+    { length: sheetCount },
+    (_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="${spreadsheet}.worksheet+xml"/>`,
+  ).join('');
   return (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
     '<Default Extension="xml" ContentType="application/xml"/>' +
     `<Override PartName="/xl/workbook.xml" ContentType="${spreadsheet}.sheet.main+xml"/>` +
-    `<Override PartName="/xl/worksheets/sheet1.xml" ContentType="${spreadsheet}.worksheet+xml"/>` +
+    sheets +
     `<Override PartName="/xl/styles.xml" ContentType="${spreadsheet}.styles+xml"/>` +
     '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' +
     '</Types>'
@@ -384,15 +391,28 @@ function contentTypesXml(): string {
 }
 
 /** Вся сборка, как байты — форма, которую проверяют тесты. */
-export function sheetToXlsxBytes(input: XlsxInput): Uint8Array {
-  const sheetName = sheetNameFrom(input.sheetName);
-  // Лист собирается первым: стили — это номера строк в общей таблице, и напечатать её можно только
-  // после того, как стало известно, какие сочетания в документе встретились.
+/**
+ * Книга из нескольких листов.
+ *
+ * Листов бывает больше одного ровно там, где одна таблица не описывает набор целиком: выгрузка
+ * картотеки — это пациенты **и** их визиты, и класть их в один лист значило бы либо повторять
+ * пациента на каждый приём, либо потерять приёмы.
+ *
+ * Таблица стилей одна на всю книгу: это её собственное устройство — оформление ячейки в .xlsx есть
+ * номер строки в общей `cellXfs`, — поэтому все листы собираются **до** того, как она печатается.
+ */
+export function workbookToXlsxBytes(sheets: XlsxInput[]): Uint8Array {
+  if (sheets.length === 0) throw new Error('Книга без листов');
+  const names = sheets.map((sheet) => sheetNameFrom(sheet.sheetName));
   const styles = new StyleTable();
-  const sheet = sheetXml(input, styles);
+  const bodies = sheets.map((sheet) => sheetXml(sheet, styles));
+
+  const sheetRels = names
+    .map((_name, index) => `<Relationship Id="rId${index + 1}" Type="${REL_BASE}/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`)
+    .join('');
 
   const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(contentTypesXml()),
+    '[Content_Types].xml': strToU8(contentTypesXml(sheets.length)),
     '_rels/.rels': strToU8(
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
         `<Relationships xmlns="${PKG_RELS_NS}">` +
@@ -400,24 +420,34 @@ export function sheetToXlsxBytes(input: XlsxInput): Uint8Array {
         `<Relationship Id="rId2" Type="${PKG_RELS_NS}/metadata/core-properties" Target="docProps/core.xml"/>` +
         '</Relationships>',
     ),
-    'docProps/core.xml': strToU8(corePropsXml(input.sheetName)),
-    'xl/workbook.xml': strToU8(workbookXml(sheetName)),
+    'docProps/core.xml': strToU8(corePropsXml(sheets[0].sheetName)),
+    'xl/workbook.xml': strToU8(workbookXml(names)),
     'xl/_rels/workbook.xml.rels': strToU8(
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
         `<Relationships xmlns="${PKG_RELS_NS}">` +
-        `<Relationship Id="rId1" Type="${REL_BASE}/worksheet" Target="worksheets/sheet1.xml"/>` +
-        `<Relationship Id="rId2" Type="${REL_BASE}/styles" Target="styles.xml"/>` +
+        sheetRels +
+        `<Relationship Id="rId${sheets.length + 1}" Type="${REL_BASE}/styles" Target="styles.xml"/>` +
         '</Relationships>',
     ),
-    'xl/worksheets/sheet1.xml': strToU8(sheet),
     'xl/styles.xml': strToU8(styles.toXml()),
   };
+  bodies.forEach((body, index) => {
+    files[`xl/worksheets/sheet${index + 1}.xml`] = strToU8(body);
+  });
 
   return zipSync(files, { level: 6 });
 }
 
+export function sheetToXlsxBytes(input: XlsxInput): Uint8Array {
+  return workbookToXlsxBytes([input]);
+}
+
 export function sheetToXlsxBlob(input: XlsxInput): Blob {
-  const bytes = sheetToXlsxBytes(input);
+  return workbookToXlsxBlob([input]);
+}
+
+export function workbookToXlsxBlob(sheets: XlsxInput[]): Blob {
+  const bytes = workbookToXlsxBytes(sheets);
   return new Blob([bytes as unknown as BlobPart], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });

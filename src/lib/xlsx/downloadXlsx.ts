@@ -9,13 +9,14 @@ import type { XlsxInput } from './writeXlsx';
  * Ссылка на объект отзывается сильно позже нажатия: само нажатие синхронно, а запрос, который
  * браузер под него начинает, — нет, и слишком ранний отзыв отменяет загрузку в Firefox и Safari.
  */
-export async function downloadXlsx(input: XlsxInput): Promise<void> {
-  const { sheetToXlsxBlob, xlsxFileName } = await import('./writeXlsx');
+export async function downloadXlsx(input: XlsxInput | XlsxInput[]): Promise<void> {
+  const { workbookToXlsxBlob, xlsxFileName } = await import('./writeXlsx');
+  const sheets = Array.isArray(input) ? input : [input];
 
-  const url = URL.createObjectURL(sheetToXlsxBlob(input));
+  const url = URL.createObjectURL(workbookToXlsxBlob(sheets));
   const link = document.createElement('a');
   link.href = url;
-  link.download = xlsxFileName(input.sheetName);
+  link.download = xlsxFileName(sheets[0].sheetName);
   document.body.appendChild(link);
   link.click();
   link.remove();
