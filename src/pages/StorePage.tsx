@@ -71,16 +71,25 @@ function matchesSearch(item: StoreItem, query: string): boolean {
  * шаблонов Notion, магазин расширений VS Code.
  */
 export function StorePage() {
-  const { items, isLoading, install } = useStore();
+  const { items, isLoading, install, installMany } = useStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
 
   const user = useAuth();
   const specialties = useSpecialties();
   const specialty = user.specialty ? (specialties.find((s) => s.id === user.specialty) ?? null) : null;
+  /**
+   * Отбор по специальности включён с самого начала — если специальность известна.
+   *
+   * Ровно ради этого отбор и заводился: кардиолог, открывший магазин, видел все шестьдесят с лишним
+   * позиций подряд — то есть ту самую задачу, от которой уходили. В справочниках тумблер выключен
+   * по умолчанию, и это разные случаи: там отбор прячет **содержимое**, которое врач пришёл читать,
+   * а здесь — витрину, из которой он выбирает себе набор. Спрятанное при этом названо числом и
+   * снимается одним нажатием, как и везде.
+   */
   const [bySpecialty, setBySpecialty] = useLocalStorage({
     key: 'medassist:specialty-filter:store',
-    defaultValue: false,
+    defaultValue: Boolean(user.specialty),
   });
   const specialtyActive = specialty !== null && bySpecialty;
 
@@ -122,6 +131,19 @@ export function StorePage() {
    * мутаций, и второй тост рядом с ним — это одно и то же сообщение дважды. Проверено в демо, где
    * установка отвечает отказом: тостов было два.
    */
+  /** Что ещё не стоит из показанного: ровно это и ставит кнопка «поставить набор». */
+  const notInstalled = useMemo(() => visible.filter((item) => !item.installed), [visible]);
+
+  const handleInstallAll = () => {
+    installMany.mutate(notInstalled, {
+      onSuccess: ({ installed }) =>
+        notifications.show({
+          message: installed === 0 ? 'Ставить нечего' : `Добавлено: ${installed}`,
+          color: 'teal',
+        }),
+    });
+  };
+
   const handleInstall = (item: StoreItem) => {
     install.mutate(item, {
       onSuccess: () => notifications.show({ message: `«${item.title}» — добавлено`, color: 'teal' }),
@@ -161,11 +183,30 @@ export function StorePage() {
                 />
               )}
             </Group>
-            <Text size="sm" c="dimmed">
-              {query || specialtyActive
-                ? `Найдено: ${visible.length} из ${byKind.length}`
-                : `${byKind.length} ${plural(byKind.length, 'позиция', 'позиции', 'позиций')}, установлено ${installedCount}`}
-            </Text>
+            <Group gap="sm" wrap="wrap">
+              {/*
+                «Поставить всё» появляется только при включённом отборе и только когда есть что
+                ставить: без отбора это значило бы вывалить врачу весь каталог — ровно то, от чего
+                магазин и уходил. Ставится одним запросом: по одному ограничитель на сервере
+                оборвал бы набор на середине.
+              */}
+              {specialtyActive && notInstalled.length > 0 && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  leftSection={<IconDownload size={14} />}
+                  loading={installMany.isPending}
+                  onClick={handleInstallAll}
+                >
+                  Поставить набор для специальности ({notInstalled.length})
+                </Button>
+              )}
+              <Text size="sm" c="dimmed">
+                {query || specialtyActive
+                  ? `Найдено: ${visible.length} из ${byKind.length}`
+                  : `${byKind.length} ${plural(byKind.length, 'позиция', 'позиции', 'позиций')}, установлено ${installedCount}`}
+              </Text>
+            </Group>
           </Group>
         </PageToolbar>
       </Box>

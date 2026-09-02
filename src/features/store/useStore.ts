@@ -72,5 +72,26 @@ export function useStore() {
     },
   });
 
-  return { items: data ?? [], isLoading: isPending, install };
+  /**
+   * Поставить набор одним запросом.
+   *
+   * По одной позиции — это по запросу на каждую, а ограничитель на сервере пускает двадцать в
+   * минуту: набор из сорока панелей обрывался бы на середине с 429, оставляя половину. Поэтому
+   * список уходит целиком, а сервер ставит его подряд.
+   */
+  const installMany = useMutation({
+    mutationFn: (items: StoreItem[]) =>
+      request<{ installed: number }>('/store/install-many', {
+        method: 'POST',
+        body: JSON.stringify({ items: items.map((item) => ({ kind: item.kind, key: item.key })) }),
+      }),
+    onSuccess: (_result, items) => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      for (const kind of new Set(items.map((item) => item.kind))) {
+        void queryClient.invalidateQueries({ queryKey: SECTION_KEY[kind] });
+      }
+    },
+  });
+
+  return { items: data ?? [], isLoading: isPending, install, installMany };
 }
