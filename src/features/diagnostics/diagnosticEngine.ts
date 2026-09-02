@@ -3,10 +3,22 @@ import type { Disease, Questionnaire, Symptom } from './types';
 
 export type Answer = 'yes' | 'no';
 
-/** P(symptom present | disease) — the disease's explicit frequency, or the symptom's general fallback. */
+/**
+ * P(symptom present | disease) — the disease's explicit frequency, or the symptom's general fallback.
+ *
+ * Вероятность зажимается в 1–99 %, и это не косметика. Слайдер в конструкторе допускает ровно 0 и
+ * 100, а множитель ноль **обнуляет заболевание навсегда**: один ответ «да» на симптом с частотой 0 %
+ * убивает все версии сразу, `total` становится нулём, и на экране появляется равномерное
+ * распределение — то есть движок отвечает «все болезни одинаково вероятны» и не говорит почему.
+ * Так же зажат `priorWeight` строкой ниже, и по той же причине.
+ *
+ * Клинически это тоже честнее: «никогда» и «всегда» в медицине означают «почти никогда» и «почти
+ * всегда», и один ответ пациента не должен закрывать диагноз окончательно.
+ */
 export function symptomProbability(disease: Disease, symptom: Symptom): number {
   const link = disease.symptomLinks.find((l) => l.symptomId === symptom.id);
-  return link ? FREQUENCY_PROBABILITY[link.frequency] : symptom.generalPrevalence;
+  const raw = link ? FREQUENCY_PROBABILITY[link.frequency] : symptom.generalPrevalence;
+  return Math.min(0.99, Math.max(0.01, raw));
 }
 
 export interface Candidate {
