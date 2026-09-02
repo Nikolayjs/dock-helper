@@ -110,6 +110,19 @@ export function PlannerPage() {
   }, [columns, cards, activeBoard?.id]);
 
   const [activeCard, setActiveCard] = useState<PlannerCard | null>(null);
+  /*
+   * Ширина карточки под курсором — та же, что у неё в колонке.
+   *
+   * `DragOverlay` рисует карточку в своей коробке, и ширину она берёт по содержимому: замер на 610 —
+   * 254 px в колонке против 294 под курсором. Само по себе это ещё полбеды, беда — отпускание:
+   * карточка летит на место **широкой** и сужается одним кадром в самом конце анимации, через
+   * четверть секунды после того, как палец отпустили. Это и видно как рывок.
+   *
+   * Ширины коробки `DragOverlay` (её dnd-kit ставит сам) не хватает: карточка вылезает за неё —
+   * проверено, 294 при обёртке 254. Поэтому ширина ставится самой карточке, а меряется на живом
+   * узле по `data-card-id`: `active.rect` к моменту `onDragStart` ещё пуст.
+   */
+  const [dragWidth, setDragWidth] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ mode: 'closed' });
   const [addingColumn, setAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
@@ -125,6 +138,10 @@ export function PlannerPage() {
   const handleDragStart = (event: DragStartEvent) => {
     isDraggingRef.current = true;
     if (event.active.data.current?.type !== 'card') return;
+    // Ширина меряется на самой карточке, а не берётся из `active.rect`: к моменту `onDragStart` тот
+    // ещё пуст, и обёртка оставалась без ширины — карточка снова расползалась по содержимому.
+    const node = document.querySelector<HTMLElement>(`[data-card-id="${CSS.escape(String(event.active.id))}"]`);
+    setDragWidth(node ? Math.round(node.getBoundingClientRect().width) : null);
     const colId = findColumnIdForCard(String(event.active.id), board);
     const card = colId ? board.cardsByColumn[colId].find((c) => c.id === event.active.id) : undefined;
     setActiveCard(card ?? null);
@@ -341,6 +358,12 @@ export function PlannerPage() {
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        // Без этого карточка, брошенная по Esc, остаётся висеть под курсором: `onDragEnd` при
+        // отмене не зовётся вовсе.
+        onDragCancel={() => {
+          isDraggingRef.current = false;
+          setActiveCard(null);
+        }}
       >
         {/* Пустая обёртка не украшение: высоту хук считает от места **родителя** в документе, а
             родителем без неё оказался бы `Container` страницы — то есть доска считала бы своим и
@@ -419,7 +442,9 @@ export function PlannerPage() {
         </Box>
         </div>
 
-        <DragOverlay>{activeCard ? <PlannerCardItem card={activeCard} onOpen={() => {}} /> : null}</DragOverlay>
+        <DragOverlay>
+          {activeCard ? <PlannerCardItem card={activeCard} onOpen={() => {}} width={dragWidth ?? undefined} /> : null}
+        </DragOverlay>
       </DndContext>
 
       <PlannerCardModal

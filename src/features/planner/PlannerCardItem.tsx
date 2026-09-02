@@ -11,16 +11,28 @@ import type { PlannerCard } from './types';
 interface PlannerCardItemProps {
   card: PlannerCard;
   onOpen: (card: PlannerCard) => void;
+  /**
+   * Ширина карточки под курсором — та же, что у неё в колонке.
+   *
+   * `DragOverlay` рисует карточку в своей коробке, и ширину она берёт по содержимому: замер на
+   * 610 — 254 px в колонке против 294 под курсором. Задать её обёртке мало (проверено: карточка
+   * всё равно вылезала на 294), поэтому ширина ставится самой карточке.
+   */
+  width?: number;
 }
 
-export function PlannerCardItem({ card, onOpen }: PlannerCardItemProps) {
+export function PlannerCardItem({ card, onOpen, width }: PlannerCardItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
     data: { type: 'card', columnId: card.columnId },
   });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // `CSS.Translate`, а не `CSS.Transform`: второй кладёт в трансформацию ещё и масштаб, когда
+    // перетаскиваемый элемент и цель разного размера, а карточки в колонке разной высоты. Здесь
+    // масштаб в замерах не появлялся, но на дашборде эта же трансформация раздувала карточку до
+    // размеров соседа — см. `SortableWidget`; в раздувании карточки планера виноват был не он.
+    transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
   };
@@ -36,9 +48,12 @@ export function PlannerCardItem({ card, onOpen }: PlannerCardItemProps) {
   return (
     <Card
       ref={setNodeRef}
+      // По этой метке страница находит карточку, чтобы померить её ширину перед перетаскиванием:
+      // карточка под курсором обязана быть той же ширины, что в колонке.
+      data-card-id={card.id}
       // Сжиматься карточке нельзя: в колонке со своей прокруткой flex сплющил бы весь список
       // вместо того, чтобы дать ему прокрутиться (замер: двенадцать карточек в полосу по 38 px).
-      style={{ ...style, cursor: 'grab', touchAction: 'none', flexShrink: 0 }}
+      style={{ ...style, cursor: 'grab', touchAction: 'none', flexShrink: 0, width, maxWidth: width }}
       withBorder
       radius="md"
       padding="sm"

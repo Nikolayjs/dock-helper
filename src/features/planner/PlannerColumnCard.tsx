@@ -31,7 +31,8 @@ export function PlannerColumnCard({ column, cards, onRename, onDelete, onAddCard
   });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // Масштаб в трансформации не нужен и колонкам: см. `PlannerCardItem` и `SortableWidget`.
+    transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
