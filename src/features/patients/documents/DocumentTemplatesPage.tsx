@@ -123,6 +123,16 @@ export function DocumentTemplatesPage({ hint }: { hint?: string }) {
                 ? 'Бланк — заготовка с подстановками: напишите её один раз, и она будет печататься с данными выбранного пациента.'
                 : 'Попробуйте изменить запрос или создайте новый бланк.'}
             </Text>
+            {templates.length === 0 && (
+              <Group gap="sm" mt="xs">
+                <Button leftSection={<IconPlus size={16} />} onClick={() => navigate('/documents/templates/new')}>
+                  Создать бланк
+                </Button>
+                <Button variant="light" leftSection={<IconBuildingStore size={16} />} onClick={() => navigate('/store?tab=template')}>
+                  Взять готовый в магазине
+                </Button>
+              </Group>
+            )}
           </Stack>
         </Card>
       )}

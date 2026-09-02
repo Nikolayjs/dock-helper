@@ -14,6 +14,8 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
+import { Link as RouterLink } from 'react-router-dom';
+
 import { isDemoSession } from '../demo/demoSession';
 import { IconBooks, IconCloudUpload, IconLink, IconPlus, IconSearch } from '@tabler/icons-react';
 
@@ -169,6 +171,18 @@ export function LibraryGrid({
               Загрузите файлы в формате PDF, DOCX, FB2 или DjVu — обложка и описание определятся автоматически. Файл
               остаётся на этом устройстве, на сервер уходит только полка.
             </Text>
+            <Group gap="sm" mt="xs">
+              <FileButton onChange={(files) => files.length > 0 && onAddFiles(files, { cloud })} accept=".pdf,.docx,.fb2,.djvu,.djv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
+                {(props) => (
+                  <Button {...props} leftSection={<IconPlus size={16} />}>
+                    Добавить книгу
+                  </Button>
+                )}
+              </FileButton>
+              <Button variant="light" component={RouterLink} to="/store?tab=book">
+                Источники в магазине
+              </Button>
+            </Group>
           </Stack>
         </Card>
       ) : (

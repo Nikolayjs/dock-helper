@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Button, Box, Container, Group, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconBuildingStore, IconInfoCircle, IconPlus, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { CatalogPanel } from '../components/common/CatalogPanel';
 import { QUESTIONNAIRE_SORT_KEYS, QuestionnaireTable, questionnaireSortValue, type QuestionnaireSortKey } from '../features/diagnostics/QuestionnaireTable';
@@ -91,6 +91,16 @@ export function QuestionnairesPage() {
                   ? 'Попробуйте изменить запрос.'
                   : 'Создайте первую анкету дифференциальной диагностики — особенно полезно для редких заболеваний, которые легко упустить.'}
               </Text>
+              {!search.trim() && (
+                <Group gap="sm" mt="xs">
+                  <Button leftSection={<IconPlus size={16} />} onClick={() => navigate('/diagnostics/new')}>
+                    Создать анкету
+                  </Button>
+                  <Button variant="light" component={Link} to="/store?tab=questionnaire">
+                    Взять готовую в магазине
+                  </Button>
+                </Group>
+              )}
             </Stack>
           </Box>
         ) : (

@@ -237,6 +237,25 @@ export function PatientsPage() {
                         ? 'Попробуйте изменить запрос.'
                         : 'Добавьте пациента, чтобы вести историю визитов, диагнозы и короткие заметки.'}
                     </Text>
+                    {/* Действие лежит в шапке списка, а на телефоне шапка уже уехала вверх: без
+                        кнопки прямо здесь пустая страница ничего не предлагает. */}
+                    {!search.trim() && (
+                      <Group gap="sm" mt="xs">
+                        <Button leftSection={<IconPlus size={16} />} onClick={() => navigate('/patients/new')}>
+                          Добавить пациента
+                        </Button>
+                        <Button
+                          variant="light"
+                          leftSection={<IconFileUpload size={16} />}
+                          onClick={() => {
+                            setImportMounted(true);
+                            setImportOpen(true);
+                          }}
+                        >
+                          Загрузить базу
+                        </Button>
+                      </Group>
+                    )}
                   </Stack>
                 </Box>
               ) : (

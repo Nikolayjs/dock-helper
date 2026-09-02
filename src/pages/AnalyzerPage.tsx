@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Tabs, Text } from '@mantine/core';
+import { Box, Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Stack, Tabs, Text, ThemeIcon } from '@mantine/core';
 
 import { PageToolbar } from '../components/common/PageToolbar';
 import { useUnsavedGuard } from '../components/common/unsavedChanges';
 import { notifications } from '@mantine/notifications';
-import { IconBuildingStore, IconClipboardPlus, IconEdit, IconEraser, IconFileUpload, IconPlus } from '@tabler/icons-react';
+import { IconBuildingStore, IconClipboardPlus, IconEdit, IconEraser, IconFileUpload, IconFlask, IconPlus } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { STICKY_TOP } from '../layouts/shellMetrics';
 
@@ -261,6 +261,34 @@ export function AnalyzerPage() {
         </Group>
         </PageToolbar>
       </Box>
+
+      {/*
+        Ветки пустого списка не было вовсе: при нуле анализаторов страница состояла из полей пола и
+        возраста — форма без анализа, которую нечем заполнить и непонятно, что с ней делать.
+      */}
+      {allTests.length === 0 && (
+        <Card withBorder padding="xl">
+          <Stack align="center" gap="sm" py="xl">
+            <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+              <IconFlask size={24} />
+            </ThemeIcon>
+            <Text fw={600}>Пока нет ни одного анализа</Text>
+            <Text size="sm" c="dimmed" ta="center" maw={420}>
+              Анализатор разбирает бланк по нормам и правилам: показывает отклонения и складывает из
+              них заключения. Возьмите готовый — общий анализ крови, мочи, биохимия — или соберите
+              свой под бланк своей лаборатории.
+            </Text>
+            <Group gap="sm" mt="xs">
+              <Button leftSection={<IconBuildingStore size={16} />} component={Link} to="/store?tab=analyzer">
+                Взять готовый в магазине
+              </Button>
+              <Button variant="light" leftSection={<IconPlus size={16} />} onClick={() => navigate('/analyzer/new')}>
+                Собрать свой
+              </Button>
+            </Group>
+          </Stack>
+        </Card>
+      )}
 
       {currentTest && result && (
         <Grid gap="lg">

@@ -153,6 +153,20 @@ export function DocumentList({ hint }: { hint?: string }) {
                 ? 'Направление на экспертизу, справка, реестр — всё, что вы пишете сами. Документ можно привязать к пациенту, а можно оставить общим.'
                 : 'Попробуйте изменить запрос или снять фильтр по пациенту.'}
             </Text>
+            {documents.length === 0 && (
+              <Group gap="sm" mt="xs">
+                <Button leftSection={<IconFileText size={16} />} onClick={() => navigate('/documents/new?kind=text')}>
+                  Написать документ
+                </Button>
+                <Button
+                  variant="light"
+                  leftSection={<IconFileSpreadsheet size={16} />}
+                  onClick={() => navigate('/documents/new?kind=sheet')}
+                >
+                  Собрать таблицу
+                </Button>
+              </Group>
+            )}
           </Stack>
         </Box>
       )}
