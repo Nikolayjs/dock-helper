@@ -44,8 +44,19 @@ export function TemplateDocument({ template, patient, visit, copiesOverride }: T
 
   const html = substitutePlaceholdersHtml(template.bodyHtml, context);
 
+  /**
+   * Потоковый шаблон помечает себя `printable-flow`, и это не косметика.
+   *
+   * `.printable-document` носит и бланк-скан, и потоковый шаблон, а печатался он одним правилом
+   * `position: fixed; inset: 0` — то есть ровно одним листом. Бланку это верно, он и есть лист;
+   * выписка на полторы страницы теряла хвост молча. По этому классу печать разводит их надвое.
+   *
+   * Поля страницы объявляются здесь же, а не в `index.css`, по той же причине, что и у бланка:
+   * `@page` глобален, и общее правило задело бы и отчёты, у которых свои таблицы во всю ширину.
+   */
   return (
-    <div>
+    <div className="printable-flow">
+      <style>{'@page { margin: 16mm; }'}</style>
       <DocumentLetterhead />
       <Typography>
         <SafeHtml html={html} />

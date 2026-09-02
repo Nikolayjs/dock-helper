@@ -429,7 +429,7 @@ body {
      нельзя** — он длиннее листа, а `position: fixed` обрезал бы его на первой странице. Поэтому
      правило отключается, когда на странице есть печатаемый отчёт, и там лишнее убирается
      `display: none`, то есть уходит из потока, а не прячется в нём. */
-  body:not(:has(.printable-report)) * {
+  body:not(:has(.printable-report)):not(:has(.printable-flow)) * {
     visibility: hidden;
   }
 
@@ -439,11 +439,14 @@ body {
 
   /* Оболочка на бумагу не идёт ни в каком виде: ни шапка приложения, ни сайдбар. */
   body:has(.printable-report) .mantine-AppShell-header,
-  body:has(.printable-report) .mantine-AppShell-navbar {
+  body:has(.printable-report) .mantine-AppShell-navbar,
+  body:has(.printable-flow) .mantine-AppShell-header,
+  body:has(.printable-flow) .mantine-AppShell-navbar {
     display: none !important;
   }
 
-  body:has(.printable-report) .mantine-AppShell-main {
+  body:has(.printable-report) .mantine-AppShell-main,
+  body:has(.printable-flow) .mantine-AppShell-main {
     padding: 0 !important;
   }
 
@@ -459,10 +462,50 @@ body {
    * страницу с документом и пачку пустых листов следом.
    */
   body:has(.printable-report) #app-shell-scroll-root,
-  body:has(.printable-report) .mantine-AppShell-main {
+  body:has(.printable-report) .mantine-AppShell-main,
+  body:has(.printable-flow) #app-shell-scroll-root,
+  body:has(.printable-flow) .mantine-AppShell-main {
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
+  }
+
+  /*
+   * Потоковый шаблон печатается потоком — как отчёт, а не как бланк.
+   *
+   * `.printable-document` носит и бланк-скан, и потоковый шаблон, а правило у него было одно:
+   * `position: fixed; inset: 0`. Бланку это верно — он и есть лист фиксированного размера, — а
+   * потоковый шаблон переносится и перерастает страницу: выписка на полторы страницы теряла хвост
+   * молча, обрезанная краем первого листа.
+   *
+   * Прячется здесь **из потока** (`display: none`), а не в нём: спрятанное `visibility: hidden`
+   * занимает место, и документ уехал бы вниз, а за ним пошли бы пустые листы. Выбирается всё, что
+   * не является ни самим документом, ни его потомком, ни его предком (`:has`).
+   */
+  body:has(.printable-flow) *:not(:has(.printable-flow)):not(.printable-flow):not(.printable-flow *) {
+    display: none !important;
+  }
+
+  .printable-document:has(.printable-flow) {
+    position: static;
+    padding: 0;
+  }
+
+  .printable-flow {
+    background: #fff;
+    color: #000;
+  }
+
+  /* Строку и абзац рвать между страницами нельзя — половина фразы внизу листа читается как обрыв. */
+  .printable-flow tr,
+  .printable-flow h1,
+  .printable-flow h2,
+  .printable-flow h3 {
+    page-break-inside: avoid;
+  }
+
+  .printable-flow thead {
+    display: table-header-group;
   }
 
   /* Таблица отчёта на бумаге не прокручивается — она переносится на следующую страницу. */
@@ -495,8 +538,8 @@ body {
    * `.printable-report`, прячущее правило было просто `body *` и не выигрывало; условие добавили —
    * и молча сломали печать бланков, справок и шаблонов.
    */
-  body:not(:has(.printable-report)) .printable-document,
-  body:not(:has(.printable-report)) .printable-document * {
+  body:not(:has(.printable-report)):not(:has(.printable-flow)) .printable-document,
+  body:not(:has(.printable-report)):not(:has(.printable-flow)) .printable-document * {
     visibility: visible;
   }
 
@@ -545,7 +588,8 @@ body {
    * `table-layout: fixed` и перенос по словам — чтобы восемь колонок ужались, а не уехали за край.
    */
   .printable-report table,
-  .printable-document table {
+  .printable-document table,
+  .printable-flow table {
     display: table !important;
     max-width: 100% !important;
     width: 100%;
