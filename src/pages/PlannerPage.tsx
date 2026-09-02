@@ -4,7 +4,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -127,8 +128,18 @@ export function PlannerPage() {
   const [addingColumn, setAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
 
+  /**
+   * Мышь и палец разведены по разным сенсорам — то же решение, что на дашборде и в сайдбаре.
+   *
+   * Общий `PointerSensor` с порогом в 4 px означал, что **любое** движение пальцем по карточке
+   * начинает перетаскивание: доску на телефоне нельзя было ни прокрутить вниз по колонке, ни
+   * пролистать вбок — палец почти всегда стоит на карточке, они занимают колонку целиком.
+   * Отличить «веду пальцем» от «беру карточку» можно только паузой, поэтому у пальца удержание,
+   * а `tolerance` отменяет захват, если за это время палец уехал — значит, это была прокрутка.
+   */
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 

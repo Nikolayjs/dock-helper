@@ -53,7 +53,10 @@ export function PlannerCardItem({ card, onOpen, width }: PlannerCardItemProps) {
       data-card-id={card.id}
       // Сжиматься карточке нельзя: в колонке со своей прокруткой flex сплющил бы весь список
       // вместо того, чтобы дать ему прокрутиться (замер: двенадцать карточек в полосу по 38 px).
-      style={{ ...style, cursor: 'grab', touchAction: 'none', flexShrink: 0, width, maxWidth: width }}
+      // `manipulation`, а не `none`: запрет прокрутки на карточке и был той поломкой — колонку с
+      // карточками на телефоне нельзя было пролистать вовсе. Перетаскивание пальцем начинается по
+      // удержанию (см. сенсоры на странице), и до него жест принадлежит странице.
+      style={{ ...style, cursor: 'grab', touchAction: 'manipulation', flexShrink: 0, width, maxWidth: width }}
       withBorder
       radius="md"
       padding="sm"
