@@ -54,7 +54,14 @@ export interface CrudHandle<T, TCreate, TUpdate = Partial<TCreate>> {
    */
   isSuccess: boolean;
   error: unknown;
-  refetch: () => void;
+  /**
+   * Перезагрузить список и дождаться свежих данных.
+   *
+   * Отдаёт сами записи, а не «void»: тому, кто собирает PATCH из чужой записи, нужен не сигнал, а
+   * то, что сейчас на сервере. Иначе правка, сделанная в другой вкладке, затирается копией из
+   * кэша — а кэш здесь живёт долго (`refetchOnWindowFocus: false`).
+   */
+  refetch: () => Promise<T[]>;
   /** Пометить список устаревшим. Нужен хукам, которые достраивают свои мутации поверх базовых. */
   invalidate: () => void;
   create: (input: TCreate) => Promise<T>;
@@ -120,7 +127,7 @@ export function useCrudResource<T, TCreate, TUpdate = Partial<TCreate>>(
     isLoading: isPending,
     isSuccess,
     error,
-    refetch,
+    refetch: async () => (await refetch()).data ?? items,
     invalidate,
     create: createMutation.mutateAsync,
     update: (id, input) => updateMutation.mutateAsync({ id, input }),

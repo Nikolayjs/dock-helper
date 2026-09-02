@@ -31,7 +31,7 @@ interface SaveToVisitModalProps {
  * запись упиралась бы в пустой список, а завести визит пришлось бы на другой странице.
  */
 export function SaveToVisitModal({ patient, line, onClose }: SaveToVisitModalProps) {
-  const { addVisit, updateVisit } = usePatients();
+  const { addVisit, updateVisit, refetch } = usePatients();
   const visits = sortedVisits(patient.visits);
   const [target, setTarget] = useState<string>(visits[0]?.id ?? NEW_VISIT);
 
@@ -47,7 +47,18 @@ export function SaveToVisitModal({ patient, line, onClose }: SaveToVisitModalPro
         referralDestination: '',
       });
     } else {
-      const visit = patient.visits.find((item) => item.id === target);
+      /**
+       * Визит собирается из **свежего** списка, а не из того, что лежало в кэше при открытии окна.
+       *
+       * PATCH уходит со всеми полями визита, версии записи нет, а список пациентов смонтирован
+       * всегда и сам не перезагружается (`refetchOnWindowFocus: false`) — то есть между открытием
+       * калькулятора и нажатием «Записать» помещается чужая правка того же визита, и она была бы
+       * затёрта нашей копией. Перечитывание сужает окно до одного запроса; закрыть его полностью
+       * может только версия записи и 409 на сервере.
+       */
+      const fresh = await refetch();
+      const current = fresh.find((item) => item.id === patient.id) ?? patient;
+      const visit = current.visits.find((item) => item.id === target);
       if (!visit) return;
       await updateVisit(patient.id, visit.id, {
         date: visit.date,
