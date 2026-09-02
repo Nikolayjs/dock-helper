@@ -39,7 +39,7 @@
  */
 @media (max-width: 48em) {
   .tabs {
-    margin-inline: calc(-1 * var(--app-shell-padding, var(--mantine-spacing-md)));
-    padding-inline: var(--app-shell-padding, var(--mantine-spacing-md));
+    margin-inline: calc(-1 * var(--app-bleed, var(--app-shell-padding, var(--mantine-spacing-md))));
+    padding-inline: var(--app-bleed, var(--app-shell-padding, var(--mantine-spacing-md)));
   }
 }

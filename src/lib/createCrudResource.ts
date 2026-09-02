@@ -67,6 +67,22 @@ export interface CrudHandle<T, TCreate, TUpdate = Partial<TCreate>> {
    * списке из тридцати карточек, и перезагружать его ради галочки незачем.
    */
   replaceInCache: (row: T & { id: string }) => void;
+  /**
+   * Оптимистичная правка одной строки: экран меняется в том же кадре, сервер догоняет.
+   *
+   * Отметка в чек-листе — действие, у которого нет «в процессе»: галочка либо стоит, либо нет.
+   * Через ручку сервера и перезагрузку списка она появлялась только после круга по сети, а список
+   * заметок везёт с собой их тексты вместе с картинками — на телефоне это была та самая «огромная
+   * задержка» на каждое нажатие.
+   *
+   * Ответ сервера **заменяет** предположение (`replaceInCache`), а ошибка возвращает список таким,
+   * каким он был: соврать про сохранённую отметку хуже, чем показать её с задержкой.
+   */
+  optimisticUpdate: <R extends T & { id: string }>(
+    id: string,
+    patch: (row: T) => T,
+    run: () => Promise<R>,
+  ) => Promise<R>;
 }
 
 export function useCrudResource<T, TCreate, TUpdate = Partial<TCreate>>(
@@ -93,6 +109,12 @@ export function useCrudResource<T, TCreate, TUpdate = Partial<TCreate>>(
   });
   const removeMutation = useMutation({ mutationFn: (id: string) => repo.remove(id), onSuccess: invalidate });
 
+  const replaceInCache = (row: T & { id: string }) => {
+    queryClient.setQueryData<T[]>(queryKey, (prev) =>
+      prev?.map((item) => ((item as { id?: string }).id === row.id ? row : item)) ?? prev,
+    );
+  };
+
   return {
     items,
     isLoading: isPending,
@@ -103,10 +125,22 @@ export function useCrudResource<T, TCreate, TUpdate = Partial<TCreate>>(
     create: createMutation.mutateAsync,
     update: (id, input) => updateMutation.mutateAsync({ id, input }),
     remove: removeMutation.mutateAsync,
-    replaceInCache: (row) => {
+    replaceInCache,
+    optimisticUpdate: async (id, patch, run) => {
+      // Запрос списка, начатый до правки, пришёл бы с прежним значением и затёр бы её.
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<T[]>(queryKey);
       queryClient.setQueryData<T[]>(queryKey, (prev) =>
-        prev?.map((item) => ((item as { id?: string }).id === row.id ? row : item)) ?? prev,
+        prev?.map((item) => ((item as { id?: string }).id === id ? patch(item) : item)) ?? prev,
       );
+      try {
+        const saved = await run();
+        replaceInCache(saved);
+        return saved;
+      } catch (error) {
+        if (previous) queryClient.setQueryData<T[]>(queryKey, previous);
+        throw error;
+      }
     },
   };
 }

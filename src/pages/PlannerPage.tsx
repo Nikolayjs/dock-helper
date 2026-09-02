@@ -28,6 +28,7 @@ import { positionBetween } from '../features/planner/position';
 import type { PlannerBoard as GlobalTask, PlannerCard, PlannerCardColor, PlannerColumn } from '../features/planner/types';
 import { usePlanner } from '../features/planner/usePlanner';
 import { useScreenFitHeight } from '../components/common/useScreenFitHeight';
+import classes from '../features/planner/PlannerBoard.module.css';
 
 type ModalState = { mode: 'closed' } | { mode: 'edit'; card: PlannerCard } | { mode: 'create'; columnId: string };
 
@@ -345,7 +346,7 @@ export function PlannerPage() {
             родителем без неё оказался бы `Container` страницы — то есть доска считала бы своим и
             место под полосой задач над ней (замер: низ доски 972 при окне 900). */}
         <div>
-        <Box ref={boardRef} style={{ overflowX: 'auto', paddingBottom: 8, height: boardHeight ?? undefined }}>
+        <Box ref={boardRef} className={classes.board} style={{ overflowX: 'auto', paddingBottom: 8, height: boardHeight ?? undefined }}>
           {/*
             Колонки растягиваются на всю высоту доски (`align="stretch"`), а не облегают свои
             карточки: цель перетаскивания — весь столбец, а не полоса высотой в две карточки.

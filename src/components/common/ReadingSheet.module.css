@@ -47,6 +47,8 @@
     margin-inline: calc(-1 * var(--app-shell-padding, var(--mantine-spacing-md)));
     border-inline: none;
     padding: var(--mantine-spacing-md);
+    /* Отсюда до края экрана — свой отступ подложки, а не отступ оболочки: см. `--app-bleed`. */
+    --app-bleed: var(--mantine-spacing-md);
   }
 }
 

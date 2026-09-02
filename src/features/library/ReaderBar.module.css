@@ -87,7 +87,7 @@
 /* На телефоне панель во всю ширину экрана — по той же причине, что и подложка под текстом. */
 @media (max-width: 48em) {
   .bar {
-    margin-inline: calc(-1 * var(--app-shell-padding, var(--mantine-spacing-md)));
+    margin-inline: calc(-1 * var(--app-bleed, var(--app-shell-padding, var(--mantine-spacing-md))));
     border-inline: none;
     border-radius: 0;
   }

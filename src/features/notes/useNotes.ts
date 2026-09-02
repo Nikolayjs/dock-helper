@@ -1,4 +1,4 @@
-import { createCrudResource, useCrudResource, useInvalidatingMutation } from '../../lib/createCrudResource';
+import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
 import { request } from '../../lib/httpRepository';
 import type { Note } from './types';
 
@@ -15,7 +15,7 @@ function toggleTodoItem(noteId: string, itemId: string): Promise<Note> {
 }
 
 export function useNotes() {
-  const { items: notes, isLoading, error, refetch, invalidate, create, update, remove } = useCrudResource(resource);
+  const { items: notes, isLoading, error, refetch, create, update, remove, optimisticUpdate } = useCrudResource(resource);
 
   return {
     notes,
@@ -25,6 +25,18 @@ export function useNotes() {
     addNote: create,
     updateNote: update,
     deleteNote: remove,
-    toggleTodoItem: useInvalidatingMutation(invalidate, toggleTodoItem),
+    /**
+     * Отметка ставится сразу, а сервер догоняет.
+     *
+     * До этого нажатие ждало круга по сети **и перезагрузки всего списка заметок** — а список
+     * везёт с собой тексты вместе с вставленными картинками. На телефоне это была задержка в
+     * секунды на каждый пункт, то есть чек-лист, которым нельзя пользоваться по ходу дела.
+     */
+    toggleTodoItem: (noteId: string, itemId: string) =>
+      optimisticUpdate(
+        noteId,
+        (note) => ({ ...note, items: note.items.map((item) => (item.id === itemId ? { ...item, done: !item.done } : item)) }),
+        () => toggleTodoItem(noteId, itemId),
+      ),
   };
 }
