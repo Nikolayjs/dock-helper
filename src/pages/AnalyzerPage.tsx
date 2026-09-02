@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Tabs, Text } from '@mantine/core';
 
 import { PageToolbar } from '../components/common/PageToolbar';
+import { useUnsavedGuard } from '../components/common/unsavedChanges';
 import { notifications } from '@mantine/notifications';
 import { IconBuildingStore, IconClipboardPlus, IconEdit, IconEraser, IconFileUpload, IconPlus } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
@@ -63,6 +64,19 @@ export function AnalyzerPage() {
   const [saveOpen, setSaveOpen] = useState(false);
 
   /**
+   * Набранные значения — это длинный ввод, и уходить с него молча нельзя.
+   *
+   * Страница специально держит **все** заполненные вкладки, а не открытую: файл из лаборатории
+   * покрывает и общий анализ крови, и биохимию сразу. Значит, одним нажатием на пункт меню тут
+   * теряются три десятка чисел, набранных руками с бумажного бланка. Охрана стоит в тринадцати
+   * редакторах приложения; здесь был единственный длинный ввод без неё.
+   *
+   * Отметка о сохранённом — снимок того, что ушло в карту: после записи уходить можно свободно, а
+   * дописанное после неё снова считается несохранённым.
+   */
+  const [savedMark, setSavedMark] = useState<string | null>(null);
+
+  /**
    * Панели, в которых что-то набрано, — то, что вообще можно сохранить в карту.
    *
    * Считается по **всем** вкладкам, а не по открытой: файл из лаборатории обычно покрывает и общий
@@ -87,6 +101,12 @@ export function AnalyzerPage() {
    */
   const requestedTestId = searchParams.get('test');
   const activeTestId = testId ?? (requestedTestId && allTests.some((t) => t.id === requestedTestId) ? requestedTestId : undefined) ?? allTests[0]?.id;
+  const filledMark = useMemo(
+    () => JSON.stringify(filledPanels.map((panel) => [panel.test.id, panelValues(panel)])),
+    [filledPanels],
+  );
+  const guard = useUnsavedGuard(filledPanels.length > 0 && filledMark !== savedMark);
+
   const currentTest = allTests.find((t) => t.id === activeTestId);
   const currentValues = currentTest ? (valuesByTest[currentTest.id] ?? {}) : {};
 
@@ -290,9 +310,14 @@ export function AnalyzerPage() {
         </Grid>
       )}
 
+      {/* «Сохранить» в окне открывает запись в карту: она спрашивает пациента и дату, и сделать это
+          за врача нечем. После записи страница перестаёт считаться несохранённой, и уйти можно. */}
+      {guard.render({ onSave: () => setSaveOpen(true) })}
+
       <SaveToChartModal
         opened={saveOpen}
         onClose={() => setSaveOpen(false)}
+        onSaved={() => setSavedMark(filledMark)}
         panels={filledPanels}
         activeTestId={activeTestId}
         sex={sex}

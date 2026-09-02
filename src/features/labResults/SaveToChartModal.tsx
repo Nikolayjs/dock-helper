@@ -16,6 +16,8 @@ import { useLabResults } from './useLabResults';
 interface SaveToChartModalProps {
   opened: boolean;
   onClose: () => void;
+  /** Записано в карту: страница разбора снимает с себя охрану несохранённого. */
+  onSaved?: () => void;
   panels: FilledPanel[];
   /** Панель, открытая на экране: она отмечена всегда, остальные — тоже, но их видно списком. */
   activeTestId?: string;
@@ -38,7 +40,7 @@ export function SaveToChartModal({ opened, onClose, ...rest }: SaveToChartModalP
   );
 }
 
-function SaveToChartForm({ onClose, panels, activeTestId, sex, age, patientId }: Omit<SaveToChartModalProps, 'opened'>) {
+function SaveToChartForm({ onClose, onSaved, panels, activeTestId, sex, age, patientId }: Omit<SaveToChartModalProps, 'opened'>) {
   const { patients } = usePatients();
   const { addResult } = useLabResults();
 
@@ -76,6 +78,7 @@ function SaveToChartForm({ onClose, panels, activeTestId, sex, age, patientId }:
       message: saved.length === 1 ? 'Анализ сохранён в карту пациента' : `Сохранено бланков: ${saved.length}`,
       color: 'teal',
     });
+    onSaved?.();
     onClose();
   });
 
