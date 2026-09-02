@@ -3,6 +3,7 @@ import { ActionIcon, Badge, Button, Card, Grid, Group, NumberInput, Select, Stac
 import { IconCalculator, IconClipboardPlus, IconPlus } from '@tabler/icons-react';
 
 import { evaluateFormula } from '../../lib/formulaEngine';
+import { matchInterpretation, roundResult } from './interpretation';
 import { calculationSummary } from './resultLine';
 import type { CalculatorDefinition } from './types';
 
@@ -68,20 +69,20 @@ export function CalculatorForm({ definition, onAddPreset, initialValues, cleared
       );
       const raw = evaluateFormula(definition.formula, numericValues);
       if (!Number.isFinite(raw)) return { result: null, error: 'Проверьте введённые значения' };
-      return { result: raw, error: null };
+      // Округление — один раз и здесь, а не в момент показа. Полоса толкования обязана выбираться
+      // по тому же числу, которое врач видит: клиренс 29,6 при `decimals: 0` печатался как «30» и
+      // получал плашку «Тяжёлое снижение» (полоса «до 30»), хотя 30 — уже следующая полоса.
+      // Это же число уходит в заметку визита, то есть противоречие попадало в карту пациента.
+      return { result: roundResult(raw, definition.decimals), error: null };
     } catch (err) {
       return { result: null, error: err instanceof Error ? err.message : 'Ошибка вычисления' };
     }
   }, [values, definition]);
 
-  const matchedRange = useMemo(() => {
-    if (result === null || !definition.interpretation) return undefined;
-    return definition.interpretation.find((range) => {
-      const aboveMin = range.min === undefined || result >= range.min;
-      const belowMax = range.max === undefined || result < range.max;
-      return aboveMin && belowMax;
-    });
-  }, [result, definition.interpretation]);
+  const matchedRange = useMemo(
+    () => (result === null ? undefined : matchInterpretation(result, definition.interpretation)),
+    [result, definition.interpretation],
+  );
 
   /**
    * Цвет плашки — цвет толкования, а не калькулятора.
