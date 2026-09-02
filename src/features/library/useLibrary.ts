@@ -1,8 +1,12 @@
+import { useLayoutEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
 import { createCrudResource, useCrudResource } from '../../lib/createCrudResource';
+import * as bookFiles from './bookFiles';
+import { sha256Of } from './bookSource';
 import { decodeFb2Text, parseFb2 } from './fb2';
-import { fetchBookFile, updateBookProgress, uploadBook } from './libraryApi';
+import { findByFingerprint, fileStillUsed } from './shelf';
+import { createDeviceBook, createLinkBook, dropServerFile, fetchBookFile, updateBookProgress, uploadBook } from './libraryApi';
 import { readDocx } from '../../lib/docx/readDocx';
 import { LEGACY_DOC_MESSAGE } from '../../lib/docx/wordFormat';
 import type { Book, BookFormat, BookMetaInput } from './types';
@@ -24,11 +28,14 @@ interface ParsedBookMeta {
   description: string;
   coverDataUrl: string | null;
   pageCount: number | null;
+  /** Отпечаток считается здесь же: файл в этот момент уже прочитан в память ради метаданных. */
+  sha256: string;
 }
 
 async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookMeta> {
   const fallbackTitle = file.name.replace(/\.(pdf|docx|fb2|djvu|djv)$/i, '');
   const buffer = await file.arrayBuffer();
+  const sha256 = await sha256Of(buffer);
 
   if (format === 'docx') {
     // Word records a title only when someone filled it in, which is rare — the filename is usually
@@ -40,6 +47,7 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
       description: '',
       coverDataUrl: parsed.coverDataUrl,
       pageCount: null,
+      sha256,
     };
   }
 
@@ -51,6 +59,7 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
       description: parsed.description,
       coverDataUrl: parsed.coverDataUrl,
       pageCount: null,
+      sha256,
     };
   }
 
@@ -67,6 +76,7 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
       description: '',
       coverDataUrl: meta.coverDataUrl,
       pageCount: meta.pageCount,
+      sha256,
     };
   }
 
@@ -78,25 +88,77 @@ async function readBookMeta(file: File, format: BookFormat): Promise<ParsedBookM
     description: '',
     coverDataUrl: meta.coverDataUrl,
     pageCount: meta.pageCount,
+    sha256,
   };
+}
+
+/** Что вернуло добавление: новая книга или уже стоявшая на полке с тем же содержимым. */
+export interface AddBookResult {
+  book: Book;
+  /** Файл с таким отпечатком уже был: второй записи не завели, открываем существующую. */
+  duplicate: boolean;
 }
 
 export function useLibrary() {
   const { items: books, isLoading, error, refetch, invalidate, update, remove, replaceInCache } =
     useCrudResource(resource);
+  const booksRef = useRef(books);
+  useLayoutEffect(() => {
+    booksRef.current = books;
+  });
 
   // Загрузка книги остаётся своей мутацией: кнопке нужен `isPending`, а разбор файла идёт на
   // фронте и до отправки может честно отказать — по расширению и по сигнатуре `.doc`.
   const addBookMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, cloud }: { file: File; cloud?: boolean }): Promise<AddBookResult> => {
       if (file.name.split('.').pop()?.toLowerCase() === 'doc') throw new Error(LEGACY_DOC_MESSAGE);
       const format = detectFormat(file.name);
       if (!format) throw new Error('Поддерживаются только файлы PDF, DOCX, FB2 и DjVu');
 
       const meta = await readBookMeta(file, format);
-      return uploadBook(file, meta);
+
+      // Тот же файл уже на полке — открываем её, а не заводим вторую запись. Отпечаток отвечает на
+      // это точно, в отличие от имени файла: «Учебник (1).pdf» — та же книга, `book.pdf` соседа —
+      // другая.
+      const existing = findByFingerprint(booksRef.current, meta.sha256);
+      if (existing) {
+        // Файла может не быть здесь — книгу добавляли с другого устройства. Раз он в руках, кладём.
+        if (existing.storage === 'device' && !(await bookFiles.hasFile(meta.sha256))) {
+          await bookFiles.putFile(meta.sha256, file);
+        }
+        return { book: existing, duplicate: true };
+      }
+
+      if (cloud) return { book: await uploadBook(file, meta), duplicate: false };
+
+      // Сперва файл на устройство, потом запись. Обратный порядок оставляет на полке книгу,
+      // которую нечем открыть, — а хранилище отказывает чаще, чем кажется.
+      await bookFiles.putFile(meta.sha256, file);
+      const book = await createDeviceBook({ ...meta, format, fileName: file.name, fileSize: file.size });
+      return { book, duplicate: false };
     },
     onSuccess: invalidate,
+  });
+
+  const addLinkMutation = useMutation({
+    mutationFn: (record: { title: string; author: string; description: string; sourceUrl: string }) => createLinkBook(record),
+    onSuccess: invalidate,
+  });
+
+  /**
+   * Перенести книгу из облака на устройство: скачать один раз, положить, освободить место.
+   *
+   * Молча и автоматически этого не делает никто: на мобильном интернете это чужой трафик.
+   */
+  const moveToDeviceMutation = useMutation({
+    mutationFn: async (book: Book) => {
+      const blob = await fetchBookFile(book.id);
+      if (!blob) throw new Error('Файл этой книги на сервере не найден');
+      const sha256 = await sha256Of(await blob.arrayBuffer());
+      await bookFiles.putFile(sha256, blob);
+      return dropServerFile(book.id, sha256);
+    },
+    onSuccess: replaceInCache,
   });
 
   // Место в книге сохраняется на каждой прокрутке: перезагружать ради него весь список нельзя.
@@ -105,6 +167,25 @@ export function useLibrary() {
     onSuccess: replaceInCache,
   });
 
+  /**
+   * Удаление книги уносит и локальный файл — но только если на него не ссылается вторая запись.
+   *
+   * Файл общий: две записи с одним отпечатком делят его, и удаление своей копии не должно оставить
+   * соседнюю книгу без содержимого.
+   *
+   * Принимается **книга целиком, а не идентификатор**, и это исправленная ошибка: удаление идёт
+   * через общее окно с отменой, а оно прячет строку из кэша сразу — к моменту, когда дело доходит
+   * до файла, найти книгу в списке уже нельзя, и файл оставался на устройстве навсегда. Поймано
+   * прогоном: запись на сервере удалена, файл в OPFS на месте.
+   */
+  const deleteBook = async (book: Book) => {
+    await remove(book.id);
+    if (!book.sha256) return;
+    if (!fileStillUsed(booksRef.current, book.id, book.sha256)) {
+      await bookFiles.deleteFile(book.sha256).catch(() => undefined);
+    }
+  };
+
   return {
     books,
     isLoading,
@@ -112,9 +193,13 @@ export function useLibrary() {
     refetch,
     addBook: addBookMutation.mutateAsync,
     isAdding: addBookMutation.isPending,
+    addLinkBook: addLinkMutation.mutateAsync,
+    isAddingLink: addLinkMutation.isPending,
+    moveToDevice: moveToDeviceMutation.mutateAsync,
+    isMoving: moveToDeviceMutation.isPending,
     updateMeta: update,
     updateProgress: (id: string, location: number) => updateProgressMutation.mutateAsync({ id, location }),
-    deleteBook: remove,
+    deleteBook,
   };
 }
 
@@ -124,4 +209,4 @@ export function useBook(id: string | undefined) {
   return { ...library, book };
 }
 
-export { fetchBookFile as loadBookFile };
+export { getBookBlob, BookFileMissingError, BookIsLinkError } from './bookSource';

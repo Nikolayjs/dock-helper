@@ -7,6 +7,7 @@ import { readRowLimit } from './rowLimit';
 import { SortableRows } from './SortableRows';
 import type { DashboardContext } from './dashboardContext';
 import type { ReadingProgress } from './practice';
+import { bookLocation, LOCATION_LABEL, useLocalFiles } from '../library/useLocalFiles';
 import linkClasses from './dashboardLinks.module.css';
 
 export const CONTINUE_READING_ID = 'continue-reading';
@@ -32,6 +33,10 @@ export function ContinueReading({
   shelf: ReadingProgress[];
   settings: DashboardContext['widgetSettings'];
 }) {
+  // Полка общая, а файлы — нет: книгу, добавленную с рабочего компьютера, с телефона не открыть,
+  // и сказать об этом надо здесь, а не после нажатия на «Продолжить чтение».
+  const { present } = useLocalFiles(shelf.map((entry) => entry.book));
+
   if (shelf.length === 0) {
     return (
       <Text size="sm" c="dimmed">
@@ -44,7 +49,7 @@ export function ContinueReading({
 
   return (
     <Stack gap="md">
-      <LatestBook reading={latest} />
+      <LatestBook reading={latest} elsewhere={bookLocation(latest.book, present) === 'elsewhere'} />
 
       {rest.length > 0 && (
         <SortableRows
@@ -61,7 +66,7 @@ export function ContinueReading({
 }
 
 /** Последняя книга — с обложкой, прогрессом и кнопкой: ради неё карточку и открывают. */
-function LatestBook({ reading }: { reading: ReadingProgress }) {
+function LatestBook({ reading, elsewhere }: { reading: ReadingProgress; elsewhere: boolean }) {
   const { book, percent, readAt } = reading;
 
   return (
@@ -93,6 +98,11 @@ function LatestBook({ reading }: { reading: ReadingProgress }) {
           <Text size="xs" c="dimmed">
             {dayjs(readAt).format('D MMMM')}
           </Text>
+          {elsewhere && (
+            <Badge size="xs" variant="light" color="yellow">
+              {LOCATION_LABEL.elsewhere}
+            </Badge>
+          )}
         </Group>
 
         {percent !== null && (

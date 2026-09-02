@@ -2,13 +2,25 @@ import { useState } from 'react';
 
 import { PageToolbar } from '../components/common/PageToolbar';
 import { Badge, Button, Container, Group, Image, Stack, Text, ThemeIcon, Title } from '@mantine/core';
-import { IconBook2, IconBookmark, IconEdit, IconFileTypeDocx, IconFileTypePdf, IconScan, IconTrash } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+import {
+  IconBook2,
+  IconBookmark,
+  IconDeviceFloppy,
+  IconEdit,
+  IconExternalLink,
+  IconFileTypeDocx,
+  IconFileTypePdf,
+  IconScan,
+  IconTrash,
+} from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { BookEditModal } from '../features/library/BookEditModal';
 import type { Book } from '../features/library/types';
 import { QUERY_KEY as LIBRARY_KEY, useBook } from '../features/library/useLibrary';
+import { bookLocation, LOCATION_LABEL, useLocalFiles } from '../features/library/useLocalFiles';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { BackButton } from '../components/common/BackButton';
 import { ReadingSheet } from '../components/common/ReadingSheet';
@@ -29,7 +41,8 @@ function formatSize(bytes: number): string {
 export function BookViewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { book, updateMeta, deleteBook } = useBook(id);
+  const { books, book, updateMeta, deleteBook, moveToDevice, isMoving, updateProgress } = useBook(id);
+  const { present } = useLocalFiles(books);
   const confirmDelete = useDeleteWithConfirm();
   const [editing, setEditing] = useState(false);
   const FormatIcon = book ? FORMAT_ICON[book.format] : IconBook2;
@@ -54,11 +67,22 @@ export function BookViewPage() {
       notice: 'Книга удалена',
       queryKey: LIBRARY_KEY,
       id: book.id,
-      perform: () => deleteBook(book.id),
+      perform: () => deleteBook(book),
       onConfirmed: () => navigate('/library'),
     });
 
-  const progressLabel = book.progress
+  // `location` здесь заняла бы имя глобального `window.location`; книге место, а не адрес.
+  const place = bookLocation(book, present);
+
+  /**
+   * У книги по ссылке прогресса нет: читают её на чужом сайте, и «страница 40» была бы выдумкой.
+   * Вместо него — дата последнего открытия; её и записывает нажатие на «Открыть первоисточник».
+   */
+  const progressLabel = book.storage === 'link'
+    ? book.progress
+      ? `Открывали ${dayjs(book.progress.updatedAt).format('D MMMM YYYY')}`
+      : null
+    : book.progress
     ? book.pageCount
       ? `Стр. ${book.progress.location} из ${book.pageCount}`
       : `Прочитано ${Math.round(book.progress.location * 100)}%`
@@ -110,12 +134,21 @@ export function BookViewPage() {
 
           <Stack gap="sm" style={{ flex: 1, minWidth: 260 }}>
             <Group gap="xs">
-              <Badge variant="light" color="gray">
-                {FORMAT_LABEL[book.format]}
+              {book.storage !== 'link' && (
+                <Badge variant="light" color="gray">
+                  {FORMAT_LABEL[book.format]}
+                </Badge>
+              )}
+              {/* Где лежит файл — спокойная пометка, а не плашка: книга на другом устройстве это
+                  нормальное положение вещей. */}
+              <Badge variant="light" color={place === 'elsewhere' ? 'yellow' : 'gray'}>
+                {LOCATION_LABEL[place]}
               </Badge>
-              <Text size="xs" c="dimmed">
-                {formatSize(book.fileSize)}
-              </Text>
+              {book.storage !== 'link' && (
+                <Text size="xs" c="dimmed">
+                  {formatSize(book.fileSize)}
+                </Text>
+              )}
             </Group>
             <Title order={2}>{book.title}</Title>
             {book.author && <Text c="dimmed">{book.author}</Text>}
@@ -129,9 +162,46 @@ export function BookViewPage() {
             </Text>
 
             <Group mt="md">
-              <Button size="md" leftSection={<IconBookmark size={18} />} onClick={() => navigate(`/library/${book.id}/read`)}>
-                {book.progress ? 'Продолжить чтение' : 'Читать'}
-              </Button>
+              {/* Книга по ссылке открывается у первоисточника: скачивать и разбирать чужой сайт мы
+                  не пробуем — CORS там не наш, а прогресс по чужой странице не наше дело. */}
+              {book.storage === 'link' ? (
+                <Button
+                  size="md"
+                  component="a"
+                  href={book.sourceUrl ?? '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  leftSection={<IconExternalLink size={18} />}
+                  onClick={() => void updateProgress(book.id, 0)}
+                >
+                  Открыть первоисточник
+                </Button>
+              ) : (
+                <Button size="md" leftSection={<IconBookmark size={18} />} onClick={() => navigate(`/library/${book.id}/read`)}>
+                  {book.progress ? 'Продолжить чтение' : 'Читать'}
+                </Button>
+              )}
+              {book.storage === 'server' && (
+                <Button
+                  size="md"
+                  variant="light"
+                  leftSection={<IconDeviceFloppy size={18} />}
+                  loading={isMoving}
+                  onClick={async () => {
+                    try {
+                      await moveToDevice(book);
+                      notifications.show({ message: 'Книга перенесена на это устройство', color: 'green' });
+                    } catch (error) {
+                      notifications.show({
+                        message: error instanceof Error ? error.message : 'Не удалось перенести книгу',
+                        color: 'red',
+                      });
+                    }
+                  }}
+                >
+                  Перенести на устройство
+                </Button>
+              )}
               {progressLabel && (
                 <Text size="sm" c="dimmed">
                   {progressLabel}

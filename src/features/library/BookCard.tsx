@@ -1,14 +1,38 @@
 import { ActionIcon, Badge, Card, Group, Progress, Stack, Text, ThemeIcon } from '@mantine/core';
-import { IconBook2, IconEdit, IconFileTypeDocx, IconFileTypePdf, IconScan, IconTrash } from '@tabler/icons-react';
+import {
+  IconBook2,
+  IconCloud,
+  IconDeviceFloppy,
+  IconEdit,
+  IconExternalLink,
+  IconFileTypeDocx,
+  IconFileTypePdf,
+  IconScan,
+  IconTrash,
+} from '@tabler/icons-react';
 
 import type { Book } from './types';
+import { LOCATION_LABEL, type BookLocation } from './useLocalFiles';
 
 interface BookCardProps {
   book: Book;
+  /** Где лежит файл. Спрашивается у хранилища браузера, а не у сервера, — см. `useLocalFiles`. */
+  location: BookLocation;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
+
+/**
+ * Пометка спокойная, а не тревожная: книга, файл которой остался на рабочем компьютере, — это
+ * нормальное положение вещей, а не поломка. Красным здесь была бы неправда.
+ */
+const LOCATION_ICON: Record<BookLocation, typeof IconBook2> = {
+  here: IconDeviceFloppy,
+  elsewhere: IconDeviceFloppy,
+  cloud: IconCloud,
+  link: IconExternalLink,
+};
 
 const FORMAT_LABEL: Record<Book['format'], string> = { pdf: 'PDF', docx: 'DOCX', fb2: 'FB2', djvu: 'DjVu' };
 const FORMAT_ICON: Record<Book['format'], typeof IconBook2> = {
@@ -30,9 +54,10 @@ function progressPercent(book: Book): number | null {
   return book.pageCount ? Math.round((book.progress.location / book.pageCount) * 100) : null;
 }
 
-export function BookCard({ book, onOpen, onEdit, onDelete }: BookCardProps) {
+export function BookCard({ book, location, onOpen, onEdit, onDelete }: BookCardProps) {
   const percent = progressPercent(book);
   const FormatIcon = FORMAT_ICON[book.format];
+  const LocationIcon = LOCATION_ICON[location];
 
   return (
     <Card
@@ -98,9 +123,16 @@ export function BookCard({ book, onOpen, onEdit, onDelete }: BookCardProps) {
 
         {percent !== null && <Progress value={percent} size={4} radius="xl" color="brand" />}
 
+        <Group gap={4} wrap="nowrap">
+          <LocationIcon size={13} style={{ color: 'var(--mantine-color-dimmed)', flexShrink: 0 }} />
+          <Text size="xs" c="dimmed" truncate>
+            {LOCATION_LABEL[location]}
+          </Text>
+        </Group>
+
         <Group justify="space-between">
           <Text size="xs" c="dimmed">
-            {formatSize(book.fileSize)}
+            {book.storage === 'link' ? 'Ссылка' : formatSize(book.fileSize)}
           </Text>
           {percent !== null && (
             <Text size="xs" c="dimmed">

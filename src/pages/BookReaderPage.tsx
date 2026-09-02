@@ -8,7 +8,8 @@ import { AppErrorBoundary } from '../components/common/AppErrorBoundary';
 import { FlowReader } from '../features/library/FlowReader';
 import { ReadingSheet } from '../components/common/ReadingSheet';
 import { decodeFb2Text, parseFb2 } from '../features/library/fb2';
-import { loadBookFile, useBook } from '../features/library/useLibrary';
+import { BookFileMissingError, BookIsLinkError, getBookBlob, useBook } from '../features/library/useLibrary';
+import { MissingBookFile } from '../features/library/MissingBookFile';
 import { readDocx } from '../lib/docx/readDocx';
 import { BackButton } from '../components/common/BackButton';
 import { STICKY_TOP } from '../layouts/shellMetrics';
@@ -37,6 +38,20 @@ export function BookReaderPage() {
   // FB2 and DOCX both end up as one HTML stream for FlowReader; only the converter differs.
   const [flowHtml, setFlowHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Файла нет **на этом устройстве** — и это не ошибка, а нормальное положение вещей: книгу
+   * добавили с рабочего компьютера, а полку открыли с телефона. Поэтому у него свой экран с
+   * кнопкой «Добавить файл», а не красная строка про неудачу.
+   */
+  const [fileMissing, setFileMissing] = useState(false);
+  /**
+   * Счётчик попыток открыть файл.
+   *
+   * Добавленный файл — это не смена книги: ни `id`, ни формат не поменялись, и эффект чтения сам по
+   * себе не перезапустился бы. Тогда экран «файл на другом устройстве» просто исчезал бы, оставляя
+   * пустоту вместо книги — проверено прогоном, ровно так и было.
+   */
+  const [attempt, setAttempt] = useState(0);
   const [immersive, setImmersive] = useState(false);
   // PDF и DjVu — постраничные: страница стоит на месте, листается рамка читалки. Поэтому и
   // направление у них считается по рамке, а не по корню оболочки.
@@ -162,13 +177,11 @@ export function BookReaderPage() {
     setDjvuData(null);
     setFlowHtml(null);
 
-    loadBookFile(book.id)
+    setFileMissing(false);
+
+    getBookBlob(book)
       .then(async (blob) => {
         if (cancelled) return;
-        if (!blob) {
-          setError('Файл книги не найден. Возможно, он был удалён из хранилища браузера.');
-          return;
-        }
         const buffer = await blob.arrayBuffer();
         if (cancelled) return;
         if (book.format === 'pdf') {
@@ -183,16 +196,27 @@ export function BookReaderPage() {
         }
       })
       .catch((cause) => {
+        if (cancelled) return;
+        // Отсутствие файла здесь и невозможность его открыть — разные вещи, и разводятся они по
+        // типу ошибки, а не по тексту: у первого есть что предложить, у второго нет.
+        if (cause instanceof BookFileMissingError) {
+          setFileMissing(true);
+          return;
+        }
+        if (cause instanceof BookIsLinkError) {
+          setError('Эта книга открывается по ссылке на первоисточник — она на странице книги.');
+          return;
+        }
         // A Word file carries its own diagnosis — "save it as .docx" is nothing the generic
         // message could say, and it is the one a doctor can act on.
-        if (!cancelled) setError(cause instanceof Error && cause.message ? cause.message : 'Не удалось открыть файл книги');
+        setError(cause instanceof Error && cause.message ? cause.message : 'Не удалось открыть файл книги');
       });
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [book?.id, book?.format]);
+  }, [book?.id, book?.format, attempt]);
 
   useEffect(() => {
     return () => {
@@ -291,6 +315,8 @@ export function BookReaderPage() {
       style={immersive ? { background: 'var(--mantine-color-body)', minHeight: '100vh', padding: 'var(--mantine-spacing-lg)' } : undefined}
     >
       {!paged && readerBar}
+
+      {fileMissing && <MissingBookFile book={book} onRestored={() => setAttempt((n) => n + 1)} />}
 
       {error && (
         <Center py={80}>

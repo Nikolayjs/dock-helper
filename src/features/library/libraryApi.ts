@@ -21,6 +21,74 @@ export interface UploadBookMeta {
   description: string;
   coverDataUrl: string | null;
   pageCount: number | null;
+  /** Отпечаток делает файл общим на сервере: один объект — сколько угодно записей. */
+  sha256?: string;
+}
+
+/** Запись о книге, файл которой лежит в браузере читателя. */
+export interface DeviceBookRecord extends UploadBookMeta {
+  format: Book['format'];
+  fileName: string;
+  fileSize: number;
+  sha256: string;
+}
+
+/** Запись о книге, которой у нас нет вовсе: есть только адрес первоисточника. */
+export interface LinkBookRecord {
+  title: string;
+  author: string;
+  description: string;
+  sourceUrl: string;
+}
+
+async function postJson(body: unknown, failure: string): Promise<Book> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/library`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new LibraryApiError('Не удалось подключиться к серверу.');
+  }
+  if (!response.ok) throw new LibraryApiError(await backendErrorMessage(response, `${failure} (${response.status}).`));
+  return (await response.json()) as Book;
+}
+
+/**
+ * Завести запись о книге, не отправляя файл.
+ *
+ * Это и есть та самая экономия: на сервер уходит обложка и десяток полей, а не двести мегабайт.
+ * Порядок вызова важен — файл кладётся на устройство **до** записи, иначе отказавшее хранилище
+ * оставит на полке книгу, которую нечем открыть.
+ */
+export function createDeviceBook(record: DeviceBookRecord): Promise<Book> {
+  return postJson({ storage: 'device', ...record, coverDataUrl: record.coverDataUrl ?? undefined, pageCount: record.pageCount ?? undefined }, 'Не удалось добавить книгу');
+}
+
+export function createLinkBook(record: LinkBookRecord): Promise<Book> {
+  return postJson({ storage: 'link', ...record }, 'Не удалось добавить книгу по ссылке');
+}
+
+/**
+ * Убрать байты с сервера, оставив запись: книга переехала на устройство.
+ *
+ * Отпечаток едет этим же запросом — по нему браузер потом узнаёт свой файл.
+ */
+export async function dropServerFile(id: string, sha256: string): Promise<Book> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/library/${id}/file`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ sha256 }),
+    });
+  } catch {
+    throw new LibraryApiError('Не удалось подключиться к серверу.');
+  }
+  if (!response.ok) throw new LibraryApiError(await backendErrorMessage(response, `Не удалось освободить место на сервере (${response.status}).`));
+  return (await response.json()) as Book;
 }
 
 export async function uploadBook(file: File, meta: UploadBookMeta): Promise<Book> {
@@ -31,6 +99,7 @@ export async function uploadBook(file: File, meta: UploadBookMeta): Promise<Book
   if (meta.description) form.append('description', meta.description);
   if (meta.coverDataUrl) form.append('coverDataUrl', meta.coverDataUrl);
   if (meta.pageCount != null) form.append('pageCount', String(meta.pageCount));
+  if (meta.sha256) form.append('sha256', meta.sha256);
 
   let response: Response;
   try {

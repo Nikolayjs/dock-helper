@@ -237,6 +237,9 @@ describe('getContinueReading', () => {
   const book = (id: string, extra: Partial<Book> = {}): Book => ({
     id,
     format: 'pdf',
+    storage: 'device',
+    sha256: `sha-${id}`,
+    sourceUrl: null,
     title: `Книга ${id}`,
     author: '',
     description: '',
