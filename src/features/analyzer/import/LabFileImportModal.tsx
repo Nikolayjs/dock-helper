@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useIsMobile } from '../../../components/common/useIsMobile';
 import {
   Accordion,
   Alert,
@@ -61,6 +62,7 @@ export function LabFileImportModal({
   onCreateAnalyzer,
   onExtendAnalyzer,
 }: LabFileImportModalProps) {
+  const isMobile = useIsMobile();
   const [stage, setStage] = useState<Stage>({ kind: 'idle' });
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
   const [extendTargetId, setExtendTargetId] = useState<string | null>(null);
@@ -143,7 +145,7 @@ export function LabFileImportModal({
       : 0;
 
   return (
-    <Modal opened={opened} onClose={close} title="Загрузить файл анализов" size="lg" radius="lg" centered>
+    <Modal opened={opened} onClose={close} title="Загрузить файл анализов" size="lg" radius="lg" centered fullScreen={isMobile}>
       {stage.kind === 'idle' && (
         <Stack gap="md">
           <Text size="sm" c="dimmed">

@@ -4,6 +4,7 @@ import { IconCheck, IconTrash } from '@tabler/icons-react';
 
 import { findMember, useWorkspaceMembers } from '../workspace/useWorkspaceMembers';
 import { MemberSignature } from './MemberSignature';
+import { useIsMobile } from '../../components/common/useIsMobile';
 import { CARD_COLORS } from './types';
 import type { PlannerCard, PlannerCardColor } from './types';
 
@@ -22,6 +23,7 @@ interface PlannerCardModalProps {
 }
 
 export function PlannerCardModal({ opened, card, onClose, onSave, onDelete }: PlannerCardModalProps) {
+  const isMobile = useIsMobile();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState<PlannerCardColor | null>(null);
@@ -46,7 +48,7 @@ export function PlannerCardModal({ opened, card, onClose, onSave, onDelete }: Pl
   };
 
   return (
-    <Modal opened={opened} onClose={onClose} title={card ? 'Карточка' : 'Новая карточка'} radius="lg" size="md" centered>
+    <Modal opened={opened} onClose={onClose} title={card ? 'Карточка' : 'Новая карточка'} radius="lg" size="md" centered fullScreen={isMobile}>
       <Stack gap="md">
         <TextInput
           label="Название"

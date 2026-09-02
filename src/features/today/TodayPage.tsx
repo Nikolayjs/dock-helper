@@ -19,6 +19,7 @@ import type { Patient } from '../patients/types';
 import { usePatients } from '../patients/usePatients';
 import type { VisitInput } from '../patients/usePatients';
 import { calcAge, formatAge, lastVisitOf } from '../patients/utils';
+import { useIsMobile } from '../../components/common/useIsMobile';
 import { VisitForm } from '../patients/VisitForm';
 import { getSeenToday, getTodayQueue } from './todayQueue';
 import type { TodayEntry } from './todayQueue';
@@ -97,6 +98,7 @@ function QueueRow({ entry, onReceive }: { entry: TodayEntry; onReceive: (patient
  * возвращаться, а на приёме это ровно та помеха, из-за которой визиты не заводят вовсе.
  */
 export function TodayPage() {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { patients, isLoading, error, refetch, addVisit } = usePatients();
   const { records } = useDispensary();
@@ -212,6 +214,7 @@ export function TodayPage() {
         title={receiving ? `Приём: ${receiving.fullName}` : 'Приём'}
         size="lg"
         radius="md"
+        fullScreen={isMobile}
       >
         {receiving && (
           <VisitForm

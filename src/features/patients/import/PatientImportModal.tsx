@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useIsMobile } from '../../../components/common/useIsMobile';
 import {
   Alert,
   Badge,
@@ -63,6 +64,7 @@ const FIELD_LABELS: Array<{ field: PatientField; label: string }> = [
 const PREVIEW_ROWS = 8;
 
 export function PatientImportModal({ opened, onClose, onImport }: PatientImportModalProps) {
+  const isMobile = useIsMobile();
   const [stage, setStage] = useState<Stage>({ kind: 'idle' });
   const [importing, setImporting] = useState(false);
   // Applied to everyone when the file names no diagnosis or no registration date of its own.
@@ -172,7 +174,7 @@ export function PatientImportModal({ opened, onClose, onImport }: PatientImportM
       : [];
 
   return (
-    <Modal opened={opened} onClose={close} title="Загрузить базу пациентов" size="xl" radius="lg" centered>
+    <Modal opened={opened} onClose={close} title="Загрузить базу пациентов" size="xl" radius="lg" centered fullScreen={isMobile}>
       {stage.kind === 'idle' && (
         <Stack gap="md">
           <Text size="sm" c="dimmed">

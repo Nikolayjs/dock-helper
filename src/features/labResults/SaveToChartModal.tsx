@@ -4,6 +4,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import { IconInfoCircle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import { useIsMobile } from '../../components/common/useIsMobile';
 
 import { useSaveAction } from '../../components/common/useSaveAction';
 import type { Sex } from '../analyzer/types';
@@ -33,8 +34,9 @@ interface SaveToChartModalProps {
  * лишний раз перерисовать форму ради состояния, которого при новом монтировании и так не будет.
  */
 export function SaveToChartModal({ opened, onClose, ...rest }: SaveToChartModalProps) {
+  const isMobile = useIsMobile();
   return (
-    <Modal opened={opened} onClose={onClose} title="Сохранить в карту пациента" size="lg" radius="md">
+    <Modal opened={opened} onClose={onClose} title="Сохранить в карту пациента" size="lg" radius="md" fullScreen={isMobile}>
       {opened && <SaveToChartForm onClose={onClose} {...rest} />}
     </Modal>
   );
