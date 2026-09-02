@@ -5,6 +5,7 @@ import { notifications } from '@mantine/notifications';
 import { useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 
+import { keepRequestsAlive } from '../../lib/httpRepository';
 import { DeleteConfirmContext, type DeleteRequest } from './deleteConfirmContext';
 import { UndoNotice } from './UndoNotice';
 
@@ -106,6 +107,9 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
    * deletion was already confirmed, and only the chance to take it back is lost.
    */
   const flush = useCallback(() => {
+    // Запрос, начатый при закрытии вкладки, браузер обрывает вместе с ней — то есть окно отмены
+    // «истекало» молча, и запись оставалась на сервере. `keepalive` доживает после закрытия.
+    keepRequestsAlive();
     for (const notificationId of [...pending.current.keys()]) void commit(notificationId);
   }, [commit]);
 

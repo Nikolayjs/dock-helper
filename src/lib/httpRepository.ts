@@ -19,6 +19,24 @@ export interface HttpRepository<T, TCreate, TUpdate = Partial<TCreate>> {
 export class HttpRepositoryError extends Error {}
 
 /**
+ * Окно, в котором начатые запросы помечаются `keepalive`.
+ *
+ * Обычный `fetch`, начатый при уходе со страницы, браузер обрывает вместе с ней. Для окна отмены
+ * удаления это значило ровно то, чего оно и должно было не допустить: запись показана удалённой,
+ * запрос не ушёл, и врач уверен, что удалил то, что осталось на месте.
+ *
+ * Помечается не всё подряд, а **окно в две секунды** после объявления ухода: у `keepalive` есть
+ * потолок в 64 КБ на тело, и держать его включённым постоянно значило бы ломать загрузку книги или
+ * картинки. Та же схема, что у разрешения уйти из редактора: срок вместо флага.
+ */
+let keepaliveUntil = 0;
+
+/** Уход со страницы: запросы, начатые в ближайшие секунды, обязаны доехать. */
+export function keepRequestsAlive(ms = 2000): void {
+  keepaliveUntil = Date.now() + ms;
+}
+
+/**
  * `expectedUnauthorized` marks the one call where a 401 is an answer, not an expired session:
  * changing the password returns 401 when the *current* password is wrong (`auth.service.ts`), and
  * treating that as a dead session would log a doctor out over a typo.
@@ -47,6 +65,8 @@ export async function request<T>(
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
+      // Запрос, начатый при закрытии вкладки, иначе обрывается вместе с ней.
+      keepalive: init?.keepalive ?? Date.now() < keepaliveUntil,
       headers: {
         // A FormData body must NOT get an explicit Content-Type: the browser has to set it
         // itself so it can append the multipart boundary. Forcing application/json here makes
