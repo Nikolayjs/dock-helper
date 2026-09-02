@@ -122,6 +122,16 @@ describe('чего в карточке не нашлось', () => {
     const { missing } = autofillFromPatient(paediatric, FACTS);
     expect(missing[0]).toMatchObject({ fieldKey: 'weight', reason: 'outOfRange' });
     expect(missing[0].note).toContain('78,5 кг');
+    expect(missing[0].note).toContain('1 кг–60 кг');
+  });
+
+  // «Принимает 60–0» — это не диапазон, а `field.max ?? 0`, и читается оно как настоящая граница.
+  it('поле с одной границей описывается словами, а не нулём вместо второй', () => {
+    const onlyMin: CalculatorField[] = [{ key: 'weight', label: 'Вес', type: 'number', unit: 'кг', min: 90 }];
+    expect(autofillFromPatient(onlyMin, FACTS).missing[0].note).toContain('не менее 90 кг');
+
+    const onlyMax: CalculatorField[] = [{ key: 'weight', label: 'Вес', type: 'number', unit: 'кг', max: 60 }];
+    expect(autofillFromPatient(onlyMax, FACTS).missing[0].note).toContain('не более 60 кг');
   });
 
   // Поле не про пациента калькулятор заполняет сам, и трогать его незачем.

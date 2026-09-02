@@ -86,6 +86,20 @@ const FEMALE_OPTION = /^ж|^жен/;
  * Значение, не попавшее в границы поля, тоже считается незаполненным: детская доза с потолком 60 кг
  * при взрослом весе 96 кг иначе молча ужалась бы до потолка, а с ней и результат.
  */
+/**
+ * Что принимает поле — словами, а не парой чисел с нулём вместо отсутствующей границы.
+ *
+ * `field.min ?? 0` и `field.max ?? 0` давали «принимает 60–0» у поля веса с одним минимумом, а у
+ * поля с одним максимумом — «принимает 0–60», что читается как настоящая нижняя граница: ноль
+ * выглядит как разрешённое значение, хотя его никто не задавал.
+ */
+export function acceptedRange(min: number | undefined, max: number | undefined, unit?: string): string {
+  if (min !== undefined && max !== undefined) return `${withUnit(min, unit)}–${withUnit(max, unit)}`;
+  if (min !== undefined) return `не менее ${withUnit(min, unit)}`;
+  if (max !== undefined) return `не более ${withUnit(max, unit)}`;
+  return 'любое значение';
+}
+
 export function autofillFromPatient(fields: CalculatorField[], facts: PatientFacts): Autofill {
   const filled: FilledField[] = [];
   const missing: MissingField[] = [];
@@ -122,7 +136,7 @@ export function autofillFromPatient(fields: CalculatorField[], facts: PatientFac
         fieldKey: field.key,
         label: field.label,
         reason: 'outOfRange',
-        note: `в карточке ${withUnit(value, field.unit)}, калькулятор принимает ${withUnit(field.min ?? 0, field.unit)}–${withUnit(field.max ?? 0, field.unit)}`,
+        note: `в карточке ${withUnit(value, field.unit)}, калькулятор принимает ${acceptedRange(field.min, field.max, field.unit)}`,
       });
       continue;
     }
