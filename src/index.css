@@ -515,6 +515,45 @@ body {
     padding: 0;
   }
 
+  /*
+   * Разрыв страницы — это разрыв, а не подпись «Разрыв страницы».
+   *
+   * Узел `[data-page-break]` рисуется на экране пунктиром с подписью в разрыве; ограничения на
+   * экран у этого правила не было, и подпись уходила на бумагу. А самого разрыва не было вовсе:
+   * `break-before` не объявлял никто, и документ печатался сплошняком. В .docx разрыв работал —
+   * то есть выгруженный файл и напечатанная бумага расходились.
+   */
+  [data-page-break] {
+    break-before: page;
+    border: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+  }
+
+  [data-page-break]::after {
+    content: none !important;
+  }
+
+  /*
+   * Таблица на бумаге — таблица, а не прокручиваемая коробка.
+   *
+   * На чтении она `display: block; overflow-x: auto` — иначе схема дозирования на восемь колонок
+   * растягивает статью и обрезает её на телефоне. На принтере прокрутки нет: уходило то, что
+   * помещается по ширине, **без единого признака обрезки**. Правило рядом снимало переполнение
+   * только у инлайнового `style` и у `ScrollContainer`, а здесь оно приходит по классу.
+   *
+   * `table-layout: fixed` и перенос по словам — чтобы восемь колонок ужались, а не уехали за край.
+   */
+  .printable-report table,
+  .printable-document table {
+    display: table !important;
+    max-width: 100% !important;
+    width: 100%;
+    overflow: visible !important;
+    table-layout: fixed;
+    word-break: break-word;
+  }
+
   .no-print {
     display: none !important;
   }
