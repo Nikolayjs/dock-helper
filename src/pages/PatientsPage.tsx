@@ -1,8 +1,8 @@
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Alert, Badge, Box, Button, Card, Collapse, Container, Group, SegmentedControl, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { IconAdjustmentsHorizontal, IconChartBar, IconClipboardHeart, IconFileDownload, IconFileUpload, IconInfoCircle, IconPlus, IconSearch, IconUsers, IconX } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { DISPENSARY_SORT_KEYS, DispensaryTable, dispensarySortValue, type DispensarySortKey } from '../features/patients/DispensaryTable';
 import { PatientFilters } from '../features/patients/PatientFilters';
@@ -56,6 +56,23 @@ export function PatientsPage() {
   );
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  /**
+   * `?import=1` открывает окно загрузки сразу.
+   *
+   * По этой ссылке приходят с первых шагов после регистрации: «Загрузить базу» там обязано открыть
+   * именно загрузку, а не высадить на список с просьбой найти кнопку. Параметр снимается **после**
+   * открытия, чтобы «назад» в браузере не открывало окно заново.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('import') !== '1') return;
+    setImportMounted(true);
+    setImportOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('import');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   /**
    * Выгрузка идёт по **всей** картотеке, а не по тому, что осталось на экране после отбора.

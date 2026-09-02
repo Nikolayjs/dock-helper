@@ -24,6 +24,9 @@ export const SYNCED_KEYS = [
   'medassist:drugs:intro-hidden',
   'medassist:patients-disclaimer-dismissed',
   'medassist:notifications-seen',
+  // «Первые шаги пройдены» — про человека, а не про браузер: встречать его вопросами о
+  // специальности на втором устройстве незачем.
+  'medassist:onboarding',
 ] as const;
 
 /** Сортировки списков: ключей столько же, сколько разделов, и все они синхронизируются. */

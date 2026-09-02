@@ -4,6 +4,7 @@ import { IconAlertTriangle, IconStethoscope } from '@tabler/icons-react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { AuthApiError, login, register } from '../features/auth/authApi';
+import { markOnboardingPending } from '../features/onboarding/onboardingState';
 import { storeToken } from '../features/auth/session';
 import { loginTarget } from '../lib/appBase';
 
@@ -48,6 +49,9 @@ export function LoginPage() {
       const result =
         mode === 'login' ? await login(username.trim(), password) : await register(username.trim(), password, name.trim());
       storeToken(result.accessToken);
+      // Первые шаги показываются только тому, кто только что завёл аккаунт: у всех, кто уже
+      // работает, этого ключа тоже нет, и «настроим за минуту» встретило бы их посреди работы.
+      if (mode === 'register') markOnboardingPending();
       // Not `navigate`: the application lives in another router, so this is a page load. The
       // submit button stays disabled — the browser is already leaving.
       window.location.assign(loginTarget(searchParams.get('from')));

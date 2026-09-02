@@ -57,6 +57,8 @@ import { useDocumentTemplates } from '../features/patients/documents/useDocument
 import { useLibrary } from '../features/library/useLibrary';
 import { useDispensary } from '../features/patients/useDispensary';
 import { usePatients } from '../features/patients/usePatients';
+import { OnboardingWizard } from '../features/onboarding/OnboardingWizard';
+import { isOnboardingPending } from '../features/onboarding/onboardingState';
 import { usePlanner } from '../features/planner/usePlanner';
 import { getUpcomingReminders as getUpcomingCalendarReminders } from '../features/reminders/selectors';
 import { useReminders } from '../features/reminders/useReminders';
@@ -68,6 +70,13 @@ const LAPSED_MONTHS = 12;
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  /**
+   * Первые шаги после регистрации — на дашборде, потому что именно сюда врач и попадает.
+   *
+   * Состояние держится в компоненте, а не спрашивается у хранилища на каждый рендер: закрыть окно
+   * нужно в том же кадре, в котором нажали, а отметка о пройденном уезжает в настройки сама.
+   */
+  const [onboarding, setOnboarding] = useState(() => isOnboardingPending());
   const { patients } = usePatients();
   const { records } = useDispensary();
   const { notes, deleteNote, toggleTodoItem } = useNotes();
@@ -200,6 +209,7 @@ export function DashboardPage() {
 
   return (
     <Container size="xl" px={0}>
+      {onboarding && <OnboardingWizard onClose={() => setOnboarding(false)} />}
       <Stack gap="lg">
         <Group
           justify="space-between"
