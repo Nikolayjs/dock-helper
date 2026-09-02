@@ -26,14 +26,14 @@ export function RangeEditorRow({ range, onChange, onRemove }: RangeEditorRowProp
     <Grid align="center">
       <Grid.Col span={{ base: 6, sm: 2 }}>
         <NumberInput
-          placeholder="от"
+          placeholder="от (включая)"
           value={range.min ?? ''}
           onChange={(v) => onChange({ ...range, min: v === '' ? undefined : Number(v) })}
         />
       </Grid.Col>
       <Grid.Col span={{ base: 6, sm: 2 }}>
         <NumberInput
-          placeholder="до"
+          placeholder="до (не включая)"
           value={range.max ?? ''}
           onChange={(v) => onChange({ ...range, max: v === '' ? undefined : Number(v) })}
         />

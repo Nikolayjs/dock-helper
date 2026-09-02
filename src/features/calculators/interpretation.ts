@@ -29,3 +29,49 @@ export function matchInterpretation(
       (range.min === undefined || result >= range.min) && (range.max === undefined || result < range.max),
   );
 }
+
+/**
+ * Что не так с набором полос — предупреждением, а не запретом.
+ *
+ * Границы полуоткрыты (`от` включается, `до` — нет), а подписаны они по-русски включающе. Врач
+ * заводит полосы ИМТ как в учебнике — `18,5–24,9`, `25–29,9`, — и значение 24,95 не попадает
+ * **никуда**: плашка толкования пропадает совсем, без объяснения. Заводские полосы написаны
+ * стык-в-стык и потому работают, так что ловушка ждёт первого же своего калькулятора.
+ *
+ * Это именно предупреждение: разрыв бывает и намеренным — шкала, у которой промежуточные значения
+ * не толкуются, — а запрет заставил бы дописывать полосы, которых у врача нет.
+ */
+export function interpretationWarnings(ranges: InterpretationRange[]): string[] {
+  const named = (range: InterpretationRange) => (range.label.trim() ? `«${range.label.trim()}»` : 'полоса без названия');
+  const ru = (value: number) => String(value).replace('.', ',');
+  const warnings: string[] = [];
+
+  for (const range of ranges) {
+    if (range.min !== undefined && range.max !== undefined && range.min >= range.max) {
+      warnings.push(`У полосы ${named(range)} «от» не меньше, чем «до»: в неё не попадёт ни одно значение.`);
+    }
+  }
+
+  const sorted = [...ranges]
+    .filter((range) => !(range.min !== undefined && range.max !== undefined && range.min >= range.max))
+    .sort((a, b) => (a.min ?? -Infinity) - (b.min ?? -Infinity));
+
+  for (let i = 1; i < sorted.length; i++) {
+    const previous = sorted[i - 1];
+    const current = sorted[i];
+    if (previous.max === undefined || current.min === undefined) continue;
+    if (previous.max > current.min) {
+      warnings.push(
+        `Полосы ${named(previous)} и ${named(current)} пересекаются на ${ru(current.min)}–${ru(previous.max)}: ` +
+          'значение попадёт в ту, что стоит выше в списке.',
+      );
+    } else if (previous.max < current.min) {
+      warnings.push(
+        `Между ${named(previous)} (до ${ru(previous.max)}) и ${named(current)} (от ${ru(current.min)}) разрыв: ` +
+          `${ru(previous.max)} не попадёт ни в одну полосу. Верхняя граница не включается — напишите «до ${ru(current.min)}».`,
+      );
+    }
+  }
+
+  return warnings;
+}

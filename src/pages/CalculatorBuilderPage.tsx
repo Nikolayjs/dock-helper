@@ -36,6 +36,7 @@ import { CalculatorForm } from '../features/calculators/CalculatorForm';
 import { FieldEditorRow, type DraftField } from '../features/calculators/builder/FieldEditorRow';
 import { createDraftPreset, PresetEditorRow, type DraftPreset } from '../features/calculators/builder/PresetEditorRow';
 import { RangeEditorRow } from '../features/calculators/builder/RangeEditorRow';
+import { interpretationWarnings } from '../features/calculators/interpretation';
 import {
   FORMULA_CONSTANT_NAMES,
   FORMULA_FUNCTION_ARITY,
@@ -126,6 +127,12 @@ export function CalculatorBuilderPage() {
   };
 
   const fieldKeys = fields.map((f) => f.key.trim()).filter(Boolean);
+
+  /**
+   * Дырявые полосы — предупреждение, а не запрет: разрыв бывает и намеренным. Но молчать о нём
+   * нельзя: значение, провалившееся между полосами, показывается вообще без толкования.
+   */
+  const rangeWarnings = useMemo(() => interpretationWarnings(ranges), [ranges]);
 
   const errors = useMemo(() => {
     const list: string[] = [];
@@ -429,6 +436,8 @@ export function CalculatorBuilderPage() {
                   <Title order={4}>Интерпретация результата</Title>
                   <Text size="sm" c="dimmed">
                     Необязательно: диапазоны значений с подписью (например, «Норма», «Ожирение»).
+                    Нижняя граница включается, верхняя — нет: чтобы полосы стыковались, «до» одной и
+                    «от» следующей пишутся одним и тем же числом.
                   </Text>
                 </div>
                 <Button
@@ -442,6 +451,18 @@ export function CalculatorBuilderPage() {
                   Добавить диапазон
                 </Button>
               </Group>
+              {rangeWarnings.length > 0 && (
+                <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />} mb="sm">
+                  <Stack gap={2}>
+                    {rangeWarnings.map((warning, index) => (
+                      <Text size="sm" key={index}>
+                        • {warning}
+                      </Text>
+                    ))}
+                  </Stack>
+                </Alert>
+              )}
+
               <Stack gap="sm">
                 {ranges.map((range) => (
                   <RangeEditorRow
