@@ -41,7 +41,11 @@ export function analyzeTest(
   let enteredCount = 0;
 
   const evaluate = (param: LabParameter, value: number | undefined) => {
-    if (value === undefined || Number.isNaN(value)) return;
+    // Бесконечность — не число, и судить её нормой нечем. Производный показатель с делением на
+    // ноль давал именно её: значение проходило в отклонения со словом «Повышен», а печаталось
+    // пустой строкой — карточка с названием, единицей измерения и без числа. Правила-паттерны при
+    // этом срабатывали, то есть заключение строилось на том, чего нет.
+    if (value === undefined || !Number.isFinite(value)) return;
     numericValues[param.key] = value;
     const range = getParamRange(param, sex, age);
     const status = getStatus(value, range);
@@ -52,7 +56,7 @@ export function analyzeTest(
   for (const param of test.parameters) {
     if (param.inputType === 'derived') continue;
     const value = values[param.key];
-    if (value === undefined || Number.isNaN(value)) continue;
+    if (value === undefined || !Number.isFinite(value)) continue;
     enteredCount++;
     evaluate(param, value);
   }

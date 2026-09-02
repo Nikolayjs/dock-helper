@@ -268,3 +268,25 @@ describe('пометка о том, по каким нормам считали'
     expect(analyzeTest(definition, { rbc: 4.5 }, 'male').ageNote).toBeUndefined();
   });
 });
+
+describe('бесконечность из производного показателя', () => {
+  const definition = toLabTestDefinition(TEST);
+
+  it('не становится отклонением «Повышен» без числа', () => {
+    // MCV = гематокрит / эритроциты * 10. Ноль эритроцитов даёт бесконечность — движок формул так
+    // и задуман, — и она проходила в отклонения: карточка с названием, словом «Повышен» и пустым
+    // местом вместо числа, потому что печатать бесконечность нечем.
+    const result = analyzeTest(definition, { hgb: 130, rbc: 0, hct: 45 }, 'male', 40);
+
+    expect(result.values.mcv).toBeUndefined();
+    expect(result.statuses.mcv).toBeUndefined();
+    expect(result.deviations.some((deviation) => deviation.param.key === 'mcv')).toBe(false);
+  });
+
+  it('не подтверждает паттерн, который на неё ссылается', () => {
+    // «Картина железодефицита» — это низкий гемоглобин и низкий MCV; MCV, которого нет, не может
+    // быть низким, и заключение не имеет права строиться на том, чего не посчитали.
+    const result = analyzeTest(definition, { hgb: 100, rbc: 0, hct: 45 }, 'male', 40);
+    expect(result.matchedPatterns.map((pattern) => pattern.id)).not.toContain('iron');
+  });
+});
