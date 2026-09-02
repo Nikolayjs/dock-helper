@@ -25,7 +25,16 @@ interface PageMetaEntry {
 
 const PAGE_META: PageMetaEntry[] = [
   { match: (p) => p.startsWith('/dashboard'), title: 'Дашборд', subtitle: 'Обзор рабочего дня' },
+  { match: (p) => p === '/today', title: 'Мой день', subtitle: 'Кого сегодня ждём и что с ними' },
+  // Конструктор — раньше общего правила: иначе он назывался бы «Интерпретатор анализов», то есть
+  // тем же, что и страница разбора, и на телефоне отличить их было бы нечем.
+  { match: (p) => p === '/analyzer/new', title: 'Новый анализ' },
+  { match: (p) => p.startsWith('/analyzer/') && p.endsWith('/edit'), title: 'Конструктор анализа' },
   { match: (p) => p.startsWith('/analyzer'), title: 'Интерпретатор анализов', subtitle: 'ОАК, ОАМ и биохимия крови' },
+  { match: (p) => p === '/diagnostics', title: 'Диагностические панели', subtitle: 'Дифференциальная диагностика по жалобе' },
+  { match: (p) => p === '/diagnostics/new', title: 'Новая панель' },
+  { match: (p) => p.startsWith('/diagnostics/') && p.endsWith('/edit'), title: 'Конструктор панели' },
+  { match: (p) => p.startsWith('/diagnostics/'), title: 'Диагностическая панель' },
   {
     match: (p) => p === '/drugs',
     title: 'Лекарственные препараты',
