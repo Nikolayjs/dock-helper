@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 
 import { PageToolbar } from '../components/common/PageToolbar';
+import { AnalyzerHelp } from '../features/analyzer/builder/AnalyzerHelp';
 import { Alert, Badge, Box, Button, Card, Container, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Tabs, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconArrowLeft, IconCopy, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowLeft, IconCopy, IconDeviceFloppy, IconHelp, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { analyzeTest } from '../features/analyzer/analyzerEngine';
@@ -83,6 +84,7 @@ export function AnalyzerBuilderPage() {
   const [previewValues, setPreviewValues] = useState<Record<string, number | undefined>>({});
   const [previewSex, setPreviewSex] = useState<Sex>('male');
   const [previewAge, setPreviewAge] = useState<number | undefined>(undefined);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -390,11 +392,18 @@ export function AnalyzerBuilderPage() {
             <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/analyzer')}>
               К анализатору
             </Button>
-            {editingTest && (
-              <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-                Удалить
+            <Group gap="xs">
+              {/* Справка — рядом с действиями страницы: объяснить надо нормы, полосы и условия
+                  правил, и в подсказку под полем это не помещается. */}
+              <Button variant="light" color="gray" leftSection={<IconHelp size={16} />} onClick={() => setHelpOpen(true)}>
+                Справка
               </Button>
-            )}
+              {editingTest && (
+                <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                  Удалить
+                </Button>
+              )}
+            </Group>
           </Group>
         </PageToolbar>
       </Box>
@@ -543,6 +552,7 @@ export function AnalyzerBuilderPage() {
             )}
 
             {guard.render({ onSave: errors.length === 0 ? handleSave : undefined })}
+            <AnalyzerHelp opened={helpOpen} onClose={() => setHelpOpen(false)} />
           </>
         }
         actions={

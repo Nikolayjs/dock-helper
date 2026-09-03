@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { PageToolbar } from '../components/common/PageToolbar';
+import { CalculatorHelp } from '../features/calculators/builder/CalculatorHelp';
 import {
   ActionIcon,
   Alert,
@@ -27,6 +28,7 @@ import {
   IconArrowLeft,
   IconCheck,
   IconDeviceFloppy,
+  IconHelp,
   IconPlus,
   IconTrash,
   IconX,
@@ -99,6 +101,7 @@ export function CalculatorBuilderPage() {
   const [presets, setPresets] = useState<DraftPreset[]>([]);
   const [presetsLabel, setPresetsLabel] = useState('');
   const [hydrated, setHydrated] = useState(!isEditMode);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     if (editingCalculator && !hydrated) {
@@ -264,11 +267,18 @@ export function CalculatorBuilderPage() {
             <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/calculators')}>
               К списку калькуляторов
             </Button>
-            {editingCalculator && (
-              <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-                Удалить
+            <Group gap="xs">
+              {/* Справка — рядом с действиями страницы, а не подсказкой под полем: подсказка
+                  помещает две строки, а объяснить надо полосы, формулу и её ловушки. */}
+              <Button variant="light" color="gray" leftSection={<IconHelp size={16} />} onClick={() => setHelpOpen(true)}>
+                Справка
               </Button>
-            )}
+              {editingCalculator && (
+                <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                  Удалить
+                </Button>
+              )}
+            </Group>
           </Group>
         </PageToolbar>
       </Box>
@@ -479,10 +489,11 @@ export function CalculatorBuilderPage() {
               )}
 
               <Stack gap="sm">
-                {ranges.map((range) => (
+                {ranges.map((range, index) => (
                   <RangeEditorRow
                     key={range.id}
                     range={range}
+                    index={index}
                     onChange={(next) => setRanges((prev) => prev.map((r) => (r.id === next.id ? next : r)))}
                     onRemove={() => setRanges((prev) => prev.filter((r) => r.id !== range.id))}
                   />
@@ -503,6 +514,7 @@ export function CalculatorBuilderPage() {
             )}
 
             {guard.render({ onSave: errors.length === 0 ? handleSave : undefined })}
+            <CalculatorHelp opened={helpOpen} onClose={() => setHelpOpen(false)} />
           </>
         }
         actions={

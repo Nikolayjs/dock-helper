@@ -46,36 +46,76 @@ interface FormulaFunction {
   /** Наибольшее; `Infinity` — сколько угодно, как у `min`/`max`/`and`. */
   max: number;
   fn: (...args: number[]) => number;
+  /**
+   * Что функция делает и как выглядит в формуле — для справки конструктора.
+   *
+   * Объявлено **здесь**, рядом с самой функцией, по той же причине, что и арность: справка, живущая
+   * отдельно, рано или поздно начинает обещать функцию, которой нет, или молчать о той, которая
+   * есть. Совпадение и работоспособность каждого примера проверяются тестом.
+   */
+  doc: { summary: string; example: string };
 }
 
 /** Функция ровно с таким числом аргументов. */
-function fixed(count: number, fn: (...args: number[]) => number): FormulaFunction {
-  return { min: count, max: count, fn };
+function fixed(
+  count: number,
+  fn: (...args: number[]) => number,
+  doc: FormulaFunction['doc'],
+): FormulaFunction {
+  return { min: count, max: count, fn, doc };
 }
 
 const FUNCTIONS: Record<string, FormulaFunction> = {
-  sqrt: fixed(1, Math.sqrt),
-  abs: fixed(1, Math.abs),
+  sqrt: fixed(1, Math.sqrt, { summary: 'Квадратный корень', example: 'sqrt(height * weight / 3600)' }),
+  abs: fixed(1, Math.abs, { summary: 'Число без знака', example: 'abs(before - after)' }),
   // Второй аргумент — знаки после запятой, как в `ОКРУГЛ` табличного движка. Без него — до целого.
-  round: { min: 1, max: 2, fn: (v, digits) => roundTo(v, digits ?? 0) },
-  floor: fixed(1, Math.floor),
-  ceil: fixed(1, Math.ceil),
-  min: { min: 1, max: Infinity, fn: (...args) => Math.min(...args) },
-  max: { min: 1, max: Infinity, fn: (...args) => Math.max(...args) },
-  pow: fixed(2, (base, exp) => Math.pow(base, exp)),
-  log: fixed(1, (v) => Math.log10(v)),
-  ln: fixed(1, Math.log),
-  exp: fixed(1, Math.exp),
-  sign: fixed(1, Math.sign),
+  round: {
+    min: 1,
+    max: 2,
+    fn: (v, digits) => roundTo(v, digits ?? 0),
+    doc: { summary: 'Округление; вторым аргументом — знаки после запятой', example: 'round(weight / (height * height); 1)' },
+  },
+  floor: fixed(1, Math.floor, { summary: 'Вниз до целого', example: 'floor(age / 10)' }),
+  ceil: fixed(1, Math.ceil, { summary: 'Вверх до целого', example: 'ceil(dose / 250)' }),
+  min: {
+    min: 1,
+    max: Infinity,
+    fn: (...args) => Math.min(...args),
+    doc: { summary: 'Наименьшее из чисел', example: 'min(weight; 100)' },
+  },
+  max: {
+    min: 1,
+    max: Infinity,
+    fn: (...args) => Math.max(...args),
+    doc: { summary: 'Наибольшее из чисел', example: 'max(weight; 40)' },
+  },
+  pow: fixed(2, (base, exp) => Math.pow(base, exp), { summary: 'Возведение в степень', example: 'pow(height; 0.725)' }),
+  log: fixed(1, (v) => Math.log10(v), { summary: 'Десятичный логарифм', example: 'log(creatinine)' }),
+  ln: fixed(1, Math.log, { summary: 'Натуральный логарифм', example: 'ln(bilirubin)' }),
+  exp: fixed(1, Math.exp, { summary: 'Экспонента', example: 'exp(0.1 * age)' }),
+  sign: fixed(1, Math.sign, { summary: 'Знак числа: −1, 0 или 1', example: 'sign(after - before)' }),
   // Условие и логика. Ложь — это ноль, истина — единица, потому что движок умеет только числа;
   // сравнение возвращает то же самое, и `if(x > 5, 1, 0)` совпадает с `x > 5`.
   //
   // Ветви вычисляются обе, до выбора. Для арифметики это безразлично — `1/0` даёт бесконечность,
   // а не падение, — и позволяет оставить функции обычными значениями, а не особым случаем разбора.
-  if: fixed(3, (condition, whenTrue, whenFalse) => (condition !== 0 ? whenTrue : whenFalse)),
-  and: { min: 1, max: Infinity, fn: (...args) => (args.every((value) => value !== 0) ? 1 : 0) },
-  or: { min: 1, max: Infinity, fn: (...args) => (args.some((value) => value !== 0) ? 1 : 0) },
-  not: fixed(1, (value) => (value === 0 ? 1 : 0)),
+  if: fixed(3, (condition, whenTrue, whenFalse) => (condition !== 0 ? whenTrue : whenFalse), {
+    summary: 'Одно значение или другое по условию',
+    example: 'if(sex = 2; 0.85 * clearance; clearance)',
+  }),
+  and: {
+    min: 1,
+    max: Infinity,
+    fn: (...args) => (args.every((value) => value !== 0) ? 1 : 0),
+    doc: { summary: 'Истина, когда истинны все условия', example: 'if(and(age >= 60; weight < 60); 1; 0)' },
+  },
+  or: {
+    min: 1,
+    max: Infinity,
+    fn: (...args) => (args.some((value) => value !== 0) ? 1 : 0),
+    doc: { summary: 'Истина, когда истинно хотя бы одно', example: 'if(or(age < 18; age >= 75); 1; 0)' },
+  },
+  not: fixed(1, (value) => (value === 0 ? 1 : 0), { summary: 'Переворачивает условие', example: 'if(not(sex = 1); 0.85; 1)' }),
 };
 
 /**
@@ -116,6 +156,28 @@ export const FORMULA_FUNCTION_ARITY: Record<string, { min: number; max: number }
 
 export const FORMULA_FUNCTION_NAMES = Object.keys(FUNCTIONS);
 export const FORMULA_CONSTANT_NAMES = Object.keys(CONSTANTS);
+
+export interface FormulaFunctionDoc {
+  name: string;
+  /** Как функция выглядит в формуле: `round(значение; [знаки])`. Собирается из объявленной арности. */
+  signature: string;
+  summary: string;
+  example: string;
+}
+
+/**
+ * Справочник функций для конструктора — имя, подпись, смысл и рабочий пример.
+ *
+ * Собирается из самих функций, поэтому не может обещать несуществующую или умолчать о новой.
+ * Подпись строится по арности: необязательный аргумент в квадратных скобках, «…» — сколько угодно.
+ */
+export const FORMULA_FUNCTION_DOCS: FormulaFunctionDoc[] = Object.entries(FUNCTIONS).map(([name, spec]) => {
+  const signature =
+    spec.max === Infinity
+      ? `${name}(…)`
+      : `${name}(${Array.from({ length: spec.max }, (_, index) => (index < spec.min ? 'x' : '[x]')).join('; ')})`;
+  return { name, signature, summary: spec.doc.summary, example: spec.doc.example };
+});
 
 function tokenize(source: string): Token[] {
   const tokens: Token[] = [];

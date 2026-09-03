@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FORMULA_CONSTANT_NAMES,
   FORMULA_FUNCTION_ARITY,
+  FORMULA_FUNCTION_DOCS,
   FORMULA_FUNCTION_NAMES,
   FormulaError,
   evaluateFormula,
@@ -149,6 +150,32 @@ describe('функции', () => {
       const args = Array.from({ length: FORMULA_FUNCTION_ARITY[name].min }, () => '2').join(', ');
       expect(Number.isFinite(calc(name + '(' + args + ')'))).toBe(true);
     }
+  });
+
+  /*
+   * Справка конструктора берёт список функций отсюда же. Проверяется не только полнота, но и то,
+   * что **каждый пример действительно считается**: справка, обещающая формулу, которая не работает,
+   * хуже отсутствия справки — по ней врач и напишет.
+   */
+  it('у каждой функции есть описание и рабочий пример', () => {
+    expect(FORMULA_FUNCTION_DOCS.map((doc) => doc.name).sort()).toEqual([...FORMULA_FUNCTION_NAMES].sort());
+
+    for (const doc of FORMULA_FUNCTION_DOCS) {
+      expect({ name: doc.name, summary: doc.summary.length > 0 }).toEqual({ name: doc.name, summary: true });
+      // В примерах стоят имена полей вымышленного калькулятора — подставляем им числа.
+      const variables = Object.fromEntries(getFormulaVariables(doc.example).map((name) => [name, 2]));
+      expect({ name: doc.name, finite: Number.isFinite(evaluateFormula(doc.example, variables)) }).toEqual({
+        name: doc.name,
+        finite: true,
+      });
+    }
+  });
+
+  it('подпись функции показывает необязательные аргументы, а не просто имя', () => {
+    const round = FORMULA_FUNCTION_DOCS.find((doc) => doc.name === 'round');
+    expect(round?.signature).toBe('round(x; [x])');
+    const min = FORMULA_FUNCTION_DOCS.find((doc) => doc.name === 'min');
+    expect(min?.signature).toBe('min(…)');
   });
 
   it('лишний аргумент — ошибка, а не молча отброшенное', () => {
