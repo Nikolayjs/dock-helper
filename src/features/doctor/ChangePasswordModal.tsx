@@ -3,6 +3,7 @@ import { Button, Group, Modal, PasswordInput, Stack, Text } from '@mantine/core'
 import { notifications } from '@mantine/notifications';
 
 import { AuthApiError, changePassword } from '../auth/authApi';
+import { storeToken } from '../auth/session';
 
 /**
  * Смена пароля.
@@ -43,8 +44,11 @@ export function ChangePasswordModal({ opened, onClose }: ChangePasswordModalProp
     }
     setIsSaving(true);
     try {
-      await changePassword(currentPassword, newPassword);
-      notifications.show({ message: 'Пароль изменён', color: 'teal' });
+      // Сервер отзывает все сессии и присылает новый токен для этой: без замены следующий же
+      // запрос из этой вкладки получил бы 401 и выбросил на вход того, кто пароль и менял.
+      const { accessToken } = await changePassword(currentPassword, newPassword);
+      storeToken(accessToken);
+      notifications.show({ message: 'Пароль изменён, остальные устройства разлогинены', color: 'teal' });
       close();
     } catch (err) {
       setError(err instanceof AuthApiError ? err.message : 'Не удалось сменить пароль');

@@ -59,11 +59,20 @@ export function updateProfile(input: UpdateProfileInput): Promise<AuthUser> {
   return request<AuthUser>('/auth/me', { method: 'PATCH', body: JSON.stringify(input) });
 }
 
-export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  return request<void>(
+/**
+ * Смена пароля возвращает **новый токен**: сервер отзывает все прежние сессии (`tokenVersion`), и
+ * без этого вкладка, из которой пароль меняли, выбросила бы саму себя следующим же запросом.
+ */
+export function changePassword(currentPassword: string, newPassword: string): Promise<AuthResult> {
+  return request<AuthResult>(
     '/auth/me/password',
     { method: 'PATCH', body: JSON.stringify({ currentPassword, newPassword }) },
     // A wrong current password comes back as 401 — the one 401 that does not mean "session over".
     { expectedUnauthorized: true },
   );
+}
+
+/** «Выйти на всех устройствах»: прежние токены мертвы, этой вкладке приезжает новый. */
+export function signOutEverywhere(): Promise<AuthResult> {
+  return request<AuthResult>('/auth/sign-out-everywhere', { method: 'POST' });
 }

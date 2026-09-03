@@ -101,7 +101,7 @@ function removeIn(name: string, id: string): void {
  * пароля — настоящий аккаунт, которого у гостя нет. Кнопки, ведущие сюда, в демо спрятаны; ошибка
  * остаётся страховкой на случай, если какая-то дорога к ним найдётся мимо кнопки.
  */
-const BACKEND_ONLY = ['/document-templates/recognize', '/workspace/invite', '/auth/me/password'];
+const BACKEND_ONLY = ['/document-templates/recognize', '/workspace/invite', '/auth/me/password', '/auth/sign-out-everywhere'];
 
 export async function demoRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? 'GET').toUpperCase();

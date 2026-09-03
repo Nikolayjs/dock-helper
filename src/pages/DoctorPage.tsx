@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   Container,
+  Divider,
   Group,
   Image,
   Select,
@@ -27,6 +28,7 @@ import {
   IconCamera,
   IconCheck,
   IconDeviceDesktop,
+  IconDeviceDesktopOff,
   IconKey,
   IconLogout,
   IconMoonStars,
@@ -46,6 +48,9 @@ import { getClinicSettings, setClinicSettings, type ClinicSettings } from '../fe
 import { getMembers, invite, type WorkspaceMember } from '../features/workspace/workspaceApi';
 import { isDemoSession } from '../features/demo/demoSession';
 import { ChangePasswordModal } from '../features/doctor/ChangePasswordModal';
+import { signOutEverywhere } from '../features/auth/authApi';
+import { storeToken } from '../features/auth/session';
+import { IDLE_LOCK_CHOICES, idleLockLabel, readIdleMinutes, writeIdleMinutes } from '../features/auth/idleLock';
 import { DoctorNotesCard } from '../features/doctor/DoctorNotesCard';
 import { resizeImageToDataUrl } from '../lib/imageResize';
 import { InstallApp } from '../features/pwa/InstallApp';
@@ -100,6 +105,31 @@ export function DoctorPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  // Читается синхронно: список сразу показывает выбранное, а не «по умолчанию», меняющееся на глазах.
+  const [idleMinutes, setIdleMinutes] = useState(() => readIdleMinutes());
+  const [isSigningOutEverywhere, setIsSigningOutEverywhere] = useState(false);
+
+  const handleIdleMinutes = (value: string | null) => {
+    if (value === null) return;
+    const minutes = Number(value);
+    setIdleMinutes(minutes);
+    writeIdleMinutes(minutes);
+  };
+
+  const handleSignOutEverywhere = async () => {
+    setIsSigningOutEverywhere(true);
+    try {
+      // Свой токен заменяем сразу: сервер отозвал все прежние, включая тот, которым мы только что
+      // это и попросили — без замены следующий запрос выбросил бы нас на форму входа.
+      const { accessToken } = await signOutEverywhere();
+      storeToken(accessToken);
+      notifications.show({ message: 'Остальные устройства разлогинены', color: 'teal' });
+    } catch (error) {
+      showProfileError(error, 'Не удалось выйти на других устройствах');
+    } finally {
+      setIsSigningOutEverywhere(false);
+    }
+  };
 
   const showProfileError = (error: unknown, fallback: string) => {
     notifications.show({ message: error instanceof Error ? error.message : fallback, color: 'red' });
@@ -436,6 +466,40 @@ export function DoctorPage() {
               </Button>
             </Group>
           </Group>
+
+          {/* Гостевая сессия живёт в одной вкладке: ни блокировать, ни отзывать нечего. */}
+          {!demo && (
+            <>
+              <Divider my="md" />
+              <Stack gap="md">
+                <div>
+                  <Select
+                    label="Блокировать экран при бездействии"
+                    description="Приложение закроется, и чтобы вернуться, понадобится пароль. Открытая страница при этом не теряется."
+                    data={IDLE_LOCK_CHOICES.map((minutes) => ({ value: String(minutes), label: idleLockLabel(minutes) }))}
+                    value={String(idleMinutes)}
+                    onChange={handleIdleMinutes}
+                    allowDeselect={false}
+                    maw={320}
+                  />
+                </div>
+                <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+                  <Text size="sm" c="dimmed" style={{ flex: '1 1 240px' }}>
+                    Если вы забыли выйти на чужом компьютере — здесь можно завершить все сессии, кроме этой.
+                  </Text>
+                  <Button
+                    variant="light"
+                    color="gray"
+                    leftSection={<IconDeviceDesktopOff size={16} />}
+                    onClick={handleSignOutEverywhere}
+                    loading={isSigningOutEverywhere}
+                  >
+                    Выйти на всех устройствах
+                  </Button>
+                </Group>
+              </Stack>
+            </>
+          )}
         </Card>
 
         <Card withBorder padding="lg">

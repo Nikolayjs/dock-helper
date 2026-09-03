@@ -3,7 +3,10 @@ import { Loader, Stack } from '@mantine/core';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { APP_BASE } from '../lib/appBase';
-import { useAuthState } from '../features/auth/AuthContext';
+import { useAuthState, useLogout } from '../features/auth/AuthContext';
+import { IdleLockScreen } from '../features/auth/IdleLockScreen';
+import { useIdleLock } from '../features/auth/useIdleLock';
+import { isDemoSession } from '../features/demo/demoSession';
 
 function FullScreenLoader() {
   return (
@@ -37,8 +40,17 @@ function RedirectToLogin() {
 /** The gate on everything under `/app`. */
 export function RequireAuth() {
   const { user, checkingStoredToken } = useAuthState();
+  const logout = useLogout();
+  // В демо блокировать нечего: пароля у гостя нет, и разблокировать было бы нечем.
+  const { locked, unlock } = useIdleLock(Boolean(user) && !isDemoSession());
 
   if (checkingStoredToken) return <FullScreenLoader />;
   if (!user) return <RedirectToLogin />;
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      {/* Поверх содержимого, а не вместо: страница с несохранённой формой остаётся смонтированной. */}
+      {locked && <IdleLockScreen username={user.username} onUnlock={unlock} onLogout={logout} />}
+    </>
+  );
 }
