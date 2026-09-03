@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ActionIcon,
   Alert,
@@ -201,7 +202,7 @@ export function ExtensionCard() {
         <Text size="xs" c="dimmed">
           Смена пароля и «Выйти на всех устройствах» отзывают все подключения — расширение попросит подключиться
           заново. Токен не даёт доступа к пациентам: он умеет только приносить страницы во{' '}
-          <Anchor href="/app/inbox" size="xs">
+          <Anchor component={Link} to="/inbox" size="xs">
             «Входящие»
           </Anchor>
           .

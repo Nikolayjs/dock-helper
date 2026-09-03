@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Anchor,
@@ -19,6 +19,7 @@ import { IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
 
 import { BackButton } from '../../components/common/BackButton';
 import { FormActions } from '../../components/common/FormActions';
+import { ReadingSheet } from '../../components/common/ReadingSheet';
 import { RecordEditorPage } from '../../components/common/RecordEditorPage';
 import { RichTextField } from '../../components/common/RichTextField';
 import { useRichTextEditor } from '../../components/common/useRichTextEditor';
@@ -102,13 +103,17 @@ export function ClipEditorPage() {
         )
       }
     >
+      {/* Подложка: без неё подписи полей лежат прямо на обоях. Поля свой фон имеют, подписи — нет. */}
       {clip && (
-        <Stack gap="md">
+        <ReadingSheet>
+          <Stack gap="md">
           {published ? (
             <Alert color="teal" variant="light" icon={<IconInfoCircle size={16} />}>
               Уже опубликовано.{' '}
-              <Anchor href={`/app${publishedHref(clip)}`}>Открыть запись в справочнике</Anchor>. Сам клип остаётся
-              здесь — он единственный помнит, откуда эта запись взялась.
+              <Anchor component={Link} to={publishedHref(clip)}>
+                Открыть запись в справочнике
+              </Anchor>
+              . Сам клип остаётся здесь — он единственный помнит, откуда эта запись взялась.
             </Alert>
           ) : (
             <PublishTarget
@@ -127,7 +132,15 @@ export function ClipEditorPage() {
 
           <TextInput
             label="Название записи"
-            description="Заголовок страницы редко годится названием нозологии — поправьте его до публикации"
+            /*
+              Подсказка — только там, где она правдива. У статьи заголовок страницы обычно и есть
+              её название; у нозологии и препарата — почти никогда, и вот там об этом стоит сказать.
+            */
+            description={
+              target === 'article'
+                ? undefined
+                : 'Заголовок страницы редко годится названием записи — поправьте его до публикации'
+            }
             value={title}
             onChange={(event) => setTitle(event.currentTarget.value)}
             disabled={published}
@@ -217,8 +230,9 @@ export function ClipEditorPage() {
                 Опубликовать
               </Button>
             </FormActions>
-          )}
-        </Stack>
+            )}
+          </Stack>
+        </ReadingSheet>
       )}
     </RecordEditorPage>
   );
