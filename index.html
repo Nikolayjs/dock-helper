@@ -33,7 +33,31 @@
       одну из них. Значения — измеренный цвет самой шапки: белый в светлой, `#242424` в тёмной.
       Дальше, когда оболочка отрисована, `themeColorMeta` вставляет перед ними свою мету с точным
       цветом шапки — включая подкраску под обои, которой здесь знать неоткуда.
+
+      Скрипт ниже ставит эту мету **сразу**, из цвета, запомненного при прошлом запуске
+      (`THEME_COLOR_STORAGE_KEY` в `themeColorMeta.ts`). Установленное на телефон приложение читает
+      `theme-color` при запуске, и мета, вставленная после отрисовки, до полосы состояния могла не
+      доехать: телефон в светлой системной теме, приложение в тёмной — и полоса оставалась светлой.
+      Только под `/app`: на публичном сайте шапки приложения нет, и её цвет там ни при чём.
+      Инлайн-скрипт в `<head>` здесь не первый — так же устроена защита пререндера
+      (`scripts/prerender.mjs`).
     -->
+    <script>
+      (function () {
+        try {
+          if (!/^\/app(\/|$)/.test(location.pathname)) return;
+          var color = localStorage.getItem('medassist:theme-color');
+          if (!color || !/^#[0-9a-f]{6}$/i.test(color)) return;
+          var meta = document.createElement('meta');
+          meta.name = 'theme-color';
+          meta.content = color;
+          meta.setAttribute('data-app-theme-color', '');
+          document.head.prepend(meta);
+        } catch (e) {
+          /* нет хранилища — работают меты ниже */
+        }
+      })();
+    </script>
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#242424" media="(prefers-color-scheme: dark)" />
     <!-- iOS накладывает маску сам и прозрачность заливает чёрным, поэтому значок для него

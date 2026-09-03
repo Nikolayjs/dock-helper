@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { toHexColor } from './themeColorMeta';
+import { THEME_COLOR_STORAGE_KEY, syncThemeColorMeta, toHexColor } from './themeColorMeta';
 
 describe('цвет шапки для полосы окна', () => {
   it('обычный rgb — в шестнадцатеричную запись', () => {
@@ -35,5 +35,60 @@ describe('цвет шапки для полосы окна', () => {
   it('шестнадцатеричное пропускается как есть', () => {
     expect(toHexColor('#242424')).toBe('#242424');
     expect(toHexColor('#FFFFFF')).toBe('#ffffff');
+  });
+});
+
+describe('мета и запомненный цвет', () => {
+  afterEach(() => {
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
+    localStorage.clear();
+  });
+
+  const mountHeader = (background: string) => {
+    const header = document.createElement('header');
+    header.className = 'mantine-AppShell-header';
+    header.style.backgroundColor = background;
+    document.body.append(header);
+  };
+
+  it('мета встаёт первой в head и цвет записывается на устройство', () => {
+    document.head.innerHTML =
+      '<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />';
+    mountHeader('rgb(36, 36, 36)');
+
+    syncThemeColorMeta();
+
+    const metas = document.head.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
+    expect(metas).toHaveLength(2);
+    expect(metas[0].content).toBe('#242424');
+    expect(metas[0].hasAttribute('data-app-theme-color')).toBe(true);
+    expect(localStorage.getItem(THEME_COLOR_STORAGE_KEY)).toBe('#242424');
+  });
+
+  /*
+   * Ровно это делает inline-скрипт из `index.html` при запуске: он ставит мету с тем же признаком.
+   * Расчёт по живой шапке обязан **уточнить** её, а не завести вторую — иначе на странице стояли бы
+   * две меты приложения, и какая из них победит, решал бы порядок.
+   */
+  it('мету, поставленную при запуске, расчёт уточняет, а не дублирует', () => {
+    document.head.innerHTML = '<meta name="theme-color" content="#242424" data-app-theme-color="" />';
+    mountHeader('rgb(255, 255, 255)');
+
+    syncThemeColorMeta();
+
+    const metas = document.head.querySelectorAll<HTMLMetaElement>('meta[data-app-theme-color]');
+    expect(metas).toHaveLength(1);
+    expect(metas[0].content).toBe('#ffffff');
+    expect(localStorage.getItem(THEME_COLOR_STORAGE_KEY)).toBe('#ffffff');
+  });
+
+  it('без шапки ничего не трогается: публичный сайт живёт метами из index.html', () => {
+    localStorage.setItem(THEME_COLOR_STORAGE_KEY, '#242424');
+
+    syncThemeColorMeta();
+
+    expect(document.head.querySelector('meta[data-app-theme-color]')).toBeNull();
+    expect(localStorage.getItem(THEME_COLOR_STORAGE_KEY)).toBe('#242424');
   });
 });

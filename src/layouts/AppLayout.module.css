@@ -174,3 +174,67 @@
     height: calc(100% - var(--app-shell-header-offset, 0rem));
   }
 }
+
+/*
+ * Жёлоб полосы прокрутки рядом с шапкой — цвета шапки.
+ *
+ * Полоса прокрутки принадлежит корню оболочки: он и есть область прокрутки (`mode="static"`), а
+ * шапка лежит **внутри** него и кончается у жёлоба. Дорожка прозрачная (см. `index.css`), то есть в
+ * жёлобе виден фон корня — обои или фон страницы, — и на широком экране шапка выходит на десять
+ * пикселей короче окна: справа от неё стоит столбик другого цвета, а ползунок, стоящий вверху,
+ * ложится вровень с ней. Это и читается как «скроллбар съедает часть хедера».
+ *
+ * Вынести шапку из области прокрутки нельзя: на телефоне она уезжает при листании, и содержимое
+ * обязано проехать под ней, а не под полосой пустого фона (та самая ошибка, что уже была у сайдбара
+ * на десктопе). Поэтому чинится то, что видно в жёлобе, — фон корня. В его верхних
+ * `--app-shell-header-height` пикселях лежат два слоя ровно цвета шапки: заливка и её нижняя черта.
+ * Слои повторяются по горизонтали (`repeat-x`), а не тянутся на `100 %`: область позиционирования
+ * фона у прокручиваемого блока кончается у полосы, и слой шириной в сто процентов до жёлоба не
+ * дотянулся бы; повтор же заполняет область **рисования**, то есть весь бокс вместе с жёлобом.
+ * Обои под слоями остаются как были.
+ *
+ * Только от `48em`: ниже полоса накладная и места не занимает, а шапка там прячется — и слой,
+ * оставшийся на её месте, был бы виден сквозь прозрачный `.main` поверх обоев.
+ *
+ * `::-webkit-scrollbar-track` с отступом сверху сдвигает дорожку под шапку: ползунок больше не
+ * стоит вровень с ней, а полоса начинается там, где начинается страница, — как у любого окна с
+ * шапкой снаружи области прокрутки. В Firefox отступа у дорожки нет, там ползунок доходит до верха,
+ * но жёлоб рядом с шапкой всё равно её цвета.
+ */
+@media (min-width: 48em) {
+  .root {
+    background-image:
+      linear-gradient(var(--mantine-color-default-border), var(--mantine-color-default-border)),
+      linear-gradient(var(--mantine-color-body), var(--mantine-color-body));
+    background-size:
+      auto 1px,
+      auto var(--app-shell-header-height);
+    background-position:
+      0 calc(var(--app-shell-header-height) - 1px),
+      0 0;
+    background-repeat: repeat-x, repeat-x;
+  }
+
+  :root[data-wallpaper] .root {
+    background-image:
+      linear-gradient(var(--mantine-color-default-border), var(--mantine-color-default-border)),
+      linear-gradient(var(--mantine-color-body), var(--mantine-color-body)),
+      linear-gradient(var(--wallpaper-veil), var(--wallpaper-veil)),
+      var(--wallpaper-image);
+    background-size:
+      auto 1px,
+      auto var(--app-shell-header-height),
+      cover,
+      cover;
+    background-position:
+      0 calc(var(--app-shell-header-height) - 1px),
+      0 0,
+      center,
+      center;
+    background-repeat: repeat-x, repeat-x, no-repeat, no-repeat;
+  }
+
+  .root::-webkit-scrollbar-track {
+    margin-top: var(--app-shell-header-height);
+  }
+}

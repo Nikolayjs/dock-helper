@@ -366,9 +366,18 @@ body {
  * Поэтому дорожки нет, а ползунок остаётся: он и есть указатель, сколько ещё осталось.
  * `scrollbar-color` — то же самое для Firefox, где `::-webkit-` не действует; свойство
  * наследуемое, поэтому объявлено один раз на корне.
+ *
+ * **Только для Firefox, и это исправленная ошибка.** Chromium, увидев на прокручиваемом блоке
+ * `scrollbar-color` или `scrollbar-width` не `auto`, **целиком игнорирует** его правила
+ * `::-webkit-scrollbar-*` — а свойство наследуемое, то есть с корня оно доставалось каждому блоку.
+ * Все правила выше молча не действовали: замер в обычном (не headless) Chromium — полоса 15 px со
+ * стрелками вместо десяти без них, и ползунок стоял вровень с шапкой. Проверка идёт по поддержке
+ * самого селектора: Firefox `::-webkit-scrollbar` не знает, Chromium знает.
  */
-:root {
-  scrollbar-color: var(--mantine-color-default-border) transparent;
+@supports not selector(::-webkit-scrollbar) {
+  :root {
+    scrollbar-color: var(--mantine-color-default-border) transparent;
+  }
 }
 
 ::-webkit-scrollbar-track {
