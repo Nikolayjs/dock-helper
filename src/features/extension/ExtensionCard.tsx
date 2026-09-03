@@ -205,6 +205,11 @@ export function ExtensionCard() {
           <Anchor component={Link} to="/inbox" size="xs">
             «Входящие»
           </Anchor>
+          . Подробно —{' '}
+          {/* Полная версия лежит на публичном адресе: её же читает магазин расширений. */}
+          <Anchor href="/legal/extension" target="_blank" size="xs">
+            что расширение читает и что нет
+          </Anchor>
           .
         </Text>
       </Stack>

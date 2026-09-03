@@ -45,6 +45,7 @@ const router = createBrowserRouter(
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/legal/offer" element={<LegalPage kind="offer" />} />
       <Route path="/legal/privacy" element={<LegalPage kind="privacy" />} />
+      <Route path="/legal/extension" element={<LegalPage kind="extension" />} />
       <Route path="*" element={<PublicNotFoundPage />} />
     </Route>,
   ),

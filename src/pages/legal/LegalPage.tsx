@@ -2,7 +2,7 @@ import { Box, Container, List, Stack, Text, Title } from '@mantine/core';
 
 import { LandingFooter } from '../../features/landing/LandingFooter';
 import { LandingHeader } from '../../features/landing/LandingHeader';
-import { PRIVACY, TERMS } from './legalDocs';
+import { EXTENSION_PRIVACY, PRIVACY, TERMS } from './legalDocs';
 import type { LegalDoc } from './legalDocs';
 
 /**
@@ -13,9 +13,11 @@ import type { LegalDoc } from './legalDocs';
  * принимает, так что называться так документ не может. Менять же адрес значило бы оборвать ссылки,
  * карту сайта и канонические адреса ради слова в пути.
  */
-const DOCS: Record<'offer' | 'privacy', LegalDoc> = {
+const DOCS: Record<'offer' | 'privacy' | 'extension', LegalDoc> = {
   offer: TERMS,
   privacy: PRIVACY,
+  // Своя политика у расширения: магазин требует отдельный адрес и сверяет её с разрешениями.
+  extension: EXTENSION_PRIVACY,
 };
 
 export function LegalPage({ kind }: { kind: keyof typeof DOCS }) {

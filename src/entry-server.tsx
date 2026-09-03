@@ -44,6 +44,14 @@ export const PUBLIC_PAGES = [
     title: 'Политика обработки персональных данных — MedAssist',
     description: 'Как MedAssist обращается с персональными данными: что собирается, где хранится и кому не передаётся.',
   },
+  {
+    // Магазин расширений требует политику по **публичному** адресу и открывает её сам, без входа:
+    // страница обязана пререндериться, иначе проверяющему приедет пустой `<div id="root">`.
+    path: '/legal/extension',
+    title: 'Политика конфиденциальности расширения MedAssist Clipper',
+    description:
+      'Что расширение MedAssist Clipper читает, что отправляет и чего не делает: страницы в фоне не читает, к картотеке доступа не имеет.',
+  },
 ] as const;
 
 /**
@@ -65,6 +73,7 @@ export function render(path: string): string {
           <Route path="/demo" element={<DemoPage />} />
           <Route path="/legal/offer" element={<LegalPage kind="offer" />} />
           <Route path="/legal/privacy" element={<LegalPage kind="privacy" />} />
+          <Route path="/legal/extension" element={<LegalPage kind="extension" />} />
         </Routes>
       </StaticRouter>
     </MantineProvider>,
