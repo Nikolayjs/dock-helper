@@ -26,6 +26,7 @@ import { useRichTextEditor } from '../../components/common/useRichTextEditor';
 import { useDiseases } from '../diseases/useDiseases';
 import { useDrugs } from '../drugs/useDrugs';
 import { useDocuments } from '../knowledgeBase/useDocuments';
+import { isPublishTarget, resolveMentions } from './mentions';
 import { CLIP_TARGET_LABELS, publishedHref, type ClipTarget } from './types';
 import { useClips } from './useClips';
 
@@ -154,16 +155,27 @@ export function ClipEditorPage() {
             disabled={published}
           />
 
-          <Textarea
-            label="Зачем сохранил"
-            description="Только для вас: в справочник эта заметка не уходит"
-            value={note}
-            onChange={(event) => setNote(event.currentTarget.value)}
-            autosize
-            minRows={2}
-            maxRows={6}
-            disabled={published}
-          />
+          <div>
+            <Textarea
+              label="Зачем сохранил"
+              description="Только для вас: в справочник эта заметка не уходит"
+              value={note}
+              onChange={(event) => setNote(event.currentTarget.value)}
+              autosize
+              minRows={2}
+              maxRows={6}
+              disabled={published}
+            />
+            <Mentions
+              note={note}
+              target={target}
+              disabled={published}
+              onPick={(id) => {
+                setMode('append');
+                setEntityId(id);
+              }}
+            />
+          </div>
 
           <RichTextField editor={editor} label="Текст" exportTitle={title || clip.title} minHeight="max(320px, 50vh)" />
 
@@ -235,6 +247,67 @@ export function ClipEditorPage() {
         </ReadingSheet>
       )}
     </RecordEditorPage>
+  );
+}
+
+/**
+ * Что врач назвал в заметке при сохранении.
+ *
+ * Расширение кладёт туда `[[Название]]` — это его способ сказать «относится вот к этому», пока
+ * страница ещё перед глазами. Разрешать их здесь обязательно: ссылка, которая никуда не ведёт и
+ * ничем себя не показывает, — обещание, которого никто не выполнил, и тогда лучше бы её вовсе не
+ * предлагали вставлять.
+ *
+ * Место публикации при этом **не выбирается само**: кнопка есть, нажимает её врач. Молча
+ * подставленное назначение — это ровно то, за что переделывали нормы анализатора.
+ */
+function Mentions({
+  note,
+  target,
+  disabled,
+  onPick,
+}: {
+  note: string;
+  target: ClipTarget;
+  disabled: boolean;
+  onPick: (id: string) => void;
+}) {
+  const { diseases } = useDiseases();
+  const { documents } = useDocuments('article');
+  const mentions = useMemo(() => resolveMentions(note, diseases, documents), [note, diseases, documents]);
+
+  if (mentions.length === 0) return null;
+
+  return (
+    <Group gap="xs" mt={6} wrap="wrap">
+      <Text size="xs" c="dimmed">
+        Упомянуто:
+      </Text>
+      {mentions.map((mention) => (
+        <Group key={mention.name} gap={4} wrap="nowrap">
+          {mention.found ? (
+            <Anchor
+              component={Link}
+              to={mention.found.kind === 'disease' ? `/reference/diseases/${mention.found.id}` : `/articles/${mention.found.id}`}
+              size="xs"
+            >
+              {mention.found.title}
+            </Anchor>
+          ) : (
+            /* Ненайденное помечается, а не прячется: врач мог сохранить страницу до того, как завёл
+               запись, и пропавшее упоминание унесло бы с собой его намерение. */
+            <Text size="xs" c="red">
+              {mention.name} — такой записи нет
+            </Text>
+          )}
+          {!disabled && isPublishTarget(mention, target) && (
+            <Button size="compact-xs" variant="subtle" onClick={() => onPick(mention.found!.id)}>
+              дописать сюда
+            </Button>
+          )}
+        </Group>
+      ))}
+    </Group>
   );
 }
 
