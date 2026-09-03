@@ -45,7 +45,8 @@ import { updateProfile } from '../features/auth/authApi';
 import { useSpecialties } from '../features/specialties/useSpecialtyFilter';
 import { useAuth, useLogout, useUpdateAuthUser } from '../features/auth/AuthContext';
 import { getClinicSettings, setClinicSettings, type ClinicSettings } from '../features/patients/clinicSettings';
-import { getMembers, invite, type WorkspaceMember } from '../features/workspace/workspaceApi';
+import { getMembers, invite, leaveWorkspace, removeMember, workspaceLabel, type WorkspaceMember } from '../features/workspace/workspaceApi';
+import { useWorkspaces } from '../features/workspace/useWorkspaces';
 import { isDemoSession } from '../features/demo/demoSession';
 import { ChangePasswordModal } from '../features/doctor/ChangePasswordModal';
 import { signOutEverywhere } from '../features/auth/authApi';
@@ -105,6 +106,45 @@ export function DoctorPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const { workspaces, switchTo } = useWorkspaces();
+  const activeWorkspace = workspaces.find((workspace) => workspace.active) ?? null;
+  const [leaving, setLeaving] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
+
+  const reloadMembers = () =>
+    getMembers()
+      .then(setMembers)
+      .catch((error: unknown) => showProfileError(error, 'Не удалось загрузить список команды'));
+
+  const handleRemoveMember = async (member: WorkspaceMember) => {
+    setRemoving(member.id);
+    try {
+      await removeMember(member.id);
+      await reloadMembers();
+      notifications.show({ message: `${member.name} больше не участник`, color: 'teal' });
+    } catch (error) {
+      showProfileError(error, 'Не удалось исключить врача');
+    } finally {
+      setRemoving(null);
+    }
+  };
+
+  /** Уйти можно только из чужого: своё единственное пространство сервер покинуть не даст. */
+  const handleLeave = async () => {
+    if (!activeWorkspace) return;
+    setLeaving(true);
+    try {
+      await leaveWorkspace(activeWorkspace.id);
+      // Сервер уже перевёл врача в его собственное пространство — забираем оттуда всё заново.
+      const remaining = workspaces.filter((workspace) => workspace.id !== activeWorkspace.id);
+      if (remaining[0]) await switchTo(remaining[0].id);
+      notifications.show({ message: 'Вы вышли из рабочего пространства', color: 'teal' });
+    } catch (error) {
+      showProfileError(error, 'Не удалось выйти из рабочего пространства');
+    } finally {
+      setLeaving(false);
+    }
+  };
   // Читается синхронно: список сразу показывает выбранное, а не «по умолчанию», меняющееся на глазах.
   const [idleMinutes, setIdleMinutes] = useState(() => readIdleMinutes());
   const [isSigningOutEverywhere, setIsSigningOutEverywhere] = useState(false);
@@ -136,9 +176,7 @@ export function DoctorPage() {
   };
 
   useEffect(() => {
-    void getMembers()
-      .then(setMembers)
-      .catch((error: unknown) => showProfileError(error, 'Не удалось загрузить список команды'));
+    void reloadMembers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -509,9 +547,17 @@ export function DoctorPage() {
             </ThemeIcon>
             <Title order={4}>Команда</Title>
           </Group>
-          <Text size="sm" c="dimmed" mb="lg">
+          <Text size="sm" c="dimmed" mb={activeWorkspace ? 'sm' : 'lg'}>
             Врачи в этом списке видят и редактируют общие данные — пациентов, заметки, планер и всё остальное.
           </Text>
+
+          {/* Какое пространство настраивается: у врача их может быть несколько, и «Команда» без
+              этой строки читалась бы как «все, с кем я вообще работаю». */}
+          {activeWorkspace && (
+            <Text size="sm" mb="lg">
+              Открыто: <b>{workspaceLabel(activeWorkspace)}</b>
+            </Text>
+          )}
 
           <Stack gap="xs" mb="lg">
             {members.map((member) => (
@@ -537,6 +583,19 @@ export function DoctorPage() {
                     </Text>
                   </Box>
                 </Group>
+                {/* Исключает владелец и только не себя: для себя есть «Выйти» ниже, и там другой
+                    вопрос — не «убрать человека», а «уйти самому». */}
+                {isOwner && member.id !== user.id && (
+                  <Button
+                    variant="subtle"
+                    color="red"
+                    size="compact-sm"
+                    loading={removing === member.id}
+                    onClick={() => void handleRemoveMember(member)}
+                  >
+                    Исключить
+                  </Button>
+                )}
               </Group>
             ))}
           </Stack>
@@ -567,8 +626,26 @@ export function DoctorPage() {
                 </Button>
               </Group>
               <Text size="xs" c="dimmed" mt={6}>
-                Врач добавляется мгновенно, без подтверждения с его стороны.
+                Врач добавляется сразу и ничего не теряет: его собственное пространство остаётся при
+                нём, а это появляется у него в переключателе рядом.
               </Text>
+            </>
+          )}
+
+          {/* Уйти можно из чужого пространства; из своего единственного сервер не выпустит — и
+              правильно: врач остался бы без доступа вовсе. */}
+          {!demo && activeWorkspace && workspaces.length > 1 && (
+            <>
+              <Divider my="md" />
+              <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+                <Text size="sm" c="dimmed" style={{ flex: '1 1 240px' }}>
+                  Выйти из этого пространства. Ваши собственные записи в других пространствах
+                  останутся на месте.
+                </Text>
+                <Button variant="light" color="red" loading={leaving} onClick={() => void handleLeave()}>
+                  Выйти из пространства
+                </Button>
+              </Group>
             </>
           )}
         </Card>

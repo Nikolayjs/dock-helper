@@ -18,6 +18,7 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { getInitials } from '../../features/patients/utils';
 import { HeaderNotifications } from './HeaderNotifications';
 import { HeaderSearch } from './HeaderSearch';
+import { WorkspaceSwitcher } from '../../features/workspace/WorkspaceSwitcher';
 import { balanceSides } from './topbarBalance';
 
 interface TopbarProps {
@@ -187,6 +188,9 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
           justify="flex-end"
           style={{ flex: '1 1 0', minWidth: sideWidth || 0 }}
         >
+          {/* Виден, только когда пространств больше одного, — иначе `data-elastic` не нужен: он
+              ничего не занимает. Стоит перед поиском: «где я» читают раньше, чем ищут. */}
+          <WorkspaceSwitcher />
           <HeaderSearch />
           <HeaderNotifications />
           <UnstyledButton component={Link} to="/doctor" visibleFrom="xs">
