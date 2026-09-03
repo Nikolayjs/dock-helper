@@ -1,5 +1,4 @@
-import { API_BASE_URL } from '../../lib/apiConfig';
-import { backendErrorMessage } from './backendError';
+import { request } from '../../lib/httpRepository';
 
 export interface ArticleFullText {
   title: string | null;
@@ -25,20 +24,13 @@ export class ArticleFullTextError extends Error {}
  * implementation went through the public allorigins.win).
  */
 export async function fetchArticleFullText(url: string): Promise<ArticleFullText> {
-  const endpoint = `${API_BASE_URL}/articles/full-text?url=${encodeURIComponent(url)}`;
-
-  let response: Response;
+  // Через `request`, а не сырой `fetch`: ручка закрыта входом (сервер ходит по адресу, который
+  // прислал клиент), и запрос без токена получал бы 401.
   try {
-    response = await fetch(endpoint);
-  } catch {
-    throw new ArticleFullTextError('Не удалось загрузить страницу статьи — проверьте подключение к интернету.');
-  }
-
-  if (!response.ok) {
+    return await request<ArticleFullText>(`/articles/full-text?url=${encodeURIComponent(url)}`);
+  } catch (error) {
     throw new ArticleFullTextError(
-      await backendErrorMessage(response, `Не удалось загрузить страницу статьи (${response.status}).`),
+      error instanceof Error && error.message ? error.message : 'Не удалось загрузить страницу статьи.',
     );
   }
-
-  return (await response.json()) as ArticleFullText;
 }
