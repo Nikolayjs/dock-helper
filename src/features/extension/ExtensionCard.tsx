@@ -22,16 +22,8 @@ import {
 import { notifications } from '@mantine/notifications';
 import { IconBrowserPlus, IconCheck, IconCopy, IconPlugConnected, IconTrash } from '@tabler/icons-react';
 
-import { useExtensionTokens, type ExtensionScope, type ExtensionTokenView } from './useExtensionTokens';
-
-/**
- * Что расширению позволено. Названо словами врача, а не идентификаторами скоупов: «clips:write» ни
- * о чём не говорит тому, кто нажимает кнопку.
- */
-const SCOPES: { value: ExtensionScope; label: string }[] = [
-  { value: 'clips:write', label: 'Сохранять страницы' },
-  { value: 'catalog:read', label: 'Подсказывать названия из справочников' },
-];
+import { SCOPES, missingScopes } from './scopes';
+import { useExtensionTokens, type ExtensionTokenView } from './useExtensionTokens';
 
 function formatMoment(value: string | null): string {
   if (!value) return 'ни разу';
@@ -140,6 +132,10 @@ export function ExtensionCard() {
           <List.Item>
             Дальше — правая кнопка на странице или выделенном тексте, «Сохранить в MedAssist».
           </List.Item>
+          <List.Item>
+            Там же — «Добавить в MedAssist: лента новостей» и «книга по ссылке»: и то, и другое хранит адрес, а не
+            содержимое.
+          </List.Item>
         </List>
 
         <Divider my="xs" />
@@ -175,6 +171,13 @@ export function ExtensionCard() {
                       <Badge size="xs" color="gray" variant="light">
                         отозван {formatMoment(token.revokedAt)}
                       </Badge>
+                    )}
+                    {missingScopes(token).length > 0 && (
+                      <Tooltip label={`Не умеет: ${missingScopes(token).join(', ')}. Выпустите новый токен и вставьте его в расширение.`} multiline w={280}>
+                        <Badge size="xs" color="yellow" variant="light">
+                          выдан раньше
+                        </Badge>
+                      </Tooltip>
                     )}
                   </Group>
                   <Text size="xs" c="dimmed">
