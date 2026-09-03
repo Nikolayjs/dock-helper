@@ -74,7 +74,7 @@ export function ClipEditorPage() {
       record={clip}
       isLoading={isLoading}
       notFound={{ text: 'Клип не найден', to: '/inbox', label: 'Во «Входящие»' }}
-      back={<BackButton fallback="/inbox" />}
+      back={<BackButton fallback={{ to: '/inbox', label: 'Во «Входящие»' }} />}
       title={clip?.title ?? ''}
       subtitle={
         clip && (
