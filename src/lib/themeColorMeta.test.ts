@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { THEME_COLOR_STORAGE_KEY, syncThemeColorMeta, toHexColor } from './themeColorMeta';
+import { THEME_COLOR_COOKIE, THEME_COLOR_STORAGE_KEY, syncThemeColorMeta, themeColorCookie, toHexColor } from './themeColorMeta';
 
 describe('цвет шапки для полосы окна', () => {
   it('обычный rgb — в шестнадцатеричную запись', () => {
@@ -64,6 +64,15 @@ describe('мета и запомненный цвет', () => {
     expect(metas[0].content).toBe('#242424');
     expect(metas[0].hasAttribute('data-app-theme-color')).toBe(true);
     expect(localStorage.getItem(THEME_COLOR_STORAGE_KEY)).toBe('#242424');
+    // Кука — для манифеста: по ней сервер ставит `theme_color`, которым Android красит бар.
+    expect(document.cookie).toContain(`${THEME_COLOR_COOKIE}=%23242424`);
+  });
+
+  it('кука: год жизни, весь сайт, Secure только на https', () => {
+    expect(themeColorCookie('#242424', true)).toBe(
+      'medassist-theme-color=%23242424; path=/; max-age=31536000; SameSite=Lax; Secure',
+    );
+    expect(themeColorCookie('#ffffff', false)).not.toContain('Secure');
   });
 
   /*

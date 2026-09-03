@@ -26,12 +26,31 @@
  *
  * Ключ **не** синхронизируется между устройствами намеренно: цвет — про шапку в этом окне, а тема
  * (`mantine-color-scheme-value`) и так хранится на устройстве.
+ *
+ * **Тот же цвет уезжает кукой — для манифеста.** Установленное на Android приложение (WebAPK в
+ * Chrome) красит строку состояния цветом `theme_color` из **манифеста**, а мету страницы не
+ * смотрит. Проверено на телефоне: та же страница во вкладке Chrome даёт тёмную панель, а в
+ * приложении бар белый — ровно `theme_color`, каким он был в манифесте. Поэтому манифест отдаёт
+ * сервер и подставляет в него цвет из куки; ссылка на манифест стоит с `use-credentials`, иначе
+ * браузер запрашивает его без кук. Chrome сверяет манифест при запуске приложения не чаще раза в
+ * сутки и, найдя разницу, пересобирает приложение — так что смена темы доезжает до бара с задержкой,
+ * а переустановка подхватывает цвет сразу.
  */
 
 const MARK = 'data-app-theme-color';
 
 /** Читается inline-скриптом в `index.html` — имя там повторено буквально, менять оба вместе. */
 export const THEME_COLOR_STORAGE_KEY = 'medassist:theme-color';
+
+/** Читает сервер при отдаче манифеста (`app.controller.ts` в бэкенде) — имя повторено там буквально. */
+export const THEME_COLOR_COOKIE = 'medassist-theme-color';
+
+/** Год: кука обязана пережить любой перерыв в работе, иначе следующая установка выйдет с белым баром. */
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+export function themeColorCookie(color: string, secure: boolean): string {
+  return `${THEME_COLOR_COOKIE}=${encodeURIComponent(color)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax${secure ? '; Secure' : ''}`;
+}
 
 /**
  * Цвет шапки — в `#rrggbb`, и это не косметика.
@@ -83,6 +102,8 @@ export function syncThemeColorMeta(): void {
 
   try {
     if (localStorage.getItem(THEME_COLOR_STORAGE_KEY) !== color) localStorage.setItem(THEME_COLOR_STORAGE_KEY, color);
+    // `Secure` только на https: на локальном стенде по http такую куку браузер просто не запишет.
+    document.cookie = themeColorCookie(color, location.protocol === 'https:');
   } catch {
     // Хранилище может отказать (приватное окно, запрет на данные сайта): тогда при следующем
     // запуске работают меты из `index.html`, как и раньше.
