@@ -8,9 +8,9 @@ import {
   type PatientFilterState,
 } from './patientFiltering';
 import { EMPTY_PATIENT_CONSTANTS } from './types';
-import type { Patient, PatientSex } from './types';
+import type { PatientSex, PatientSummary } from './types';
 
-function patient(overrides: Partial<Patient> = {}): Patient {
+function patient(overrides: Partial<PatientSummary> = {}): PatientSummary {
   return {
     id: 'p1',
     fullName: 'Иванов Иван Иванович',
@@ -20,7 +20,8 @@ function patient(overrides: Partial<Patient> = {}): Patient {
     reminderDate: null,
     reminderNote: '',
     ...EMPTY_PATIENT_CONSTANTS,
-    visits: [],
+    lastVisit: null,
+    visitCount: 0,
     createdAt: '2026-01-01T00:00:00',
     updatedAt: '2026-01-01T00:00:00',
     ...overrides,
@@ -31,7 +32,7 @@ function withFilters(overrides: Partial<PatientFilterState>): PatientFilterState
   return { ...EMPTY_PATIENT_FILTERS, ...overrides };
 }
 
-const visit = { id: 'v1', date: '2026-01-01', diagnosis: '', note: '', referralCategory: null, referralDestination: '', createdAt: '2026-01-01T00:00:00' };
+
 
 describe('matchesPatientFilters', () => {
   it('lets everything through by default', () => {
@@ -66,10 +67,10 @@ describe('matchesPatientFilters', () => {
   });
 
   it('filters by whether there are visits', () => {
-    expect(matchesPatientFilters(patient({ visits: [visit] }), withFilters({ visits: 'with' }))).toBe(true);
-    expect(matchesPatientFilters(patient({ visits: [] }), withFilters({ visits: 'with' }))).toBe(false);
-    expect(matchesPatientFilters(patient({ visits: [] }), withFilters({ visits: 'without' }))).toBe(true);
-    expect(matchesPatientFilters(patient({ visits: [visit] }), withFilters({ visits: 'without' }))).toBe(false);
+    expect(matchesPatientFilters(patient({ visitCount: 1 }), withFilters({ visits: 'with' }))).toBe(true);
+    expect(matchesPatientFilters(patient({ visitCount: 0 }), withFilters({ visits: 'with' }))).toBe(false);
+    expect(matchesPatientFilters(patient({ visitCount: 0 }), withFilters({ visits: 'without' }))).toBe(true);
+    expect(matchesPatientFilters(patient({ visitCount: 1 }), withFilters({ visits: 'without' }))).toBe(false);
   });
 
   it('filters by reminder, and separates overdue from merely set', () => {
@@ -87,7 +88,7 @@ describe('matchesPatientFilters', () => {
     const target = patient({
       sex: 'female',
       birthDate: dayjs().subtract(70, 'year').format('YYYY-MM-DD'),
-      visits: [visit],
+      visitCount: 1,
     });
     expect(matchesPatientFilters(target, withFilters({ sex: 'female', age: 'senior', visits: 'with' }))).toBe(true);
     expect(matchesPatientFilters(target, withFilters({ sex: 'female', age: 'senior', visits: 'without' }))).toBe(false);

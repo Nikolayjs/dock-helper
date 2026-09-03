@@ -11,7 +11,7 @@ import { diagnosisCodeOf, useIcd10Names } from '../features/patients/useIcd10Nam
 import { sortRows, useTableSort } from '../lib/tableSort';
 import { PATIENT_SORT_KEYS, PatientTable, patientSortValue, type PatientSortKey } from '../features/patients/PatientTable';
 import type { DispensaryRecord } from '../features/patients/types';
-import type { Patient } from '../features/patients/types';
+import type { PatientSummary } from '../features/patients/types';
 
 /**
  * Импорт картотеки подключается только при открытии окна: за ним стоит `read-excel-file`, 13 КБ
@@ -21,7 +21,7 @@ const PatientImportModal = lazy(() =>
   import('../features/patients/import/PatientImportModal').then((module) => ({ default: module.PatientImportModal })),
 );
 import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from '../features/patients/useDispensary';
-import { QUERY_KEY as PATIENTS_KEY, usePatients } from '../features/patients/usePatients';
+import { QUERY_KEY as PATIENTS_KEY, fetchPatientsFull, usePatients, useVisitDigest } from '../features/patients/usePatients';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { observationsWarning, visitsWarning } from '../features/patients/deleteWarnings';
 import { CatalogPanel } from '../components/common/CatalogPanel';
@@ -86,8 +86,11 @@ export function PatientsPage() {
     try {
       const { patientsWorkbook } = await import('../features/patients/import/exportPatients');
       const { downloadXlsx } = await import('../lib/xlsx/downloadXlsx');
-      await downloadXlsx(patientsWorkbook(patients));
-      notifications.show({ message: `Выгружено записей: ${patients.length}`, color: 'teal' });
+      // Картотека берётся целиком и заново: в списке визиты приезжают без текстов приёмов, а
+      // выгрузка обещает полную копию — молча урезанная, она выглядит целой, и это худший вид потери.
+      const full = await fetchPatientsFull();
+      await downloadXlsx(patientsWorkbook(full));
+      notifications.show({ message: `Выгружено записей: ${full.length}`, color: 'teal' });
     } finally {
       setExporting(false);
     }
@@ -105,11 +108,11 @@ export function PatientsPage() {
   const patientsById = useMemo(() => new Map(patients.map((p) => [p.id, p])), [patients]);
   const activeFilters = countActiveFilters(filters);
 
-  const handleDelete = (patient: Patient) =>
+  const handleDelete = (patient: PatientSummary) =>
     confirmDelete({
       what: 'пациента',
       name: patient.fullName,
-      alsoRemoves: visitsWarning(patient.visits.length),
+      alsoRemoves: visitsWarning(patient.visitCount),
       notice: 'Пациент удалён',
       queryKey: PATIENTS_KEY,
       id: patient.id,
@@ -127,18 +130,31 @@ export function PatientsPage() {
       perform: () => deleteRecord(record.id),
     });
 
+  /**
+  * Поиск идёт и по диагнозам всех приёмов, а не только по последнему: врач ищет «кто у меня был с
+  * фибрилляцией», а не «у кого она стояла в последний раз».
+  *
+  * Ради этого нужны все визиты — но **только пока в поле что-то набрано**. Список визитов весит на
+  * порядок больше самой картотеки (замер: 3,1 МБ против 335 КБ на пятистах пациентах), и платить за
+  * него при каждом открытии раздела, чтобы врач в половине случаев ничего не искал, незачем.
+  */
+  const { visits: searchVisits } = useVisitDigest(search.trim().length > 0);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const byDiagnosis = new Set(
+      query ? searchVisits.filter((visit) => visit.diagnosis.toLowerCase().includes(query)).map((visit) => visit.patientId) : [],
+    );
     return patients.filter((patient) => {
       if (!matchesPatientFilters(patient, filters)) return false;
       if (!query) return true;
       return (
         patient.fullName.toLowerCase().includes(query) ||
         patient.phone.toLowerCase().includes(query) ||
-        patient.visits.some((visit) => visit.diagnosis.toLowerCase().includes(query))
+        byDiagnosis.has(patient.id)
       );
     });
-  }, [patients, search, filters]);
+  }, [patients, search, filters, searchVisits]);
 
   const sorted = useMemo(
     () => sortRows(filtered, patientSort.sort, patientSortValue),

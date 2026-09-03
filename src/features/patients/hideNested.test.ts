@@ -54,22 +54,20 @@ function record(id: string, observationIds: string[]): DispensaryRecord {
 }
 
 describe('hideVisit', () => {
-  const cached = [patient('p1', ['v1', 'v2']), patient('p2', ['v3'])];
+  const cached = patient('p1', ['v1', 'v2']);
 
-  it('takes the visit out of its own patient', () => {
-    const next = hideVisit('p1', 'v1')(cached) as Patient[];
-    expect(next[0].visits.map((v) => v.id)).toEqual(['v2']);
+  it('убирает визит из записи пациента', () => {
+    const next = hideVisit('v1')(cached) as Patient;
+    expect(next.visits.map((v) => v.id)).toEqual(['v2']);
   });
 
-  it('leaves every other patient alone, by identity', () => {
-    const next = hideVisit('p1', 'v1')(cached) as Patient[];
-    expect(next[1]).toBe(cached[1]);
-    // The original is untouched: react-query compares by reference to decide what re-renders.
-    expect(cached[0].visits.map((v) => v.id)).toEqual(['v1', 'v2']);
+  it('чужие визиты не трогает', () => {
+    const next = hideVisit('нет-такого')(cached) as Patient;
+    expect(next.visits).toHaveLength(2);
   });
 
-  it('does nothing to a cache that is not a list', () => {
-    expect(hideVisit('p1', 'v1')(undefined)).toBeUndefined();
+  it('пустой кэш не ломает', () => {
+    expect(hideVisit('v1')(undefined)).toBeUndefined();
   });
 });
 

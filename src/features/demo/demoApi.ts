@@ -194,6 +194,40 @@ export async function demoRequest<T>(path: string, init?: RequestInit): Promise<
       .slice(0, limit) as T;
   }
 
+  // ── Картотека: сводка, визиты и полная запись ────────────────────────────────────────────────
+  // Настоящий сервер отдаёт список **без** визитов, а визиты — отдельными ручками. Без этих веток
+  // демо разбирало бы `/patients/visits` как карточку пациента с идентификатором «visits» — та же
+  // ловушка, что у `/drugs/search`, — и сводные экраны остались бы пустыми.
+  if (pathname === '/patients' && method === 'GET') {
+    return collection('/patients').map(({ visits, ...patient }) => {
+      const list = (visits as Row[] | undefined) ?? [];
+      // Сравнением, а не «первый в списке»: демо дописывает новый визит в конец.
+      const last = list.reduce<Row | null>((latest, visit) => (!latest || String(visit.date) > String(latest.date) ? visit : latest), null);
+      return {
+        ...patient,
+        lastVisit: last ? { date: last.date, diagnosis: last.diagnosis, diagnosisCode: last.diagnosisCode } : null,
+        visitCount: list.length,
+      };
+    }) as T;
+  }
+
+  if (pathname === '/patients/visits' && method === 'GET') {
+    return collection('/patients').flatMap((patient) =>
+      (((patient.visits as Row[] | undefined) ?? []).map(({ note: _note, ...visit }) => ({ ...visit, patientId: patient.id }))),
+    ) as T;
+  }
+
+  if (segments[0] === 'patients' && segments[1] === 'visits' && segments[2] === 'day' && method === 'GET') {
+    const date = seg(3);
+    return collection('/patients').flatMap((patient) =>
+      (((patient.visits as Row[] | undefined) ?? []).filter((visit) => visit.date === date).map((visit) => ({ ...visit, patientId: patient.id }))),
+    ) as T;
+  }
+
+  if (pathname === '/patients/full' && method === 'GET') {
+    return collection('/patients') as T;
+  }
+
   // ── Визиты пациента ──────────────────────────────────────────────────────────────────────────
   if (segments[0] === 'patients' && segments[2] === 'visits') {
     const patient = byId(collection('/patients'), seg(1));

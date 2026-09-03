@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { PatientForm } from './PatientForm';
 import type { PatientInput } from './usePatients';
-import { QUERY_KEY as PATIENTS_KEY, usePatients } from './usePatients';
+import { QUERY_KEY as PATIENTS_KEY, usePatient, usePatients } from './usePatients';
 import { useDeleteWithConfirm } from '../deletion/deleteConfirmContext';
 import { visitsWarning } from './deleteWarnings';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
@@ -14,9 +14,10 @@ import { RecordEditorPage } from '../../components/common/RecordEditorPage';
 export function PatientEditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { patients, isLoading, addPatient, updatePatient, deletePatient } = usePatients();
+  const { isLoading, addPatient, updatePatient, deletePatient } = usePatients();
   const confirmDelete = useDeleteWithConfirm();
-  const editingPatient = id ? patients.find((p) => p.id === id) : undefined;
+  // Правится запись целиком: у формы есть визиты, а в списке их больше нет.
+  const editingPatient = usePatient(id).patient ?? undefined;
 
   const backTo = editingPatient ? `/patients/${editingPatient.id}` : '/patients';
 

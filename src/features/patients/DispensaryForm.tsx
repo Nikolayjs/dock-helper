@@ -7,12 +7,12 @@ import { DatePickerInput } from '@mantine/dates';
 import dayjs from 'dayjs';
 
 import { DiagnosisPicker } from './DiagnosisPicker';
-import type { DispensaryRecord, Patient } from './types';
+import type { DispensaryRecord, PatientSummary } from './types';
 import type { DispensaryRecordInput } from './useDispensary';
 import { FormActions } from '../../components/common/FormActions';
 
 interface DispensaryFormProps {
-  patients: Patient[];
+  patients: PatientSummary[];
   initialRecord?: DispensaryRecord;
   defaultPatientId?: string;
   onSubmit: (input: DispensaryRecordInput) => void | Promise<void>;

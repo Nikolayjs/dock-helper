@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import type { XlsxInput } from '../../lib/xlsx/writeXlsx';
 import type { DiagnosisStats, DispensaryStats } from './dispensaryStats';
 import { REMOVAL_REASON_LABELS } from './dispensaryUtils';
-import type { DispensaryRecord, Patient } from './types';
+import type { DispensaryRecord, PatientSummary } from './types';
 
 /**
  * Годовой отчёт по диспансерному учёту — в таблицу Excel.
@@ -24,7 +24,7 @@ export interface DispensaryReportInput {
   stats: DispensaryStats;
   byDiagnosis: DiagnosisStats[];
   records: DispensaryRecord[];
-  patientsById: Map<string, Patient>;
+  patientsById: Map<string, PatientSummary>;
   /** Название болезни по карте: та же функция, что рисует строки на экране. */
   labelOf: (record: DispensaryRecord) => string;
   codeOf: (record: DispensaryRecord) => string | undefined;

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildDispensaryReport } from './dispensaryReport';
 import { computeDispensaryStats, computeStatsByDiagnosis } from './dispensaryStats';
 import { EMPTY_PATIENT_CONSTANTS } from './types';
-import type { DispensaryRecord, Patient } from './types';
+import type { DispensaryRecord, PatientSummary } from './types';
 
 /**
  * Годовой отчёт, уходящий в Excel.
@@ -15,7 +15,7 @@ import type { DispensaryRecord, Patient } from './types';
 
 const PERIOD = { start: '2026-01-01', end: '2026-12-31' };
 
-const patient = (id: string, fullName: string, sex: 'male' | 'female', birthDate: string | null): Patient => ({
+const patient = (id: string, fullName: string, sex: 'male' | 'female', birthDate: string | null): PatientSummary => ({
   id,
   fullName,
   sex,
@@ -24,7 +24,8 @@ const patient = (id: string, fullName: string, sex: 'male' | 'female', birthDate
   reminderDate: null,
   reminderNote: '',
   ...EMPTY_PATIENT_CONSTANTS,
-  visits: [],
+  lastVisit: null,
+  visitCount: 0,
   createdAt: '',
   updatedAt: '',
 });
@@ -45,7 +46,7 @@ const record = (id: string, patientId: string, overrides: Partial<DispensaryReco
   ...overrides,
 });
 
-function report(records: DispensaryRecord[], patients: Patient[], hideNames = false) {
+function report(records: DispensaryRecord[], patients: PatientSummary[], hideNames = false) {
   const patientsById = new Map(patients.map((p) => [p.id, p]));
   return buildDispensaryReport({
     periodStart: PERIOD.start,

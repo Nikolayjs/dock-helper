@@ -1,4 +1,4 @@
-import type { Patient } from './types';
+import type { PatientSummary } from './types';
 import { calcAge, getReminderStatus } from './utils';
 
 /**
@@ -42,7 +42,7 @@ export function countActiveFilters(filters: PatientFilterState): number {
   return Object.values(filters).filter((value) => value !== 'all').length;
 }
 
-export function matchesPatientFilters(patient: Patient, filters: PatientFilterState): boolean {
+export function matchesPatientFilters(patient: PatientSummary, filters: PatientFilterState): boolean {
   if (filters.sex !== 'all' && patient.sex !== filters.sex) return false;
 
   if (filters.age !== 'all') {
@@ -51,8 +51,9 @@ export function matchesPatientFilters(patient: Patient, filters: PatientFilterSt
     if (age === null || !AGE_BANDS[filters.age](age)) return false;
   }
 
-  if (filters.visits === 'with' && patient.visits.length === 0) return false;
-  if (filters.visits === 'without' && patient.visits.length > 0) return false;
+  // Число приёмов приезжает в сводке: списку визиты больше не нужны (см. `usePatients`).
+  if (filters.visits === 'with' && patient.visitCount === 0) return false;
+  if (filters.visits === 'without' && patient.visitCount > 0) return false;
 
   if (filters.reminder !== 'all') {
     if (!patient.reminderDate) return false;

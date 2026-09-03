@@ -7,7 +7,7 @@ import { DataTable } from '../../components/common/DataTable';
 import type { DataColumn } from '../../components/common/DataTable';
 import type { SortState, SortValue } from '../../lib/tableSort';
 import { REMOVAL_REASON_LABELS } from './dispensaryUtils';
-import type { DispensaryRecord, Patient } from './types';
+import type { DispensaryRecord, PatientSummary } from './types';
 import { diagnosisCodeOf, diagnosisLabel } from './useIcd10Names';
 import { getReminderStatus } from './utils';
 
@@ -42,7 +42,7 @@ export const DISPENSARY_SORT_KEYS: readonly DispensarySortKey[] = [
 
 interface DispensaryTableProps {
   records: DispensaryRecord[];
-  patientsById: Map<string, Patient>;
+  patientsById: Map<string, PatientSummary>;
   sort: SortState<DispensarySortKey>;
   onSort: (key: DispensarySortKey) => void;
   /** Разрешаются на странице: сортировка по диагнозу обязана использовать те же названия, что видно в строках. */
@@ -71,7 +71,7 @@ const DASH = '—';
 export function dispensarySortValue(
   record: DispensaryRecord,
   key: DispensarySortKey,
-  patientsById: Map<string, Patient>,
+  patientsById: Map<string, PatientSummary>,
   icdNames: Record<string, string>,
 ): SortValue {
   switch (key) {

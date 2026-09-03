@@ -3,7 +3,7 @@ import { Badge, Table, Text } from '@mantine/core';
 import dayjs from 'dayjs';
 
 import { useIncrementalList } from '../../lib/useIncrementalList';
-import type { DispensaryRecord, Patient } from './types';
+import type { DispensaryRecord, PatientSummary } from './types';
 import { diagnosisCodeOf, diagnosisLabel } from './useIcd10Names';
 
 /**
@@ -20,7 +20,7 @@ import { diagnosisCodeOf, diagnosisLabel } from './useIcd10Names';
 
 interface DispensaryPatientTableProps {
   records: DispensaryRecord[];
-  patientsById: Map<string, Patient>;
+  patientsById: Map<string, PatientSummary>;
   icdNames: Record<string, string>;
   hideNames: boolean;
   /** Ages are stated as of this date, so a report keeps saying the same thing next year. */

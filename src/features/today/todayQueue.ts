@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 
-import type { DispensaryRecord, Patient, PatientVisit } from '../patients/types';
+import type { DispensaryRecord, Patient, PatientSummary, PatientVisit } from '../patients/types';
 
 /** Почему человек в сегодняшнем списке. */
 export interface TodayReason {
@@ -20,7 +20,7 @@ export interface TodayEntry {
 }
 
 export interface SeenToday {
-  patient: Patient;
+  patient: Pick<PatientSummary, 'id' | 'fullName'>;
   visit: PatientVisit;
 }
 
@@ -82,15 +82,25 @@ export function getTodayQueue(
   );
 }
 
-/** Кого уже приняли сегодня — то, что за день сделано. */
-export function getSeenToday(patients: Patient[], today = dayjs()): SeenToday[] {
-  const iso = today.startOf('day').format('YYYY-MM-DD');
+/**
+ * Кого уже приняли сегодня — то, что за день сделано.
+ *
+ * Визиты приходят **отдельным списком**, а не из `patient.visits`, и это не мелочь: экран
+ * показывает, что записано на приёме, а в общем списке визитов текстов приёмов больше нет — они
+ * весили больше всего остального (см. `usePatientsWithVisits`). Сегодняшних визитов ровно столько,
+ * сколько человек принято за день, поэтому там текст ничего не стоит.
+ */
+export function getSeenToday(
+  patients: Array<Pick<PatientSummary, 'id' | 'fullName'>>,
+  visitsToday: Array<PatientVisit & { patientId: string }>,
+): SeenToday[] {
+  const byId = new Map(patients.map((patient) => [patient.id, patient]));
   const seen: SeenToday[] = [];
 
-  for (const patient of patients) {
-    for (const visit of patient.visits) {
-      if (visit.date === iso) seen.push({ patient, visit });
-    }
+  for (const visit of visitsToday) {
+    const patient = byId.get(visit.patientId);
+    // Визит удалённого пациента показывать некому и незачем: звать некого.
+    if (patient) seen.push({ patient, visit });
   }
 
   return seen.sort((a, b) => b.visit.createdAt.localeCompare(a.visit.createdAt));

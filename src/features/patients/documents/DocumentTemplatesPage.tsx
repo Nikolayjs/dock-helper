@@ -6,17 +6,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { CatalogToolbar } from '../../../components/common/CatalogPanel';
 import { stripHtml } from '../../notes/textPreview';
-import { usePatients } from '../usePatients';
+import { usePatient, usePatients } from '../usePatients';
 import { lastVisitOf } from '../utils';
 import { isDemoSession } from '../../demo/demoSession';
 import type { DocumentTemplate } from './templateTypes';
 import { useDocumentTemplates } from './useDocumentTemplates';
 
-/** Same recency rule as everywhere else: newest visit date, ties broken by creation order. */
-function latestVisitId(patientId: string, patients: ReturnType<typeof usePatients>['patients']): string | null {
-  const patient = patients.find((p) => p.id === patientId);
-  return patient ? (lastVisitOf(patient)?.id ?? null) : null;
-}
 
 export function DocumentTemplatesPage({ hint }: { hint?: string }) {
   const navigate = useNavigate();
@@ -57,7 +52,8 @@ export function DocumentTemplatesPage({ hint }: { hint?: string }) {
     );
   }, [useTemplateId, templates, setSearchParams]);
 
-  const selectedPatient = patients.find((p) => p.id === patientId) ?? null;
+  // Запись целиком: печать идёт по последнему визиту, а в списке визитов больше нет.
+  const { patient: selectedPatient } = usePatient(patientId ?? undefined);
 
   const closePrintModal = () => {
     setPrintTemplate(null);
@@ -66,7 +62,7 @@ export function DocumentTemplatesPage({ hint }: { hint?: string }) {
 
   const handlePrint = () => {
     if (!printTemplate || !patientId) return;
-    const visitId = latestVisitId(patientId, patients);
+    const visitId = selectedPatient ? (lastVisitOf(selectedPatient)?.id ?? null) : null;
     if (!visitId) return;
     navigate(`/patients/${patientId}/documents/${visitId}?templateId=${printTemplate.id}`);
     closePrintModal();

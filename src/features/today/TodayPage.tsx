@@ -16,7 +16,7 @@ import { PageSection } from '../../components/common/PageSection';
 import { QueryState } from '../../components/common/QueryState';
 import { useDispensary } from '../patients/useDispensary';
 import type { Patient } from '../patients/types';
-import { usePatients } from '../patients/usePatients';
+import { usePatientsWithVisits, useVisitsOnDate } from '../patients/usePatients';
 import type { VisitInput } from '../patients/usePatients';
 import { calcAge, formatAge } from '../patients/utils';
 import { suggestedDiagnosis } from '../patients/suggestDiagnosis';
@@ -101,12 +101,14 @@ function QueueRow({ entry, onReceive }: { entry: TodayEntry; onReceive: (patient
 export function TodayPage() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { patients, isLoading, error, refetch, addVisit } = usePatients();
+  const { patients, isLoading, error, refetch, addVisit } = usePatientsWithVisits();
   const { records } = useDispensary();
   const [receiving, setReceiving] = useState<Patient | null>(null);
 
   const queue = useMemo(() => getTodayQueue(patients, records), [patients, records]);
-  const seen = useMemo(() => getSeenToday(patients), [patients]);
+  // Визиты сегодняшнего дня — своим запросом, с текстами приёмов: в общем списке их нет.
+  const { visits: visitsToday } = useVisitsOnDate(dayjs().format('YYYY-MM-DD'));
+  const seen = useMemo(() => getSeenToday(patients, visitsToday), [patients, visitsToday]);
 
 
   const handleSave = async (input: VisitInput) => {

@@ -20,7 +20,7 @@ import { rankTemplates, readUsage } from '../dashboard/documentUsage';
 import { REFERRAL_CATEGORY_COLORS, REFERRAL_CATEGORY_LABELS } from './referralUtils';
 import type { PatientVisit } from './types';
 import { QUERY_KEY as DISPENSARY_KEY, useDispensary } from './useDispensary';
-import { QUERY_KEY as PATIENTS_KEY, usePatients } from './usePatients';
+import { QUERY_KEY as PATIENTS_KEY, usePatient, usePatients } from './usePatients';
 import type { VisitInput } from './usePatients';
 import { calcAge, formatAge, getInitials, getReminderStatus, sortedVisits } from './utils';
 import { VisitForm } from './VisitForm';
@@ -44,13 +44,15 @@ const SEX_LABEL: Record<'male' | 'female', string> = {
 export function PatientViewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { patients, deletePatient, addVisit, updateVisit, deleteVisit } = usePatients();
+  const { deletePatient, addVisit, updateVisit, deleteVisit } = usePatients();
+  // Запись целиком: карточка показывает тексты приёмов, а список их больше не отдаёт.
+  const { patient: loadedPatient } = usePatient(id);
   const { records: dispensaryRecords, deleteRecord: deleteDispensaryRecord } = useDispensary();
   const confirmDelete = useDeleteWithConfirm();
   const { templates } = useDocumentTemplates();
   const { results: labResults } = useLabResults();
   const { medications } = usePatientMedications();
-  const patient = patients.find((p) => p.id === id);
+  const patient = loadedPatient;
 
   const [visitEditor, setVisitEditor] = useState<PatientVisit | 'new' | null>(null);
   /**
@@ -153,9 +155,9 @@ export function PatientViewPage() {
       what: 'визит',
       name: visit ? `${dayjs(visit.date).format('D MMMM YYYY')} — ${visit.diagnosis || 'без диагноза'}` : undefined,
       notice: 'Визит удалён',
-      queryKey: PATIENTS_KEY,
-      // A visit is not a row of the patient list: it has to be taken out of its patient.
-      hide: hideVisit(patient.id, visitId),
+      // Кэш **этой записи**: список визитов не возит, и прятать там нечего.
+      queryKey: ['patients', patient.id],
+      hide: hideVisit(visitId),
       perform: () => deleteVisit(patient.id, visitId),
       onConfirmed: () => {
         if (visitEditor && visitEditor !== 'new' && visitEditor.id === visitId) setVisitEditor(null);

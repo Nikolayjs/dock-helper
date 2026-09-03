@@ -3,7 +3,7 @@ import { Combobox, Loader, Text, TextInput, useCombobox } from '@mantine/core';
 
 import { getTopDiagnoses } from '../dashboard/practice';
 import { useIcd10Search } from './useIcd10Search';
-import { usePatients } from './usePatients';
+import { usePatientsWithVisits } from './usePatients';
 
 interface DiagnosisPickerProps {
   label?: string;
@@ -26,7 +26,7 @@ export function DiagnosisPicker({ label = 'Диагноз', value, onChange }: D
    * `getTopDiagnoses`, что кормит дашборд). Это подсказка, а не ограничение: набранное слово
    * по-прежнему ищется по классификации.
    */
-  const { patients } = usePatients();
+  const { patients } = usePatientsWithVisits();
   const frequent = useMemo(() => getTopDiagnoses(patients, 8), [patients]);
 
   return (

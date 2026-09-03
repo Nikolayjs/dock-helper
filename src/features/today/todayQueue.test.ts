@@ -122,10 +122,17 @@ describe('кого уже приняли сегодня', () => {
         visit(iso(-1)),
       ],
     });
-    expect(getSeenToday([a], TODAY).map((s) => s.visit.id)).toEqual(['поздний', 'ранний']);
+    const visitsToday = a.visits.filter((v) => v.date === iso(0)).map((v) => ({ ...v, patientId: a.id }));
+    expect(getSeenToday([a], visitsToday).map((s) => s.visit.id)).toEqual(['поздний', 'ранний']);
   });
 
   it('без сегодняшних визитов список пуст', () => {
-    expect(getSeenToday([patient('a', 'Абрамов', { visits: [visit(iso(-1))] })], TODAY)).toEqual([]);
+    expect(getSeenToday([patient('a', 'Абрамов', { visits: [visit(iso(-1))] })], [])).toEqual([]);
+  });
+
+  /* Визит пациента, которого убрали из базы, показывать некому: звать некого. */
+  it('визит удалённого пациента в список не попадает', () => {
+    const orphan = { ...visit(iso(0), { id: 'ничей' }), patientId: 'нет-такого' };
+    expect(getSeenToday([patient('a', 'Абрамов')], [orphan])).toEqual([]);
   });
 });

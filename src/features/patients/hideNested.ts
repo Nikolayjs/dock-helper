@@ -9,14 +9,18 @@ import type { DispensaryRecord, Patient } from './types';
  * everything else.
  */
 
-export function hideVisit(patientId: string, visitId: string) {
+/**
+ * Визит прячется из кэша **одной записи**, а не из списка картотеки.
+ *
+ * Список визитов больше не возит вовсе (`usePatients` отдаёт сводки), поэтому раньше окно отмены
+ * оставляло бы удалённый визит на экране до ответа сервера: в списке его нет, а карточка читает
+ * свой кэш `['patients', id]`.
+ */
+export function hideVisit(visitId: string) {
   return (cached: unknown): unknown => {
-    if (!Array.isArray(cached)) return cached;
-    return (cached as Patient[]).map((patient) =>
-      patient.id === patientId
-        ? { ...patient, visits: patient.visits.filter((visit) => visit.id !== visitId) }
-        : patient,
-    );
+    const patient = cached as Patient | undefined;
+    if (!patient?.visits) return cached;
+    return { ...patient, visits: patient.visits.filter((visit) => visit.id !== visitId) };
   };
 }
 

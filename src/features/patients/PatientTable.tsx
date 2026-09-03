@@ -6,8 +6,8 @@ import dayjs from 'dayjs';
 import { DataTable } from '../../components/common/DataTable';
 import type { DataColumn } from '../../components/common/DataTable';
 import type { SortState, SortValue } from '../../lib/tableSort';
-import type { Patient, PatientVisit } from './types';
-import { calcAge, formatAge, getReminderStatus, lastVisitOf } from './utils';
+import type { LastVisit, PatientSummary } from './types';
+import { calcAge, formatAge, getReminderStatus } from './utils';
 
 /**
  * Список пациентов, по человеку на строку.
@@ -33,12 +33,12 @@ export const PATIENT_SORT_KEYS: readonly PatientSortKey[] = [
 ];
 
 interface PatientTableProps {
-  patients: Patient[];
+  patients: PatientSummary[];
   sort: SortState<PatientSortKey>;
   onSort: (key: PatientSortKey) => void;
-  onOpen: (patient: Patient) => void;
-  onEdit: (patient: Patient) => void;
-  onDelete: (patient: Patient) => void;
+  onOpen: (patient: PatientSummary) => void;
+  onEdit: (patient: PatientSummary) => void;
+  onDelete: (patient: PatientSummary) => void;
 }
 
 const REMINDER_COLOR: Record<'overdue' | 'today' | 'upcoming', string> = {
@@ -71,7 +71,7 @@ function visitsLabel(count: number): string {
  * строку на каждое сравнение значило бы работать впустую. Возраст и число визитов — настоящие
  * числа, поэтому 2 идёт перед 10, а не после.
  */
-export function patientSortValue(patient: Patient, key: PatientSortKey): SortValue {
+export function patientSortValue(patient: PatientSummary, key: PatientSortKey): SortValue {
   switch (key) {
     case 'name':
       return patient.fullName;
@@ -80,11 +80,11 @@ export function patientSortValue(patient: Patient, key: PatientSortKey): SortVal
     case 'age':
       return calcAge(patient.birthDate);
     case 'lastVisit':
-      return lastVisitOf(patient)?.date ?? null;
+      return patient.lastVisit?.date ?? null;
     case 'diagnosis':
-      return lastVisitOf(patient)?.diagnosis || null;
+      return patient.lastVisit?.diagnosis || null;
     case 'visits':
-      return patient.visits.length || null;
+      return patient.visitCount || null;
     case 'reminder':
       return patient.reminderDate;
   }
@@ -92,9 +92,9 @@ export function patientSortValue(patient: Patient, key: PatientSortKey): SortVal
 
 /** Строка со всем, что нужно при отрисовке: возраст и срок считаются один раз на набор. */
 interface PatientRow {
-  patient: Patient;
+  patient: PatientSummary;
   age: number | null;
-  lastVisit: PatientVisit | undefined;
+  lastVisit: LastVisit | null;
   reminderStatus: 'overdue' | 'today' | 'upcoming' | null;
 }
 
@@ -106,7 +106,7 @@ export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete 
       patients.map((patient) => ({
         patient,
         age: calcAge(patient.birthDate),
-        lastVisit: lastVisitOf(patient),
+        lastVisit: patient.lastVisit,
         reminderStatus: patient.reminderDate ? getReminderStatus(patient.reminderDate) : null,
       })),
     [patients],
@@ -169,8 +169,8 @@ export function PatientTable({ patients, sort, onSort, onOpen, onEdit, onDelete 
       header: 'Визитов',
       w: 124,
       render: ({ patient }) => (
-        <Text size="sm" c={patient.visits.length === 0 ? 'dimmed' : undefined}>
-          {visitsLabel(patient.visits.length)}
+        <Text size="sm" c={patient.visitCount === 0 ? 'dimmed' : undefined}>
+          {visitsLabel(patient.visitCount)}
         </Text>
       ),
     },

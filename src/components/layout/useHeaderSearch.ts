@@ -9,8 +9,7 @@ import { useIcd10Search } from '../../features/patients/useIcd10Search';
 import { useDocuments } from '../../features/knowledgeBase/useDocuments';
 import { useNotes } from '../../features/notes/useNotes';
 import { stripHtml } from '../../features/notes/textPreview';
-import { usePatients } from '../../features/patients/usePatients';
-import { lastVisitOf } from '../../features/patients/utils';
+import { usePatients, useVisitDigest } from '../../features/patients/usePatients';
 
 /**
  * Поиск в шапке: состояние, источники и сборка результатов — без единой строки разметки.
@@ -20,7 +19,7 @@ import { lastVisitOf } from '../../features/patients/utils';
  * правке: добавили группу в одну, забыли в другой, и поиск отвечает по-разному в зависимости от
  * ширины окна.
  *
- * **Хук монтирует данные.** `usePatients()` и соседи — это запросы, поэтому мобильная оболочка
+ * **Хук монтирует данные.** `usePatientsWithVisits()` и соседи — это запросы, поэтому мобильная оболочка
  * обязана вызывать его только при открытом окне: иначе шапка, стоящая на каждой странице, тянула
  * бы весь список пациентов вместе с визитами при каждом заходе в любой раздел.
  */
@@ -54,7 +53,6 @@ export function useHeaderSearch() {
   const { documents: articles } = useDocuments('article');
   const { notes } = useNotes();
   const { patients } = usePatients();
-
   const [query, setQuery] = useState('');
   const [debouncedQuery] = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   // Препараты ищет сервер: их полторы тысячи, а строка поиска стоит на каждой странице.
@@ -65,9 +63,24 @@ export function useHeaderSearch() {
   const trimmedQuery = query.trim();
   const trimmedDebouncedQuery = debouncedQuery.trim();
   const isSearching = trimmedQuery.length > 0 && (trimmedDebouncedQuery !== trimmedQuery || drugsFetching || icdFetching);
+  /*
+   * Визиты — **только пока в поле что-то набрано**, и это не мелочь: поиск живёт в шапке, то есть
+   * смонтирован на каждой странице приложения. Без выключателя список визитов (3,1 МБ на пятистах
+   * пациентах против 335 КБ самой картотеки) скачивался бы при каждом заходе в любой раздел — ровно
+   * та ошибка, ради которой мобильное окно поиска монтируется только открытым.
+   */
+  const { visits } = useVisitDigest(trimmedDebouncedQuery.length > 0);
 
   const groupedResults = useMemo<SearchGroup[]>(() => {
     const q = trimmedDebouncedQuery.toLowerCase();
+    // Диагнозы приёмов — по пациенту: искать «кто был с фибрилляцией» надо по всем визитам, а не
+    // только по последнему.
+    const diagnosesByPatient = new Map<string, string[]>();
+    for (const visit of visits) {
+      const list = diagnosesByPatient.get(visit.patientId) ?? [];
+      list.push(visit.diagnosis);
+      diagnosesByPatient.set(visit.patientId, list);
+    }
     if (!q) return [];
 
     const groups: SearchGroup[] = [
@@ -154,12 +167,12 @@ export function useHeaderSearch() {
       {
         group: 'Пациенты',
         items: patients
-          .filter((patient) => matches(q, patient.fullName, patient.phone, ...patient.visits.map((v) => v.diagnosis)))
+          .filter((patient) => matches(q, patient.fullName, patient.phone, ...(diagnosesByPatient.get(patient.id) ?? [])))
           .slice(0, MAX_RESULTS_PER_GROUP)
           .map((patient) => ({
             id: patient.id,
             title: patient.fullName,
-            description: lastVisitOf(patient)?.diagnosis ?? '',
+            description: patient.lastVisit?.diagnosis ?? '',
             path: `/patients/${patient.id}`,
             icon: IconUsers,
             group: 'Пациенты',
@@ -168,7 +181,7 @@ export function useHeaderSearch() {
     ];
 
     return groups.filter((group) => group.items.length > 0);
-  }, [trimmedDebouncedQuery, calculators, guidelines, articles, notes, patients, drugs, icd10]);
+  }, [trimmedDebouncedQuery, calculators, guidelines, articles, notes, patients, visits, drugs, icd10]);
 
   const totalResults = groupedResults.reduce((sum, group) => sum + group.items.length, 0);
 

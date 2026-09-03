@@ -8,12 +8,13 @@ import { SheetPreview } from './documents/SheetPreview';
 import { TemplateDocument } from './documents/TemplateDocument';
 import { useDocumentTemplates } from './documents/useDocumentTemplates';
 import { recordTemplateUse } from '../dashboard/documentUsage';
-import { usePatients } from './usePatients';
+import { usePatient } from './usePatients';
 
 export function PrintableDocumentPage() {
   const { id, visitId } = useParams<{ id: string; visitId: string }>();
   const navigate = useNavigate();
-  const { patients, isLoading: patientsLoading } = usePatients();
+  // Бланк печатается по последнему визиту пациента и подставляет его заметку — нужна полная запись.
+  const { patient, isLoading: patientsLoading } = usePatient(id);
   const { templates, isLoading: templatesLoading } = useDocumentTemplates();
   const [searchParams, setSearchParams] = useSearchParams();
   // Null means "whatever the template says". Kept out of the URL: it is a property of this one
@@ -29,7 +30,7 @@ export function PrintableDocumentPage() {
    */
   const [clipped, setClipped] = useState<string[]>([]);
 
-  const patient = patients.find((p) => p.id === id);
+
   const visit = patient?.visits.find((v) => v.id === visitId);
 
   const templateIdParam = searchParams.get('templateId');

@@ -56,7 +56,7 @@ import type { Note } from '../features/notes/types';
 import { useDocumentTemplates } from '../features/patients/documents/useDocumentTemplates';
 import { useLibrary } from '../features/library/useLibrary';
 import { useDispensary } from '../features/patients/useDispensary';
-import { usePatients } from '../features/patients/usePatients';
+import { usePatientsWithVisits } from '../features/patients/usePatients';
 import { OnboardingWizard } from '../features/onboarding/OnboardingWizard';
 import { isOnboardingPending } from '../features/onboarding/onboardingState';
 import { usePlanner } from '../features/planner/usePlanner';
@@ -77,7 +77,7 @@ export function DashboardPage() {
    * нужно в том же кадре, в котором нажали, а отметка о пройденном уезжает в настройки сама.
    */
   const [onboarding, setOnboarding] = useState(() => isOnboardingPending());
-  const { patients } = usePatients();
+  const { patients } = usePatientsWithVisits();
   const { records } = useDispensary();
   const { notes, deleteNote, toggleTodoItem } = useNotes();
   const { cards } = usePlanner();

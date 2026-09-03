@@ -4,8 +4,8 @@ import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 
 import { useSaveAction } from '../../components/common/useSaveAction';
-import type { Patient } from '../patients/types';
-import { usePatients } from '../patients/usePatients';
+import type { PatientSummary } from '../patients/types';
+import { fetchPatient, usePatient, usePatients } from '../patients/usePatients';
 import { sortedVisits } from '../patients/utils';
 import { appendToNote } from './resultLine';
 
@@ -13,7 +13,7 @@ import { appendToNote } from './resultLine';
 const NEW_VISIT = 'new';
 
 interface SaveToVisitModalProps {
-  patient: Patient;
+  patient: PatientSummary;
   /** Строка о расчёте; `null` — окно закрыто. */
   line: string | null;
   onClose: () => void;
@@ -31,8 +31,10 @@ interface SaveToVisitModalProps {
  * запись упиралась бы в пустой список, а завести визит пришлось бы на другой странице.
  */
 export function SaveToVisitModal({ patient, line, onClose }: SaveToVisitModalProps) {
-  const { addVisit, updateVisit, refetch } = usePatients();
-  const visits = sortedVisits(patient.visits);
+  const { addVisit, updateVisit } = usePatients();
+  // Дописываем к заметке визита, поэтому нужна запись с текстами приёмов, а не сводка из списка.
+  const { patient: full } = usePatient(patient.id);
+  const visits = sortedVisits(full?.visits ?? []);
   const [target, setTarget] = useState<string>(visits[0]?.id ?? NEW_VISIT);
 
   const { saving, save } = useSaveAction(undefined, async () => {
@@ -56,9 +58,8 @@ export function SaveToVisitModal({ patient, line, onClose }: SaveToVisitModalPro
        * затёрта нашей копией. Перечитывание сужает окно до одного запроса; закрыть его полностью
        * может только версия записи и 409 на сервере.
        */
-      const fresh = await refetch();
-      const current = fresh.find((item) => item.id === patient.id) ?? patient;
-      const visit = current.visits.find((item) => item.id === target);
+      const fresh = await fetchPatient(patient.id);
+      const visit = fresh.visits.find((item) => item.id === target);
       if (!visit) return;
       await updateVisit(patient.id, visit.id, {
         date: visit.date,
