@@ -1,4 +1,4 @@
-import { readSetting, writeSetting } from '../../lib/settingsStore';
+import { flushSettings, readSetting, writeSetting } from '../../lib/settingsStore';
 
 /**
  * Прошёл ли врач первые шаги после регистрации.
@@ -30,6 +30,14 @@ export function isOnboardingPending(): boolean {
 export function finishOnboarding(): void {
   try {
     writeSetting(ONBOARDING_KEY, 'done');
+    /*
+     * Отправляется сразу, а не через полторы секунды.
+     *
+     * На входе серверная копия выигрывает, а «pending» уехало туда при регистрации: окно, закрытое
+     * и тут же перезагруженное, открывалось снова — локально «done», с сервера «pending».
+     * Поймано пробой: перезагрузка через секунду после закрытия возвращала первые шаги.
+     */
+    flushSettings();
   } catch {
     // См. выше: пропущенный шаг — не повод падать.
   }

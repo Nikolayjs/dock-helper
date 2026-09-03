@@ -104,6 +104,25 @@ function schedulePush(): void {
   }, 1500);
 }
 
+/**
+ * Отправить накопленное **сейчас**, не дожидаясь полутора секунд.
+ *
+ * Нужно там, где следом идёт перезагрузка страницы: на входе серверная копия выигрывает, и правка,
+ * не успевшая уехать, откатывается. Поймано пробой — окно первых шагов, закрытое и тут же
+ * перезагруженное, открывалось снова: локально стояло «done», а с сервера приезжало «pending».
+ */
+export function flushSettings(): void {
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
+  if (!pushEnabled || pending.size === 0) return;
+  const items = [...pending].map(([key, value]) => ({ key, value }));
+  pending = new Map();
+  // `keepalive` — на случай, если страница уходит прямо сейчас: обычный запрос браузер оборвёт.
+  void request('/user-settings', { method: 'PUT', body: JSON.stringify({ items }), keepalive: true }).catch(() => undefined);
+}
+
 export function writeSetting(key: string, value: string): void {
   safely(() => localStorage.setItem(key, value), undefined);
   if (!isSyncable(key, value)) return;
