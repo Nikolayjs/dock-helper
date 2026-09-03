@@ -13,13 +13,12 @@ import {
 import { IconMenu2, IconStethoscope } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 
+import { useIsMobile } from '../common/useIsMobile';
 import { useAuth } from '../../features/auth/AuthContext';
 import { getInitials } from '../../features/patients/utils';
 import { HeaderNotifications } from './HeaderNotifications';
 import { HeaderSearch } from './HeaderSearch';
-
-/** Ниже этого заголовок уже не прочитать, и уравнивать стороны ради него незачем. */
-const MIN_TITLE_WIDTH = 160;
+import { balanceSides } from './topbarBalance';
 
 interface TopbarProps {
   title: string;
@@ -33,6 +32,9 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
   const rightRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const [sideWidth, setSideWidth] = useState(0);
+  // Тот же порог, что у оболочки и у остальных мобильных правок: второго порога мобильности в
+  // приложении нет намеренно.
+  const isCompact = useIsMobile();
 
   /**
    * Стороны шапки уравниваются по более широкой из них.
@@ -52,7 +54,13 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
      * `scrollWidth` у растянутого flex-контейнера равен его собственной ширине, а не тому, сколько
      * места нужно содержимому. Меряя его, `min-width` защёлкивала бы уже растянутый размер, тот
      * становился бы новым минимумом — и заголовок между сторонами сжимался до многоточия. Отсюда
-     * замер по крайним детям: он не зависит от того, растянули сторону или нет.
+     * замер по видимым детям: он не зависит от того, растянули сторону или нет.
+     *
+     * **Тянущиеся дети из замера исключены** (`data-elastic`). Заголовок раздела растёт по месту,
+     * которое ему оставляет `min-width` этой же стороны: меряя его, расчёт питался бы собственным
+     * результатом — шире бокс, шире заголовок, шире следующий замер. На телефоне это давало
+     * периодический горизонтальный скролл, а на широком экране возможно с длинным названием
+     * раздела.
      */
     const contentWidth = (element: HTMLElement | null) => {
       if (!element) return 0;
@@ -60,6 +68,7 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
       // по ширине экрана (бургер, имя врача) остаются в разметке с нулевым прямоугольником в начале
       // координат, и размах от первого до последнего выходил отрицательным.
       const widths = Array.from(element.children)
+        .filter((child) => !(child as HTMLElement).dataset.elastic)
         .map((child) => child.getBoundingClientRect().width)
         .filter((width) => width > 0);
       if (widths.length === 0) return 0;
@@ -68,15 +77,17 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
     };
 
     const measure = () => {
-      const left = contentWidth(leftRef.current);
-      const right = contentWidth(rightRef.current);
-      const container = rowRef.current?.clientWidth ?? 0;
-      const widest = Math.max(left, right);
-      // Уравнивать стороны можно только пока обе помещаются вместе с заголовком. Иначе жёсткая
-      // `min-width` вытолкнула бы правую сторону за край окна, и вместо смещённого заголовка
-      // получилась бы горизонтальная прокрутка всей шапки.
-      const fits = container > 0 && widest * 2 + MIN_TITLE_WIDTH <= container;
-      const next = fits ? widest : 0;
+      // На телефоне уравнивать нечего: центральный заголовок скрыт, а стороны обязаны сжиматься.
+      if (isCompact) {
+        setSideWidth((current) => (current === 0 ? current : 0));
+        return;
+      }
+      const next = balanceSides({
+        left: contentWidth(leftRef.current),
+        right: contentWidth(rightRef.current),
+        container: rowRef.current?.clientWidth ?? 0,
+        compact: false,
+      });
       setSideWidth((current) => (current === next ? current : next));
     };
 
@@ -86,17 +97,29 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
     if (rightRef.current) observer.observe(rightRef.current);
     if (rowRef.current) observer.observe(rowRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [isCompact]);
 
   return (
-    <Box h="100%" px="lg">
-      <Group ref={rowRef} h="100%" justify="space-between" wrap="nowrap" gap="md">
+    // На 320 px прежние `px="lg"` съедали сорок пикселей ширины — на узком экране это заметная доля.
+    <Box h="100%" px={{ base: 'sm', sm: 'lg' }}>
+      {/* `overflow: hidden` — страховка, а не лечение: следующая ошибка в замере обрежется по краю
+          шапки, а не утащит за собой горизонтальную прокрутку всей страницы. */}
+      <Group
+        ref={rowRef}
+        h="100%"
+        justify="space-between"
+        wrap="nowrap"
+        gap="md"
+        style={{ maxWidth: '100%', overflow: 'hidden' }}
+      >
         {/* Боковые группы делят свободное место поровну (flex-basis 0, одинаковый рост), поэтому
          * заголовок между ними стоит ровно посередине окна — а не посередине остатка, как было бы
          * при разной ширине сторон. Содержимое сторон при этом не сжимается ниже своего размера:
          * когда места перестаёт хватать, первым укорачивается заголовок. */}
-        <Group ref={leftRef} gap="sm" wrap="nowrap" style={{ flex: '1 1 0', minWidth: sideWidth || undefined }}>
-          <UnstyledButton component={Link} to="/dashboard">
+        <Group ref={leftRef} gap="sm" wrap="nowrap" style={{ flex: '1 1 0', minWidth: sideWidth || 0 }}>
+          {/* Логотип целиком уходит с телефона: он занимал 38 px значка плюс промежуток ради
+              дороги на дашборд, которая и так есть первым пунктом выдвижного меню. */}
+          <UnstyledButton component={Link} to="/dashboard" visibleFrom="sm">
             <Group gap={10} wrap="nowrap">
               <ThemeIcon
                 size={38}
@@ -106,7 +129,7 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
               >
                 <IconStethoscope size={22} />
               </ThemeIcon>
-              <Box visibleFrom="xs">
+              <Box>
                 <Text fw={700} size="md" lh={1.1}>
                   MedAssist
                 </Text>
@@ -133,9 +156,12 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
           </ActionIcon>
 
           {/* На узком экране заголовок раздела стоит здесь, а не посередине: центральная коробка
-              ниже `sm` спрятана, и врач с телефона не видел, в каком он разделе, вовсе. Место под
-              него берётся у подписи «Ассистент врача», которая ниже `xs` и так не показывается. */}
-          <Text fw={600} lh={1.2} hiddenFrom="sm" truncate style={{ minWidth: 0 }}>
+              ниже `sm` спрятана, и врач с телефона не видел, в каком он разделе, вовсе. Место ему
+              достаётся от логотипа, которого на телефоне нет.
+
+              `data-elastic` выводит его из замера сторон: он тянется по оставшемуся месту, и мерить
+              его значило бы мерить собственный результат — см. `topbarBalance.ts`. */}
+          <Text data-elastic="true" fw={600} lh={1.2} hiddenFrom="sm" truncate style={{ minWidth: 0, flex: '1 1 auto' }}>
             {title}
           </Text>
         </Group>
@@ -159,7 +185,7 @@ export function Topbar({ title, subtitle, onBurgerClick }: TopbarProps) {
           gap="sm"
           wrap="nowrap"
           justify="flex-end"
-          style={{ flex: '1 1 0', minWidth: sideWidth || undefined }}
+          style={{ flex: '1 1 0', minWidth: sideWidth || 0 }}
         >
           <HeaderSearch />
           <HeaderNotifications />
