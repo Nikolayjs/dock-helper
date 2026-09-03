@@ -64,6 +64,14 @@ export interface PatternRule {
   description?: string;
   causes: string[];
   match: (statuses: Record<string, ParamStatus>, values: Record<string, number>, context: PatternContext) => boolean;
+  /**
+   * Правило спрашивает про возраст.
+   *
+   * Нужно результатам: без возраста такое правило не срабатывает **никогда**, и пропавшее
+   * заключение выглядит как отсутствие находки. Считается один раз при разборе правила, а не
+   * угадывается по тому, сработало оно или нет.
+   */
+  usesAge?: boolean;
 }
 
 export interface LabTestDefinition {

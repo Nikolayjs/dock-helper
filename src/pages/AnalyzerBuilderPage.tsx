@@ -12,6 +12,7 @@ import { ParameterEditorRow, type DraftParameter } from '../features/analyzer/bu
 import { toParamKey } from '../features/analyzer/import/paramKey';
 import type { ParsedAnalyte } from '../features/analyzer/import/parseLabValues';
 import { PatternRuleEditorRow, type DraftPatternRule } from '../features/analyzer/builder/PatternRuleEditorRow';
+import { incomplete } from '../features/analyzer/builder/conditions';
 import {
   describePatternNode,
   hydrateLabTest,
@@ -127,7 +128,9 @@ export function AnalyzerBuilderPage() {
 
   const paramKeys = useMemo(() => parameters.map((p) => p.key.trim()).filter(Boolean), [parameters]);
   const paramOptions = useMemo(
-    () => parameters.filter((p) => p.key.trim()).map((p) => ({ key: p.key.trim(), label: p.label || p.key })),
+    // `unit` едет вместе с показателем: условие «лейкоциты ≥ 15» без единицы у поля — это число,
+    // про которое неизвестно, в чём оно.
+    () => parameters.filter((p) => p.key.trim()).map((p) => ({ key: p.key.trim(), label: p.label || p.key, unit: p.unit })),
     [parameters],
   );
   const paramLabelByKey = useMemo(
@@ -198,11 +201,19 @@ export function AnalyzerBuilderPage() {
         if (rule.conditions.length === 0) {
           rulesSection.push(`У правила «${rule.title || 'без названия'}» нет условий срабатывания.`);
         } else {
-          const unknown = rule.conditions.filter((c) => c.kind === 'param' && !paramKeys.includes(c.paramKey));
+          const unknown = rule.conditions.filter(
+            (c) => (c.kind === 'param' || c.kind === 'value') && !paramKeys.includes(c.paramKey),
+          );
           if (unknown.length > 0) rulesSection.push(`Правило «${rule.title || 'без названия'}» ссылается на несуществующий показатель.`);
+          // Незаполненное условие — пустой набор состояний или ненабранное число: правило с ним
+          // либо не сработает никогда, либо сработает не на том, и по результату это не видно.
+          if (rule.conditions.some(incomplete)) {
+            rulesSection.push(`У правила «${rule.title || 'без названия'}» есть незаполненное условие.`);
+          }
           // Правило из одних условий о пациенте не смотрит на анализ вовсе: оно сработает на каждом
-          // анализе подходящего пола — то есть заключение появится там, где его ничем не подтвердили.
-          if (rule.conditions.every((c) => c.kind === 'sex')) {
+          // анализе подходящего пола или возраста — то есть заключение появится там, где его ничем
+          // не подтвердили.
+          if (rule.conditions.every((c) => c.kind === 'sex' || c.kind === 'age')) {
             rulesSection.push(
               `Правило «${rule.title || 'без названия'}» состоит только из условий о пациенте: добавьте хотя бы один показатель, иначе оно сработает на любом анализе.`,
             );

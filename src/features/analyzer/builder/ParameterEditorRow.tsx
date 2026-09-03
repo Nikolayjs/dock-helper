@@ -62,12 +62,18 @@ function RangePair({
   );
 }
 
-/** Подпись вкладки диапазона: то, чем он отличается от соседних, — его границы. */
+/**
+ * Подпись вкладки диапазона: то, чем он отличается от соседних, — его границы.
+ *
+ * **Обе границы включающие**, и подпись это говорит вслух: «до 14 включительно», а не «до 14», —
+ * иначе врач не может знать, куда попадёт ребёнок ровно четырнадцати лет при полосах «0–14» и
+ * «14–18». (Ответ: в обе, и берётся первая в списке; об этом же скажет предупреждение.)
+ */
 function bandLabel(band: CustomAgeBand, index: number): string {
   const { minAge, maxAge } = band;
   if (minAge === undefined && maxAge === undefined) return `Диапазон ${index + 1}`;
   if (maxAge === undefined) return `${minAge ?? 0} и старше`;
-  if (minAge === undefined) return `до ${maxAge}`;
+  if (minAge === undefined) return `до ${maxAge} включительно`;
   return `${minAge}–${maxAge}`;
 }
 
@@ -158,8 +164,10 @@ function AgeBandsEditor({
       )}
 
       <Group gap="xs" align="flex-end" wrap="nowrap">
+        {/* Знаки в подписях — не украшение: обе границы включающие, и без них четырнадцатилетний
+            при полосах «0–14» и «14–18» попадает в обе, а врач об этом не знает. */}
         <NumberInput
-          label="Возраст от"
+          label="Возраст от (≥)"
           placeholder="0"
           min={0}
           max={120}
@@ -169,7 +177,7 @@ function AgeBandsEditor({
           onChange={(v) => update({ ...band, minAge: v === '' ? undefined : Number(v) })}
         />
         <NumberInput
-          label="Возраст до"
+          label="Возраст до (≤)"
           placeholder="и старше"
           min={0}
           max={120}

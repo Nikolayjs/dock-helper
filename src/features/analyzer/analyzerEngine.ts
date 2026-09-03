@@ -21,6 +21,14 @@ export interface AnalysisResult {
    * как верный: у ребёнка и у взрослого расходятся и гемоглобин, и лейкоциты, и щелочная фосфатаза.
    */
   ageNote?: { kind: 'assumed'; assumedAge: number } | { kind: 'outside'; age: number };
+  /**
+   * В анализе есть правила, спрашивающие про возраст, а возраст не введён.
+   *
+   * Такие правила не срабатывают никогда, и без этой строки пропавшее заключение выглядело бы как
+   * отсутствие находки. Отдельно от `ageNote`: тот про **нормы**, взятые для подставленного
+   * возраста, а здесь ничего не подставляется вовсе.
+   */
+  ageMissingForPatterns?: boolean;
 }
 
 function getStatus(value: number, range: { min?: number; max?: number }): ParamStatus {
@@ -97,5 +105,8 @@ export function analyzeTest(
     matchedPatterns,
     enteredCount,
     ageNote,
+    // Говорится, только когда такие правила в анализе действительно есть: иначе это был бы шум на
+    // каждом анализе, где врач не ввёл возраст, — то есть на большинстве.
+    ageMissingForPatterns: age === undefined && test.patterns.some((pattern) => pattern.usesAge) ? true : undefined,
   };
 }

@@ -56,6 +56,16 @@ export function AnalyzerResults({ result }: AnalyzerResultsProps) {
         </Alert>
       )}
 
+      {/* Правила по возрасту без возраста не срабатывают никогда, и пропавшее заключение выглядит
+          как отсутствие находки. Отдельной строкой от `ageNote`: тот про нормы, взятые для
+          подставленных тридцати лет, а здесь ничего не подставляется вовсе — и не должно. */}
+      {result.ageMissingForPatterns && (
+        <Alert variant="light" color="yellow" icon={<IconInfoCircle size={18} />}>
+          В этом анализе есть заключения, которые зависят от возраста пациента. Возраст не указан,
+          поэтому они не проверялись — укажите его, чтобы их увидеть.
+        </Alert>
+      )}
+
       {result.matchedPatterns.length > 0 && (
         <Stack gap="sm">
           <Title order={5}>Возможные состояния</Title>

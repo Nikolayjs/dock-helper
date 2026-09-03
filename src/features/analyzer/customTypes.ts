@@ -62,8 +62,19 @@ export interface BackendLabParameter {
   highCauses: string[];
 }
 
+/** Как сравнивается число: кодом, а не знаком — знаки различаются между шрифтами. */
+export type CompareOp = 'gte' | 'lte' | 'gt' | 'lt';
+
 export type PatternNode =
-  | { type: 'condition'; paramKey: string; status: ParamStatus; negate?: boolean }
+  /**
+   * Состояние показателя.
+   *
+   * `statuses` — набор допустимых состояний: «повышен **или** норма» это одно условие про один
+   * показатель, а не дерево из двух. `status` при этом остаётся заполненным первым элементом, и
+   * это несущее: старая сборка фронта, не знающая про набор, прочитает такое правило и покажет
+   * его — пусть и уже, — вместо того чтобы упасть на неизвестном поле.
+   */
+  | { type: 'condition'; paramKey: string; status: ParamStatus; statuses?: ParamStatus[]; negate?: boolean }
   /**
    * Пол пациента отдельным условием.
    *
@@ -73,6 +84,22 @@ export type PatternNode =
    * два и оба формулировать обтекаемо.
    */
   | { type: 'sex'; sex: Sex; negate?: boolean }
+  /**
+   * Сравнение показателя с числом: «лейкоциты ≥ 15».
+   *
+   * Статуса тут мало: «выше нормы» у лейкоцитов начинается с девяти, а разговор про лейкоз — с
+   * пятнадцати, и одно правило на оба случая пришлось бы формулировать обтекаемо.
+   */
+  | { type: 'value'; paramKey: string; op: CompareOp; value: number; negate?: boolean }
+  /**
+   * Возраст пациента: «60 лет и старше».
+   *
+   * Возраст здесь ведёт себя **не так**, как в нормах, и это несущее. Норме возраст, которого нет,
+   * подменяется тридцатью годами, и результат честно помечается строкой «нормы взяты для взрослого
+   * 30 лет». Правилу такая подмена недопустима: «60 лет и старше» молча срабатывало бы или молча не
+   * срабатывало на анализе без возраста — то есть заключение делалось бы из ничего.
+   */
+  | { type: 'age'; op: CompareOp; value: number; negate?: boolean }
   | { type: 'group'; operator: 'and' | 'or'; children: PatternNode[] };
 
 export interface BackendPatternRule {
@@ -169,8 +196,12 @@ export type PatternOperator = 'and' | 'or';
  * поздно завёл бы кто-нибудь, и различать их стало бы нечем.
  */
 export type PatternCondition =
-  | { id: string; kind: 'param'; paramKey: string; status: ParamStatus; negate?: boolean }
-  | { id: string; kind: 'sex'; sex: Sex; negate?: boolean };
+  /** Состояние показателя. Набор, а не одно: «повышен или норма» — это одно условие. */
+  | { id: string; kind: 'param'; paramKey: string; statuses: ParamStatus[]; negate?: boolean }
+  | { id: string; kind: 'sex'; sex: Sex; negate?: boolean }
+  /** Сравнение с числом. `value` может быть пустым, пока его набирают, — тогда правило неполно. */
+  | { id: string; kind: 'value'; paramKey: string; op: CompareOp; value?: number; negate?: boolean }
+  | { id: string; kind: 'age'; op: CompareOp; value?: number; negate?: boolean };
 
 export interface CustomPatternRule {
   id: string;
@@ -198,18 +229,32 @@ export interface LabTestDraft {
 // Runtime engine mapper — backend shape -> the closures analyzerEngine.ts consumes.
 // ---------------------------------------------------------------------------
 
+/** Допустимые состояния условия: набор, если он задан, иначе одно. */
+export function conditionStatuses(node: { status: ParamStatus; statuses?: ParamStatus[] }): ParamStatus[] {
+  return node.statuses && node.statuses.length > 0 ? node.statuses : [node.status];
+}
+
+export function compare(actual: number, op: CompareOp, expected: number): boolean {
+  if (op === 'gte') return actual >= expected;
+  if (op === 'lte') return actual <= expected;
+  if (op === 'gt') return actual > expected;
+  return actual < expected;
+}
+
 function evalPatternNode(
   node: PatternNode,
   statuses: Record<string, ParamStatus>,
+  values: Record<string, number>,
   context: PatternContext,
 ): boolean {
   if (node.type === 'condition') {
     // Незаполненный показатель не выполняет условие ни в каком виде, **в том числе с отрицанием**.
     // Иначе «гемоглобин не в норме» срабатывало на анализе, где гемоглобина нет вовсе: отсутствие
-    // значения — это не состояние, и вывод о нём был бы выводом ни из чего.
+    // значения — это не состояние, и вывод о нём был бы выводом ни из чего. Для набора состояний
+    // правило то же: пустоты нет ни в одном наборе.
     const actual = statuses[node.paramKey];
     if (actual === undefined) return false;
-    const result = actual === node.status;
+    const result = conditionStatuses(node).includes(actual);
     return node.negate ? !result : result;
   }
   if (node.type === 'sex') {
@@ -218,9 +263,30 @@ function evalPatternNode(
     const result = context.sex === node.sex;
     return node.negate ? !result : result;
   }
+  if (node.type === 'value') {
+    // Та же причина, что у статуса: показателя нет в анализе — сравнивать нечего, и отрицание
+    // этого не меняет. Производные сюда попадают наравне с прямыми: у них тоже есть число.
+    const actual = values[node.paramKey];
+    if (typeof actual !== 'number' || !Number.isFinite(actual)) return false;
+    const result = compare(actual, node.op, node.value);
+    return node.negate ? !result : result;
+  }
+  if (node.type === 'age') {
+    // Возраста нет — условие ложно, включая отрицание. Подстановка тридцати лет, которая работает
+    // для норм, здесь означала бы заключение, сделанное из ничего.
+    if (context.age === undefined) return false;
+    const result = compare(context.age, node.op, node.value);
+    return node.negate ? !result : result;
+  }
   return node.operator === 'and'
-    ? node.children.every((child) => evalPatternNode(child, statuses, context))
-    : node.children.some((child) => evalPatternNode(child, statuses, context));
+    ? node.children.every((child) => evalPatternNode(child, statuses, values, context))
+    : node.children.some((child) => evalPatternNode(child, statuses, values, context));
+}
+
+/** Есть ли в правиле условие по возрасту — на любой глубине. */
+export function usesAge(node: PatternNode): boolean {
+  if (node.type === 'age') return true;
+  return node.type === 'group' && node.children.some(usesAge);
 }
 
 function toEngineRange(param: BackendLabParameter): LabParameter['range'] {
@@ -273,7 +339,8 @@ export function toLabTestDefinition(test: BackendLabTest): LabTestDefinition {
       severity: rule.severity,
       description: rule.description,
       causes: rule.causes,
-      match: (statuses, _values, context) => evalPatternNode(rule.root, statuses, context),
+      match: (statuses, values, context) => evalPatternNode(rule.root, statuses, values, context),
+      usesAge: usesAge(rule.root),
     })),
   };
 }
@@ -311,36 +378,84 @@ function flatten(range?: BackendRangeValue): CustomRange {
   return isSexRange(range) ? { ...range.male } : { min: range?.min, max: range?.max };
 }
 
-/** Плоское — это одно условие или группа, внутри которой нет вложенных групп. */
-function isFlatPatternRoot(node: PatternNode): boolean {
-  return node.type !== 'group' || node.children.every((child) => child.type !== 'group');
-}
-
 type LeafNode = Exclude<PatternNode, { type: 'group' }>;
 
-function toDraftCondition(node: LeafNode): PatternCondition {
-  return node.type === 'sex'
-    ? { id: crypto.randomUUID(), kind: 'sex', sex: node.sex, negate: node.negate }
-    : { id: crypto.randomUUID(), kind: 'param', paramKey: node.paramKey, status: node.status, negate: node.negate };
+/**
+ * `or`-группа, которая на самом деле — одно условие с набором состояний.
+ *
+ * «(Лейкоциты выше нормы ИЛИ Лейкоциты в норме)» — это не дерево, а один показатель с двумя
+ * допустимыми состояниями, записанный деревом за неимением другого способа. Свернув такую группу,
+ * конструктор открывает правило целиком вместо того, чтобы показать замок.
+ *
+ * Условия жёсткие и намеренно узкие: только `or`, только условия о состоянии, только один и тот же
+ * показатель, ни одного отрицания. Всё остальное — настоящее дерево, и притворяться, что мы его
+ * поняли, нельзя.
+ */
+function foldableStatusGroup(node: PatternNode): { paramKey: string; statuses: ParamStatus[] } | null {
+  if (node.type !== 'group' || node.operator !== 'or' || node.children.length === 0) return null;
+  const first = node.children[0];
+  if (first.type !== 'condition' || first.negate) return null;
+  const statuses: ParamStatus[] = [];
+  for (const child of node.children) {
+    if (child.type !== 'condition' || child.negate || child.paramKey !== first.paramKey) return null;
+    for (const status of conditionStatuses(child)) if (!statuses.includes(status)) statuses.push(status);
+  }
+  return { paramKey: first.paramKey, statuses };
+}
+
+/** Разбирается ли ребёнок группы конструктором: лист или сворачиваемая `or`-группа. */
+function isEditableChild(node: PatternNode): boolean {
+  return node.type !== 'group' || foldableStatusGroup(node) !== null;
+}
+
+/** Плоское — это одно условие или группа, каждый ребёнок которой разбирается конструктором. */
+function isFlatPatternRoot(node: PatternNode): boolean {
+  if (node.type !== 'group') return true;
+  return node.children.every(isEditableChild);
+}
+
+function toDraftCondition(node: PatternNode): PatternCondition {
+  const folded = foldableStatusGroup(node);
+  if (folded) return { id: crypto.randomUUID(), kind: 'param', paramKey: folded.paramKey, statuses: folded.statuses };
+
+  const leaf = node as LeafNode;
+  if (leaf.type === 'sex') return { id: crypto.randomUUID(), kind: 'sex', sex: leaf.sex, negate: leaf.negate };
+  if (leaf.type === 'value') {
+    return { id: crypto.randomUUID(), kind: 'value', paramKey: leaf.paramKey, op: leaf.op, value: leaf.value, negate: leaf.negate };
+  }
+  if (leaf.type === 'age') return { id: crypto.randomUUID(), kind: 'age', op: leaf.op, value: leaf.value, negate: leaf.negate };
+  return {
+    id: crypto.randomUUID(),
+    kind: 'param',
+    paramKey: leaf.paramKey,
+    statuses: conditionStatuses(leaf),
+    negate: leaf.negate,
+  };
 }
 
 function toLeafNode(condition: PatternCondition): PatternNode {
-  return condition.kind === 'sex'
-    ? { type: 'sex', sex: condition.sex, negate: condition.negate || undefined }
-    : {
-        type: 'condition',
-        paramKey: condition.paramKey,
-        status: condition.status,
-        negate: condition.negate || undefined,
-      };
+  if (condition.kind === 'sex') return { type: 'sex', sex: condition.sex, negate: condition.negate || undefined };
+  if (condition.kind === 'value') {
+    return { type: 'value', paramKey: condition.paramKey, op: condition.op, value: condition.value ?? 0, negate: condition.negate || undefined };
+  }
+  if (condition.kind === 'age') return { type: 'age', op: condition.op, value: condition.value ?? 0, negate: condition.negate || undefined };
+  const statuses = condition.statuses.length > 0 ? condition.statuses : (['high'] as ParamStatus[]);
+  return {
+    type: 'condition',
+    paramKey: condition.paramKey,
+    // `status` заполнен всегда и первым из набора: старая сборка, не знающая про `statuses`,
+    // прочитает правило и покажет его — пусть и уже, — вместо того чтобы упасть.
+    status: statuses[0],
+    statuses: statuses.length > 1 ? statuses : undefined,
+    negate: condition.negate || undefined,
+  };
 }
 
 function flattenPatternRoot(root: PatternNode): { operator: PatternOperator; conditions: PatternCondition[] } {
-  if (root.type !== 'group') return { operator: 'and', conditions: [toDraftCondition(root)] };
-  return {
-    operator: root.operator,
-    conditions: root.children.map((child) => toDraftCondition(child as LeafNode)),
-  };
+  if (root.type !== 'group' || foldableStatusGroup(root)) {
+    return { operator: 'and', conditions: [toDraftCondition(root)] };
+  }
+  return { operator: root.operator, conditions: root.children.map(toDraftCondition) };
 }
 
 function buildPatternRoot(operator: PatternOperator, conditions: PatternCondition[]): PatternNode {
@@ -482,13 +597,25 @@ const STATUS_TEXT: Record<ParamStatus, string> = { low: 'ниже нормы', n
 
 export const SEX_TEXT: Record<Sex, string> = { male: 'мужской', female: 'женский' };
 
+/** Знак сравнения для человека. Хранится код, показывается знак — см. `CompareOp`. */
+const OP_TEXT: Record<CompareOp, string> = { gte: '≥', lte: '≤', gt: '>', lt: '<' };
+
 export function describePatternNode(node: PatternNode, paramLabel: (key: string) => string): string {
   if (node.type === 'condition') {
-    const text = `${paramLabel(node.paramKey)} ${STATUS_TEXT[node.status]}`;
+    const states = conditionStatuses(node).map((status) => STATUS_TEXT[status]).join(' или ');
+    const text = `${paramLabel(node.paramKey)} ${states}`;
     return node.negate ? `НЕ (${text})` : text;
   }
   if (node.type === 'sex') {
     const text = `пол ${SEX_TEXT[node.sex]}`;
+    return node.negate ? `НЕ (${text})` : text;
+  }
+  if (node.type === 'value') {
+    const text = `${paramLabel(node.paramKey)} ${OP_TEXT[node.op]} ${node.value}`;
+    return node.negate ? `НЕ (${text})` : text;
+  }
+  if (node.type === 'age') {
+    const text = `возраст ${OP_TEXT[node.op]} ${node.value}`;
     return node.negate ? `НЕ (${text})` : text;
   }
   const joiner = node.operator === 'and' ? ' И ' : ' ИЛИ ';
