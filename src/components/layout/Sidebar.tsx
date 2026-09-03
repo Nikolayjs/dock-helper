@@ -1,6 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Avatar, Box, Group, ScrollArea, Stack, Text, UnstyledButton } from "@mantine/core";
 import {
+  IconInbox,
   IconArticle,
   IconBuildingStore,
   IconBook2,
@@ -50,6 +51,7 @@ const NAV_ITEMS: NavItemData[] = [
   { label: "Клинические рекомендации", path: "/guidelines", icon: IconBook2, section: "knowledge" },
   { label: "Справочник", path: "/reference", icon: IconVocabulary, section: "knowledge" },
   { label: "Статьи", path: "/articles", icon: IconArticle, section: "knowledge" },
+  { label: "Входящие", path: "/inbox", icon: IconInbox, section: "knowledge" },
   { label: "Диагностика", path: "/diagnostics", icon: IconZoomQuestion, section: "knowledge" },
   { label: "Библиотека", path: "/library", icon: IconBooks, section: "knowledge" },
 ];

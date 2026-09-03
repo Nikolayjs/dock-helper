@@ -46,6 +46,7 @@ const SECTION_LABELS: { prefix: string; label: string; item?: string }[] = [
   { prefix: '/news', label: 'К новостям', item: 'К новости' },
   { prefix: '/guidelines', label: 'К рекомендациям', item: 'К рекомендации' },
   { prefix: '/articles', label: 'К статьям', item: 'К статье' },
+  { prefix: '/inbox', label: 'Во «Входящие»', item: 'К клипу' },
   { prefix: '/reference', label: 'К справочнику', item: 'К заболеванию' },
   { prefix: '/knowledge', label: 'К базе знаний' },
 ];

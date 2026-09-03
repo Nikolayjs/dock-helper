@@ -55,6 +55,7 @@ import { IDLE_LOCK_CHOICES, idleLockLabel, readIdleMinutes, writeIdleMinutes } f
 import { DoctorNotesCard } from '../features/doctor/DoctorNotesCard';
 import { resizeImageToDataUrl } from '../lib/imageResize';
 import { InstallApp } from '../features/pwa/InstallApp';
+import { ExtensionCard } from '../features/extension/ExtensionCard';
 import { PushSettings } from '../features/reminders/PushSettings';
 
 const AVATAR_MAX_DIMENSION = 256;
@@ -464,6 +465,9 @@ export function DoctorPage() {
         <InstallApp />
 
         <PushSettings />
+
+        {/* Токен расширения — удостоверение настоящего аккаунта: гостю выпускать нечего. */}
+        {!demo && <ExtensionCard />}
 
         <Card withBorder padding="lg">
           <Title order={4} mb={4}>

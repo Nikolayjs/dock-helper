@@ -63,6 +63,8 @@ const StorePage = lazyPage(() => import('./pages/StorePage'), 'StorePage');
 const QuestionnaireViewPage = lazyPage(() => import('./pages/QuestionnaireViewPage'), 'QuestionnaireViewPage');
 const QuestionnaireBuilderPage = lazyPage(() => import('./pages/QuestionnaireBuilderPage'), 'QuestionnaireBuilderPage');
 const ArticlesPage = lazyPage(() => import('./pages/ArticlesPage'), 'ArticlesPage');
+const InboxPage = lazyPage(() => import('./features/clips/InboxPage'), 'InboxPage');
+const ClipEditorPage = lazyPage(() => import('./features/clips/ClipEditorPage'), 'ClipEditorPage');
 const ArticleViewPage = lazyPage(() => import('./pages/ArticleViewPage'), 'ArticleViewPage');
 const ArticleEditorPage = lazyPage(() => import('./pages/ArticleEditorPage'), 'ArticleEditorPage');
 const AnalyzerPage = lazyPage(() => import('./pages/AnalyzerPage'), 'AnalyzerPage');
@@ -204,6 +206,8 @@ export const router = createBrowserRouter(
           <Route path="/diagnostics/new" element={<QuestionnaireBuilderPage />} />
           <Route path="/diagnostics/:id" element={<QuestionnaireViewPage />} />
           <Route path="/diagnostics/:id/edit" element={<QuestionnaireBuilderPage />} />
+          <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/inbox/:id" element={<ClipEditorPage />} />
           <Route path="/articles" element={<ArticlesPage />} />
           <Route path="/articles/new" element={<ArticleEditorPage />} />
           <Route path="/articles/:id" element={<ArticleViewPage />} />
