@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 
 import { request } from '../../../lib/httpRepository';
+import { fitForOcr } from '../../../lib/ocrImage';
 import type { TemplateLayout } from './layoutTypes';
 
 /**
@@ -12,7 +13,9 @@ export function useFormRecognition() {
   const mutation = useMutation({
     mutationFn: async (image: Blob) => {
       const form = new FormData();
-      form.append('image', image, 'form.png');
+      // Снимок с телефона — 3000–4000 px, и на такой ширине Tesseract читает линовку бланка как
+      // текст. Приведение к рабочему размеру — то же правило, что у бланка анализов.
+      form.append('image', await fitForOcr(image), 'form.png');
       return request<TemplateLayout>('/document-templates/recognize', { method: 'POST', body: form });
     },
   });

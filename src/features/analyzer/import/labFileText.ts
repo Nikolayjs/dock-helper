@@ -1,4 +1,5 @@
 import { request } from '../../../lib/httpRepository';
+import { OCR_TARGET_WIDTH, fitForOcr } from '../../../lib/ocrImage';
 import type { TemplateLayout } from '../../patients/documents/layoutTypes';
 
 /**
@@ -76,9 +77,10 @@ async function linesFromPdf(file: File): Promise<string[]> {
   }
 }
 
-async function linesFromImage(file: File): Promise<string[]> {
+async function linesFromImage(image: Blob, fileName: string): Promise<string[]> {
+  const file = await fitForOcr(image);
   const form = new FormData();
-  form.append('image', file, file.name || 'analysis.png');
+  form.append('image', file, fileName || 'analysis.png');
   // Reuses the OCR endpoint built for scanning blank forms: it persists nothing, returns positioned
   // text blocks, and already carries the HEIC rejection and Russian-language Tesseract setup.
   const layout = await request<TemplateLayout>('/document-templates/recognize', { method: 'POST', body: form });
@@ -91,19 +93,61 @@ async function linesFromImage(file: File): Promise<string[]> {
   return assembleLines(fragments, OCR_LINE_TOLERANCE_PCT);
 }
 
+/**
+ * PDF без текстового слоя — тоже бланк, просто собранный из картинок.
+ *
+ * Раньше здесь стоял тупик: «сфотографируйте бланк и загрузите снимок». Совет вредный — снимок
+ * экрана или фотография выходят хуже, чем страница, нарисованная **нами** в нужном размере: у нас
+ * нет ни бликов, ни перекоса, ни чужого масштаба. Отсюда и правило: рисуем страницу сами, ровно в
+ * ту ширину, на которой распознавание работает.
+ *
+ * Страниц берётся не больше четырёх: бланк лаборатории — это одна-две, а каждая страница стоит
+ * отдельного распознавания в несколько секунд. Пятая почти всегда означала бы, что подали не бланк.
+ */
+const OCR_PDF_PAGE_LIMIT = 4;
+
+async function linesFromScannedPdf(file: File): Promise<string[]> {
+  const { loadPdfDocument } = await import('../../library/pdfMeta');
+  const doc = await loadPdfDocument(await file.arrayBuffer());
+  try {
+    const lines: string[] = [];
+    const pages = Math.min(doc.numPages, OCR_PDF_PAGE_LIMIT);
+    for (let pageNumber = 1; pageNumber <= pages; pageNumber++) {
+      const page = await doc.getPage(pageNumber);
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: OCR_TARGET_WIDTH / base.width });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const context = canvas.getContext('2d');
+      if (!context) continue;
+      await page.render({ canvasContext: context, viewport }).promise;
+
+      const rendered = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!rendered) continue;
+      lines.push(...(await linesFromImage(rendered, `page-${pageNumber}.png`)));
+    }
+    return lines;
+  } finally {
+    await doc.destroy();
+  }
+}
+
 export async function extractLabFileLines(file: File): Promise<string[]> {
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
   if (isPdf) {
     const lines = await linesFromPdf(file);
-    if (lines.length === 0) {
-      throw new LabFileError(
-        'В этом PDF нет текстового слоя — похоже, он собран из сканов. Сфотографируйте бланк и загрузите снимок.',
-      );
+    if (lines.length > 0) return lines;
+
+    // Текстового слоя нет — значит бланк внутри картинкой. Рисуем страницы сами и распознаём.
+    const scanned = await linesFromScannedPdf(file);
+    if (scanned.length === 0) {
+      throw new LabFileError('В этом PDF не нашлось ни текста, ни читаемого изображения бланка.');
     }
-    return lines;
+    return scanned;
   }
 
-  if (OCR_IMAGE_TYPES.includes(file.type)) return linesFromImage(file);
+  if (OCR_IMAGE_TYPES.includes(file.type)) return linesFromImage(file, file.name);
 
   throw new LabFileError('Поддерживаются PDF и снимки (JPG, PNG, WEBP, TIFF, BMP).');
 }
