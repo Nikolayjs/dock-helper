@@ -5,26 +5,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BackButton } from '../../components/common/BackButton';
 import { PageToolbar } from '../../components/common/PageToolbar';
 import { ReadingSheet } from '../../components/common/ReadingSheet';
-import { useAllDocuments } from '../knowledgeBase/useDocuments';
+import { useGuidelinesByCode } from '../guidelines/useGuidelines';
 import { useDiseasesByCode } from '../diseases/useDiseases';
 import { useIcd10Card } from './useIcd10';
 
-/**
- * Одно и то же ли это название.
- *
- * Регистр, «ё», хвост в квадратных скобках («Опоясывающий лишай [herpes zoster]») и знаки
- * препинания различий не создают — всё остальное создаёт.
- */
-function sameName(a: string, b: string): boolean {
-  const normalize = (value: string) =>
-    value
-      .toLowerCase()
-      .replace(/ё/g, 'е')
-      .replace(/\[[^\]]*\]/g, ' ')
-      .replace(/[^а-яa-z0-9]+/gi, ' ')
-      .trim();
-  return normalize(a) === normalize(b);
-}
 
 /**
  * Карточка одного кода МКБ-10.
@@ -41,7 +25,6 @@ export function Icd10ViewPage() {
   const { code } = useParams();
   const navigate = useNavigate();
   const { card, isLoading, error } = useIcd10Card(code);
-  const { documents } = useAllDocuments();
   /*
    * Связь была односторонней: болезнь называла свои коды, а код о болезнях не знал ничего — врач,
    * пришедший из реестра с кодом на руках, из классификации никуда дальше уйти не мог. Считает
@@ -51,18 +34,15 @@ export function Icd10ViewPage() {
   const { diseases } = useDiseasesByCode(code);
 
   /**
-   * Клиническая рекомендация с тем же названием, если она есть.
+   * Клинические рекомендации по этому коду.
    *
-   * Сопоставление по названию, а не по коду: у рекомендаций кодов нет, и заводить их значило бы
-   * держать вторую классификацию рядом с первой.
-   *
-   * **Совпадение только точное, и это исправленная ошибка.** Сначала здесь стояло вхождение
-   * подстроки в обе стороны — и «B03 Оспа» связалась с рекомендацией «Воспалительные заболевания
-   * кишечника», потому что «оспа» лежит внутри слова «воспалительные». Ложная ссылка на
-   * клиническую рекомендацию хуже отсутствия ссылки: врач по ней перейдёт. Замер на всех 2054
-   * рубриках: точных совпадений 34, нестрогих 99 — и среди этих 99 такие связи не единичны.
+   * **Считаются по кодам, а не по совпадению названий, и это исправленная связь.** Раньше здесь
+   * стояли наши карточки-справки, у которых кодов не было вовсе, и рекомендация искалась по точному
+   * совпадению названия — работало это на 34 рубриках из 2054, а нестрогое сравнение однажды
+   * связало «B03 Оспа» с «Воспалительными заболеваниями кишечника». Теперь рекомендации настоящие,
+   * коды МКБ-10 у них свои, и совпадение рубрики и есть связь.
    */
-  const guideline = card ? documents.find((doc) => doc.kind === 'guideline' && sameName(doc.title, card.name)) : undefined;
+  const { guidelines } = useGuidelinesByCode(code);
 
   if (isLoading) {
     return (
@@ -174,27 +154,34 @@ export function Icd10ViewPage() {
           </Card>
         )}
 
-        {guideline && (
+        {guidelines.length > 0 && (
           <Card withBorder padding="lg">
             <Group gap={8} mb="xs">
               <IconStethoscope size={18} />
-              <Text fw={600}>Клиническая рекомендация</Text>
+              <Text fw={600}>
+                {guidelines.length === 1 ? 'Клиническая рекомендация' : `Клинические рекомендации (${guidelines.length})`}
+              </Text>
             </Group>
-            <UnstyledButton
-              onClick={() => navigate(`/guidelines/${guideline.id}`, { state: { from: `/icd10/${card.code}` } })}
-            >
-              <Group gap="xs" wrap="nowrap">
-                <Text size="sm" fw={600} c="brand">
-                  {guideline.title}
-                </Text>
-                <IconChevronRight size={14} />
-              </Group>
-              {guideline.summary && (
-                <Text size="xs" c="dimmed" mt={2}>
-                  {guideline.summary}
-                </Text>
-              )}
-            </UnstyledButton>
+            <Stack gap="xs">
+              {guidelines.map((row) => (
+                <UnstyledButton
+                  key={row.codeVersion}
+                  onClick={() => navigate(`/guidelines/${row.codeVersion}`, { state: { from: `/icd10/${card.code}` } })}
+                >
+                  <Group gap="xs" wrap="nowrap">
+                    <Text size="sm" fw={600} c="brand">
+                      {row.name}
+                    </Text>
+                    <IconChevronRight size={14} />
+                  </Group>
+                  {row.ageGroup && (
+                    <Text size="xs" c="dimmed" mt={2}>
+                      {row.ageGroup}
+                    </Text>
+                  )}
+                </UnstyledButton>
+              ))}
+            </Stack>
           </Card>
         )}
 

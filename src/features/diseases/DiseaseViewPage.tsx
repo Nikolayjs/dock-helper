@@ -11,6 +11,7 @@ import { useAllDocuments } from '../knowledgeBase/useDocuments';
 import { descriptionToHtml } from './description';
 import { renderDiseaseWiki } from './wiki';
 import { useAbbreviations } from '../abbreviations/useAbbreviations';
+import { useGuidelinesByCode } from '../guidelines/useGuidelines';
 import { useDisease, useDiseaseMentions, useDiseases } from './useDiseases';
 
 /**
@@ -41,6 +42,13 @@ export function DiseaseViewPage() {
   const summary = diseases.find((row) => row.id === id) ?? null;
   const disease = summary ?? full;
   const description = full?.description ?? '';
+  /*
+   * Спрашиваем по первому коду: рекомендация размечена рубриками, а у нозологии коды одной рубрики
+   * — «внебольничная пневмония» это J13–J18, и любой из них приводит к тем же документам. Один
+   * запрос вместо шести, и правило сведения рубрик живёт на сервере, общее с заболеваниями.
+   */
+  const { guidelines } = useGuidelinesByCode(disease?.icdCodes[0]);
+
 
   // «Не найдено» до того, как список пришёл, — это враньё: страница пуста, пока едет.
   if (!disease) {
@@ -56,12 +64,6 @@ export function DiseaseViewPage() {
       </Container>
     );
   }
-
-  // `guidelineId` уже разрешён сервером: сам ключ в ответы не попадает, см. комментарий в
-  // `DiseasesService.list()`.
-  const guideline = disease.guidelineId
-    ? (documents.find((doc) => doc.id === disease.guidelineId) ?? null)
-    : null;
 
   return (
     <Container size="md" px={0}>
@@ -197,36 +199,51 @@ export function DiseaseViewPage() {
           </Card>
         )}
 
-        {guideline ? (
-          <Card withBorder padding="md">
-            <Group justify="space-between" wrap="wrap" gap="sm">
-              <div>
-                <Text fw={600} size="sm">
-                  Клиническая рекомендация
-                </Text>
-                <Text size="sm" c="dimmed">
-                  {guideline.title}
-                </Text>
-              </div>
-              <Button
-                component={Link}
-                to={`/guidelines/${guideline.id}`}
-                state={{ from: `/reference/diseases/${disease.id}` }}
-                variant="light"
-                leftSection={<IconBook2 size={16} />}
-              >
-                Читать
-              </Button>
-            </Group>
-          </Card>
-        ) : (
-          <Card withBorder padding="md">
+        {/*
+          Клинические рекомендации по этой болезни — **по кодам МКБ-10, а не по хранимой ссылке**.
+          Раньше болезнь ссылалась на нашу карточку-справку полем `guidelineKey`; теперь раздел
+          «Клинические рекомендации» это зеркало рубрикатора Минздрава, семьсот с лишним документов,
+          которые пересматриваются без нашего ведома, — поддерживать ссылку на них вручную было бы
+          обещанием, которое устареет молча. Коды есть у обеих сторон, и совпадение рубрики и есть
+          связь.
+        */}
+        <Card withBorder padding="md">
+          <Text fw={600} size="sm" mb={guidelines.length > 0 ? 'xs' : 4}>
+            Клинические рекомендации
+          </Text>
+          {guidelines.length === 0 ? (
             <Text size="sm" c="dimmed">
-              Клинической рекомендации по этой нозологии в базе знаний нет. Её можно написать в
-              разделе «Клинические рекомендации» — тогда она появится здесь.
+              {disease.icdCodes.length === 0
+                ? 'У этой нозологии не проставлены коды МКБ-10, а рекомендации находятся по ним.'
+                : 'По кодам этой нозологии рекомендаций в рубрикаторе Минздрава нет.'}
             </Text>
-          </Card>
-        )}
+          ) : (
+            <Stack gap="xs">
+              {guidelines.map((row) => (
+                <Group key={row.codeVersion} justify="space-between" wrap="wrap" gap="sm">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Text size="sm">{row.name}</Text>
+                    {row.ageGroup && (
+                      <Text size="xs" c="dimmed">
+                        {row.ageGroup}
+                      </Text>
+                    )}
+                  </div>
+                  <Button
+                    component={Link}
+                    to={`/guidelines/${row.codeVersion}`}
+                    state={{ from: `/reference/diseases/${disease.id}` }}
+                    variant="light"
+                    size="compact-sm"
+                    leftSection={<IconBook2 size={16} />}
+                  >
+                    Читать
+                  </Button>
+                </Group>
+              ))}
+            </Stack>
+          )}
+        </Card>
       </Stack>
     </Container>
   );

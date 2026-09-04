@@ -25,18 +25,18 @@ export function KnowledgeTagPage() {
   const tagged = useMemo(() => documents.filter((doc) => hasTag(doc.tags, tag)), [documents, tag]);
 
   const handleOpen = (doc: KnowledgeDocumentSummary) => {
-    navigate(doc.kind === 'guideline' ? `/guidelines/${doc.id}` : `/articles/${doc.id}`);
+    navigate(`/articles/${doc.id}`);
   };
 
   const handleEdit = (doc: KnowledgeDocumentSummary) => {
-    navigate(doc.kind === 'guideline' ? `/guidelines/${doc.id}/edit` : `/articles/${doc.id}/edit`);
+    navigate(`/articles/${doc.id}/edit`);
   };
 
   const handleDelete = (doc: KnowledgeDocumentSummary) =>
     confirmDelete({
-      what: doc.kind === 'guideline' ? 'рекомендацию' : 'статью',
+      what: 'статью',
       name: doc.title,
-      notice: doc.kind === 'guideline' ? 'Рекомендация удалена' : 'Статья удалена',
+      notice: 'Статья удалена',
       queryKey: KNOWLEDGE_KEY,
       id: doc.id,
       perform: () => deleteDocument(doc.id),

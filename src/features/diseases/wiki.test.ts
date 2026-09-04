@@ -20,8 +20,6 @@ const disease = (id: string, name: string, synonyms: string[] = []): DiseaseSumm
     icdCodes: [],
     summary: '',
     category: '',
-    guidelineKey: '',
-    guidelineId: '',
     seedKey: '',
     hasDescription: false,
     createdAt: '',
@@ -36,7 +34,7 @@ const index: WikiIndex = {
     disease('d1', 'Фибрилляция предсердий', ['ФП', 'мерцалка']),
     disease('d2', 'Гипотиреоз'),
   ],
-  documents: [doc('g1', 'Артериальная гипертензия у взрослых', 'guideline'), doc('a1', 'Разбор случая', 'article')],
+  documents: [doc('g1', 'Артериальная гипертензия у взрослых', 'article'), doc('a1', 'Разбор случая', 'article')],
   abbreviations: [{ id: 'ab1', short: 'ХОБЛ', full: 'Хроническая обструктивная болезнь лёгких' } as Abbreviation],
 };
 
@@ -65,7 +63,7 @@ describe('вики-ссылки в описании болезни', () => {
   });
 
   it('различает рекомендацию и статью — это разные разделы', () => {
-    expect(render('[[Артериальная гипертензия у взрослых]]')).toContain('href="/guidelines/g1"');
+    expect(render('[[Артериальная гипертензия у взрослых]]')).toContain('href="/articles/g1"');
     expect(render('[[Разбор случая]]')).toContain('href="/articles/a1"');
   });
 

@@ -35,7 +35,7 @@ export function WikiLinkControl({ editor }: { editor: Editor | null }) {
       ...abbreviations.map((row) => ({ id: row.id, kind: 'сокращение' as const, title: row.short, note: row.full })),
       ...documents.map((row) => ({
         id: row.id,
-        kind: row.kind === 'guideline' ? ('рекомендация' as const) : ('статья' as const),
+        kind: 'статья' as const,
         title: row.title,
         note: row.summary ?? '',
       })),

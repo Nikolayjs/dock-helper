@@ -7,13 +7,19 @@ import { useAuth } from '../auth/AuthContext';
 import { isDemoSession } from '../demo/demoSession';
 import type { Specialty } from './types';
 
-/** Какой из трёх справочников отбирается. */
-export type SpecialtyScope = 'icd' | 'drugs' | 'guidelines';
+/**
+ * Какой из справочников отбирается.
+ *
+ * Клинических рекомендаций в этом списке нет, и это не пропуск: у документов рубрикатора наших
+ * разделов не бывает, зато есть коды МКБ-10 — их страница и отбирает, тем же `icd`, что и саму
+ * классификацию. Отдельный столбец соответствий пришлось бы поддерживать вручную на семьсот с
+ * лишним чужих документов.
+ */
+export type SpecialtyScope = 'icd' | 'drugs';
 
-const FIELD: Record<SpecialtyScope, keyof Pick<Specialty, 'icdBlocks' | 'drugCategories' | 'guidelineSections'>> = {
+const FIELD: Record<SpecialtyScope, keyof Pick<Specialty, 'icdBlocks' | 'drugCategories'>> = {
   icd: 'icdBlocks',
   drugs: 'drugCategories',
-  guidelines: 'guidelineSections',
 };
 
 /**

@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useCalculators } from '../../features/calculators/useCalculators';
 import { useDrugSearch } from '../../features/drugs/useDrugSearch';
 import { useIcd10Search } from '../../features/patients/useIcd10Search';
+import { useGuidelines } from '../../features/guidelines/useGuidelines';
 import { useDocuments } from '../../features/knowledgeBase/useDocuments';
 import { useNotes } from '../../features/notes/useNotes';
 import { stripHtml } from '../../features/notes/textPreview';
@@ -49,8 +50,14 @@ export function useHeaderSearch() {
   const navigate = useNavigate();
   const location = useLocation();
   const { calculators } = useCalculators();
-  const { documents: guidelines } = useDocuments('guideline');
   const { documents: articles } = useDocuments('article');
+  /*
+   * Клинические рекомендации ищутся здесь наравне со всем остальным, и список для этого уже есть:
+   * он кэшируется на весь сеанс (полторы сотни килобайт на семьсот с лишним записей) — в отличие от
+   * их текстов, которые живут на сервере. Врач приходит в шапку либо с названием нозологии, либо с
+   * кодом из выписки, и оба находят.
+   */
+  const { guidelines } = useGuidelines();
   const { notes } = useNotes();
   const { patients } = usePatients();
   const [query, setQuery] = useState('');
@@ -101,13 +108,13 @@ export function useHeaderSearch() {
       {
         group: 'Клинические рекомендации',
         items: guidelines
-          .filter((doc) => matches(q, doc.title, doc.summary, ...doc.tags))
+          .filter((row) => matches(q, row.name, ...row.mkbCodes, ...row.developers))
           .slice(0, MAX_RESULTS_PER_GROUP)
-          .map((doc) => ({
-            id: doc.id,
-            title: doc.title,
-            description: doc.summary,
-            path: `/guidelines/${doc.id}`,
+          .map((row) => ({
+            id: row.codeVersion,
+            title: row.name,
+            description: [row.mkbCodes.slice(0, 4).join(', '), row.ageGroup].filter(Boolean).join(' · '),
+            path: `/guidelines/${row.codeVersion}`,
             icon: IconBook2,
             group: 'Клинические рекомендации',
           })),

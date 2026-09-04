@@ -71,7 +71,7 @@ export function renderDiseaseWiki(html: string, index: WikiIndex): string {
     if (disease) return link(`/reference/diseases/${disease.id}`, label);
 
     const doc = byDocument.get(normalize(target));
-    if (doc) return link(`${doc.kind === 'guideline' ? '/guidelines' : '/articles'}/${doc.id}`, label);
+    if (doc) return link(`/articles/${doc.id}`, label);
 
     const abbreviation = byAbbreviation.get(normalize(target));
     if (abbreviation) {

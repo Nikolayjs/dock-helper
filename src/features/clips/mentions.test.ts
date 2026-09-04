@@ -11,7 +11,7 @@ const diseases = [
 
 const documents = [
   { id: 'k1', title: 'Разбор случая: одышка', kind: 'article' },
-  { id: 'k2', title: 'Пневмония: ведение', kind: 'guideline' },
+  { id: 'k2', title: 'Пневмония: ведение', kind: 'article' },
 ] as unknown as KnowledgeDocumentSummary[];
 
 const resolve = (note: string) => resolveMentions(note, diseases, documents);
@@ -60,7 +60,6 @@ describe('упоминания из заметки', () => {
 describe('куда можно дописать', () => {
   const disease = resolve('[[мерцалка]]')[0];
   const article = resolve('[[Разбор случая: одышка]]')[0];
-  const guideline = resolve('[[Пневмония: ведение]]')[0];
 
   it('нозология — в нозологию, статья — в статью', () => {
     expect(isPublishTarget(disease, 'disease')).toBe(true);
@@ -70,15 +69,6 @@ describe('куда можно дописать', () => {
   it('перепутать виды нельзя', () => {
     expect(isPublishTarget(disease, 'article')).toBe(false);
     expect(isPublishTarget(article, 'disease')).toBe(false);
-  });
-
-  /*
-   * Клиническая рекомендация приезжает с продуктом, и дописанный в неё клип отрезал бы её от
-   * будущих исправлений — той самой синхронизации каталога, ради которой отпечатки и заведены.
-   */
-  it('в клиническую рекомендацию дописать нельзя', () => {
-    expect(isPublishTarget(guideline, 'article')).toBe(false);
-    expect(isPublishTarget(guideline, 'disease')).toBe(false);
   });
 
   it('ненайденное местом публикации не бывает', () => {

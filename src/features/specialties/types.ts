@@ -11,7 +11,6 @@ export interface Specialty {
   id: string;
   name: string;
   /** Разделы базы знаний — первый тег клинической рекомендации. Пусто — раздела нет вовсе. */
-  guidelineSections: string[];
   /** Разделы формуляра — значение `category` у препарата. */
   drugCategories: string[];
   /** Блоки МКБ-10, названные первым кодом диапазона: `I20` — это блок `I20–I25`. */

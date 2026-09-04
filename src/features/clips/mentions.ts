@@ -7,7 +7,7 @@ export interface Mention {
   /** Как оно написано в заметке — по нему же и показывается. */
   name: string;
   /** Найденная запись; `null` — такой в справочнике нет. */
-  found: { id: string; kind: 'disease' | 'article' | 'guideline'; title: string } | null;
+  found: { id: string; kind: 'disease' | 'article'; title: string } | null;
 }
 
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;

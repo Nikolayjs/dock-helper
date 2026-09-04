@@ -15,10 +15,6 @@ export function extractWikiLinkTitles(html: string): string[] {
   return titles;
 }
 
-function basePathForKind(kind: KnowledgeDocumentSummary['kind']): string {
-  return kind === 'guideline' ? '/guidelines' : '/articles';
-}
-
 /** Replaces `[[Title]]` occurrences in HTML content with clickable links to the matching document. */
 export function renderWikiLinks(html: string, allDocuments: KnowledgeDocumentSummary[]): string {
   const byTitle = new Map(allDocuments.map((doc) => [doc.title.trim().toLowerCase(), doc]));
@@ -27,7 +23,7 @@ export function renderWikiLinks(html: string, allDocuments: KnowledgeDocumentSum
     if (!title) return full;
     const target = byTitle.get(title.toLowerCase());
     if (!target) return `<span class="wikilink-missing" title="Заметка не найдена">[[${escapeHtml(title)}]]</span>`;
-    const path = `${basePathForKind(target.kind)}/${target.id}`;
+    const path = `/articles/${target.id}`;
     return `<a href="${path}" data-doc-link="${target.id}" class="wikilink">${escapeHtml(target.title)}</a>`;
   });
 }

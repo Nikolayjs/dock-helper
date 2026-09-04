@@ -57,7 +57,6 @@ const ReferencePage = lazyPage(() => import('./pages/ReferencePage'), 'Reference
 const DiseaseViewPage = lazyPage(() => import('./features/diseases/DiseaseViewPage'), 'DiseaseViewPage');
 const DiseaseEditorPage = lazyPage(() => import('./features/diseases/DiseaseEditorPage'), 'DiseaseEditorPage');
 const GuidelineViewPage = lazyPage(() => import('./pages/GuidelineViewPage'), 'GuidelineViewPage');
-const GuidelineEditorPage = lazyPage(() => import('./pages/GuidelineEditorPage'), 'GuidelineEditorPage');
 const QuestionnairesPage = lazyPage(() => import('./pages/QuestionnairesPage'), 'QuestionnairesPage');
 const StorePage = lazyPage(() => import('./pages/StorePage'), 'StorePage');
 const QuestionnaireViewPage = lazyPage(() => import('./pages/QuestionnaireViewPage'), 'QuestionnaireViewPage');
@@ -198,10 +197,12 @@ export const router = createBrowserRouter(
               />
             }
           />
+          {/*
+            Ни «новой», ни «правки»: клиническая рекомендация утверждена Минздравом, и права
+            менять её у приложения нет. То, что врач пишет сам, живёт в разделе «Статьи».
+          */}
           <Route path="/guidelines" element={<GuidelinesPage />} />
-          <Route path="/guidelines/new" element={<GuidelineEditorPage />} />
           <Route path="/guidelines/:id" element={<GuidelineViewPage />} />
-          <Route path="/guidelines/:id/edit" element={<GuidelineEditorPage />} />
           <Route path="/diagnostics" element={<QuestionnairesPage />} />
           <Route path="/diagnostics/new" element={<QuestionnaireBuilderPage />} />
           <Route path="/diagnostics/:id" element={<QuestionnaireViewPage />} />

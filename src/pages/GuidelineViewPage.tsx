@@ -1,13 +1,42 @@
-import { KnowledgeViewPage } from '../features/knowledgeBase/KnowledgeViewPage';
+import { Alert, Container, Group, Loader, Stack } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
+import { useParams } from 'react-router-dom';
 
+import { ReadingSheet } from '../components/common/ReadingSheet';
+import { RecordToolbar } from '../components/common/RecordToolbar';
+import { GuidelineReader } from '../features/guidelines/GuidelineReader';
+import { useGuideline, useGuidelineText } from '../features/guidelines/useGuidelines';
+
+/**
+ * Одна клиническая рекомендация целиком.
+ *
+ * Кнопок «Изменить» и «Удалить» здесь нет: документ утверждён Минздравом, и права править его у
+ * приложения нет — ни у врача, ни у нас. Осталось то, что относится к чтению: вернуться и
+ * напечатать.
+ */
 export function GuidelineViewPage() {
+  const { id } = useParams<{ id: string }>();
+  const { guideline, isLoading, error } = useGuideline(id);
+  const { sections, isLoading: textLoading } = useGuidelineText(id);
+
   return (
-    <KnowledgeViewPage
-      kind="guideline"
-      basePath="/guidelines"
-      notFoundText="Рекомендация не найдена"
-      backLabel="К списку рекомендаций"
-      deletedMessage="Рекомендация удалена"
-    />
+    <Container size="xl" px={0}>
+      <Stack gap="md">
+        <RecordToolbar fallback={{ to: '/guidelines', label: 'К клиническим рекомендациям' }} />
+        {error ? (
+          <Alert color="orange" icon={<IconInfoCircle size={18} />}>
+            {error.message}
+          </Alert>
+        ) : isLoading || !guideline ? (
+          <Group justify="center" py="xl">
+            <Loader size="sm" />
+          </Group>
+        ) : (
+          <ReadingSheet>
+            <GuidelineReader guideline={guideline} sections={sections} loading={textLoading} />
+          </ReadingSheet>
+        )}
+      </Stack>
+    </Container>
   );
 }
