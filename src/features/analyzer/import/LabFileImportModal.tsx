@@ -282,6 +282,18 @@ export function LabFileImportModal({
                                     {match.analyte.line}
                                   </Text>
                                 </div>
+                                {/*
+                                  Значение, далёкое от нормы **в разы**, у распознанного бланка почти
+                                  всегда потерянная запятая: `7.0` читается как `70`, и 70 уезжает в
+                                  карту как настоящий pH. Заметить это в списке из десяти строк
+                                  нечем, поэтому строка помечается — но не выбрасывается: бывают и
+                                  настоящие тяжёлые отклонения, и решать, что здесь, должен врач.
+                                */}
+                                {suspiciouslyFar(match) && (
+                                  <Badge size="xs" variant="filled" color="red">
+                                    проверьте
+                                  </Badge>
+                                )}
                                 {match.score < 0.95 && (
                                   <Badge size="xs" variant="light" color="orange">
                                     похоже
@@ -363,6 +375,49 @@ export function LabFileImportModal({
       )}
     </Modal>
   );
+}
+
+/**
+ * Значение, ушедшее от нормы в разы, — повод присмотреться, а не молча подставить.
+ *
+ * Десятикратный порог выбран не на глаз: потерянная распознаванием запятая даёт ровно его (`7.0`
+ * → `70`), а настоящие отклонения такого размера в бланке — редкость, о которой врач и так знает.
+ * Ниже нормы считаем так же: `1.2` вместо `12` бывает не реже.
+ */
+function suspiciouslyFar(match: MatchPlan['fills'][number]['matches'][number]): boolean {
+  if (match.value === 0) return false;
+
+  /*
+   * Норма бывает трёх видов — общая, по полу и по возрасту. Здесь нужен только порядок величины,
+   * поэтому берётся **самый широкий** из возможных: у пола и возраста это границы всех полос
+   * сразу. Ошибиться в сторону «промолчать» тут лучше, чем пометить верное значение.
+   */
+  const bounds: { min?: number; max?: number }[] = [];
+  const collect = (range: unknown): void => {
+    if (!range || typeof range !== 'object') return;
+    if (Array.isArray(range)) {
+      for (const band of range) collect((band as { range?: unknown }).range);
+      return;
+    }
+    const value = range as { min?: number; max?: number; male?: unknown; female?: unknown };
+    if (value.male || value.female) {
+      collect(value.male);
+      collect(value.female);
+      return;
+    }
+    bounds.push(value);
+  };
+  collect(match.param.range);
+  if (bounds.length === 0) return false;
+
+  const maxima = bounds.map((bound) => bound.max).filter((value): value is number => typeof value === 'number');
+  const minima = bounds.map((bound) => bound.min).filter((value): value is number => typeof value === 'number');
+  const top = maxima.length > 0 ? Math.max(...maxima) : undefined;
+  const bottom = minima.length > 0 ? Math.min(...minima) : undefined;
+
+  if (top !== undefined && top > 0 && match.value > top * 10) return true;
+  if (bottom !== undefined && bottom > 0 && match.value < bottom / 10) return true;
+  return false;
 }
 
 /**
