@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Stack, Tabs, Text, ThemeIcon } from '@mantine/core';
 
 import { PageToolbar } from '../components/common/PageToolbar';
@@ -17,6 +17,7 @@ import { AnalyzerResults } from '../features/analyzer/AnalyzerResults';
 import { toLabTestDefinition } from '../features/analyzer/customTypes';
 import { LabFileImportModal } from '../features/analyzer/import/LabFileImportModal';
 import { takeHandoffOnce } from '../features/analyzer/import/handoffApi';
+import { LAB_FILE_ACCEPT, useFileDrop } from '../features/analyzer/import/useFileDrop';
 import { toParamKey } from '../features/analyzer/import/paramKey';
 import type { ParsedAnalyte } from '../features/analyzer/import/parseLabValues';
 import { LabTestForm } from '../features/analyzer/LabTestForm';
@@ -63,6 +64,16 @@ export function AnalyzerPage() {
   const [valuesByTest, setValuesByTest] = useState<Record<string, Record<string, number | undefined>>>({});
   const [importOpen, setImportOpen] = useState(false);
   const [handoffFile, setHandoffFile] = useState<File | null>(null);
+
+  /*
+   * Брошенный на страницу файл открывает то же окно разбора, что и «Загрузить файл»: дорога другая,
+   * а решение — «что нашлось, и согласен ли врач» — обязано остаться одним.
+   */
+  const takeDropped = useCallback((file: File) => {
+    setHandoffFile(file);
+    setImportOpen(true);
+  }, []);
+  const dragging = useFileDrop(takeDropped, LAB_FILE_ACCEPT);
   const [saveOpen, setSaveOpen] = useState(false);
 
   /**
@@ -224,6 +235,37 @@ export function AnalyzerPage() {
 
   return (
     <Container size="xl" px={0}>
+      {/*
+        Пока файл несут, страница говорит, что готова его принять. Заслонка поверх всего и сквозная
+        для указателя (`pointer-events: none`): ловит перетаскивание окно, а не она, и перехватывать
+        событие ей нечем и незачем.
+      */}
+      {dragging && (
+        <Box
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 300,
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--mantine-color-body)',
+            opacity: 0.92,
+          }}
+        >
+          <Stack align="center" gap="xs">
+            <ThemeIcon variant="light" color="brand" size={64} radius="xl">
+              <IconFileUpload size={32} />
+            </ThemeIcon>
+            <Text fw={600}>Отпустите бланк — разберу</Text>
+            <Text size="sm" c="dimmed">
+              PDF из лаборатории или снимок бланка
+            </Text>
+          </Stack>
+        </Box>
+      )}
+
       {/*
         Верхушка страницы — одна поверхность на три полосы управления, которые раньше висели на фоне
         по отдельности: вкладки анализов, кнопки раздела и параметры разбора. См. `PageToolbar`.
