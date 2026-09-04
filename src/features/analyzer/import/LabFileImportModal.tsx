@@ -93,7 +93,7 @@ export function LabFileImportModal({
     setStage({ kind: 'reading' });
     try {
       const { lines, source } = await extractLabFileLines(file);
-      const analytes = parseLabValues(lines);
+      const analytes = parseLabValues(lines, { ocr: source !== 'pdf-text' });
       if (analytes.length === 0) {
         setStage({
           kind: 'error',

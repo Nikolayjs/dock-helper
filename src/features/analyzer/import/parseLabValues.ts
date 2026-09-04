@@ -50,6 +50,42 @@ const HAS_LETTERS = /[а-яёa-z]/i;
 const NEGATIVE_RESULT = /^(отриц|отрицательн|не\s*обнаруж|нет|neg|negative|abs)/i;
 
 /**
+ * «Отриц.», изуродованное распознаванием: `Orpmu.`, `Orpau.`, `отриц`, `Otpnu`.
+ *
+ * Это **главная потеря** на бланке автоматического анализатора, и видно её только на настоящем
+ * тексте: у бланка ПМТ почти каждая строка кончается словом «Отриц.», названия набраны курсивом, а
+ * курсивные кириллические `т`, `и`, `ц` неотличимы от латинских `m`, `u`, `n`. Tesseract читает их
+ * латиницей, слово перестаёт быть отрицательным результатом — и строка теряется **целиком**:
+ * Билирубин, Кетоны, Нитриты, Эритроциты по реакции ушли из разбора именно так.
+ *
+ * Сравнение идёт по «форме» слова: обе стороны сводятся к одним и тем же знакам, и остаётся
+ * расстояние в две правки на пять букв. Чтобы это не ловило что попало, слово обязано начинаться с
+ * `о`/`o` и не содержать цифр — «Желтая» и «1026» так не пройдут.
+ */
+const NEGATIVE_SHAPE = new Map<string, string>([
+  ['о', 'o'], ['т', 'm'], ['р', 'p'], ['и', 'u'], ['ц', 'u'], ['н', 'h'], ['е', 'e'], ['г', 'r'],
+  ['а', 'a'], ['с', 'c'], ['х', 'x'], ['у', 'y'], ['в', 'b'], ['п', 'n'], ['л', 'n'], ['б', '6'],
+]);
+
+function toShape(text: string): string {
+  return [...text.toLowerCase()].map((char) => NEGATIVE_SHAPE.get(char) ?? char).join('');
+}
+
+function looksNegative(token: string): boolean {
+  const word = token.replace(/[^a-zа-яё]/gi, '');
+  if (word.length < 4 || word.length > 9) return false;
+  if (!/^[оo]/i.test(word)) return false;
+
+  const shape = toShape(word).slice(0, 5);
+  const target = toShape('отриц');
+  let distance = 0;
+  for (let index = 0; index < 5; index += 1) {
+    if (shape[index] !== target[index]) distance += 1;
+  }
+  return distance <= 2;
+}
+
+/**
  * A graded positive — `+`, `++`, `+/-`. The row ends here as far as reading a number goes: the
  * scale behind the plus signs belongs to the parameter, not the file, so guessing 1 for a
  * three-plus result would be worse than leaving it for the doctor.
@@ -112,6 +148,17 @@ function looksLikeUnit(token: string): boolean {
   const bare = token.toLowerCase().replace(/[.,]+$/, '');
   // Латиница без дроби, процента и цифр — только по списку.
   if (/^[a-z]+$/.test(bare)) return LATIN_UNITS.has(bare);
+  /*
+   * Длинное русское слово без дроби, процента и цифр — не единица, а **соседняя колонка**.
+   *
+   * На бланке с анализатора справа от результата напечатано «Здоровые люди», и оно становилось
+   * единицей: `тюкоза = 0 Здоровые`. Дальше охранник единиц честно не пускал такое значение в
+   * «Глюкозу» с её «ммоль/л» — и строка терялась. На живом бланке так уходило пол-разбора.
+   *
+   * Настоящие русские единицы либо с дробью («ммоль/л», «ед/мкл»), либо короткие («пг», «фл», «мм»,
+   * «сек»); слова длиннее четырёх букв среди них не встречаются.
+   */
+  if (/^[а-яё]+$/.test(bare) && bare.length > 4) return false;
   return /[а-яёa-z%^*/]/i.test(token);
 }
 
@@ -153,7 +200,13 @@ function findUnit(tokens: string[], from: number): string | undefined {
   return undefined;
 }
 
-export function parseLabValues(lines: string[]): ParsedAnalyte[] {
+/**
+ * `ocr` — текст пришёл из распознавания, а не из текстового слоя PDF.
+ *
+ * Разница ровно одна и важная: в распознанном тексте **регистру верить нельзя**. Правила, которые
+ * опираются на заглавную букву, там выключаются; всё остальное общее.
+ */
+export function parseLabValues(lines: string[], { ocr = false }: { ocr?: boolean } = {}): ParsedAnalyte[] {
   const analytes: ParsedAnalyte[] = [];
 
   for (const line of lines) {
@@ -176,6 +229,7 @@ export function parseLabValues(lines: string[]): ParsedAnalyte[] {
       (token) =>
         (STANDALONE_NUMBER.test(token) && !DATE_LIKE.test(token)) ||
         NEGATIVE_RESULT.test(token) ||
+        looksNegative(token) ||
         GRADED_RESULT.test(token),
     );
     if (valueIndex <= 0) continue;
@@ -201,12 +255,19 @@ export function parseLabValues(lines: string[]): ParsedAnalyte[] {
     if (REFERENCE_ROW.test(opening) || PAGE_HEADER.test(opening)) continue;
 
     if (name.length < 2 || !HAS_LETTERS.test(name) || NOT_AN_ANALYTE.test(name)) continue;
-    // A Russian analyte is capitalised on every laboratory form, so a lowercase Cyrillic opening
-    // means this is the tail of a wrapped sentence — `желательный уровень <5.0 ммоль/л` out of an
-    // interpretation note. Latin is left alone: `pH` and `hs-CRP` are real names.
-    if (/^[а-яё]/.test(name)) continue;
+    /*
+     * A Russian analyte is capitalised on every laboratory form, so a lowercase Cyrillic opening
+     * means this is the tail of a wrapped sentence — `желательный уровень <5.0 ммоль/л` out of an
+     * interpretation note. Latin is left alone: `pH` and `hs-CRP` are real names.
+     *
+     * **Для распознанного текста это правило не работает**, и на живом бланке оно стоило половины
+     * строк: Tesseract читает «Глюкоза» как «тюкоза», «Лейкоциты» как «Ледкоциты» — с маленькой
+     * буквы, потому что заглавная не опозналась. Регистр в распознанном тексте ничего не
+     * доказывает, поэтому там правило выключено.
+     */
+    if (!ocr && /^[а-яё]/.test(name)) continue;
 
-    const isNegative = NEGATIVE_RESULT.test(valueToken);
+    const isNegative = NEGATIVE_RESULT.test(valueToken) || looksNegative(valueToken);
     const value = isNegative
       ? 0
       : Number(valueToken.replace(/^[<>≤≥]/, '').replace(/[*↑↓]+$/, '').replace(',', '.'));
