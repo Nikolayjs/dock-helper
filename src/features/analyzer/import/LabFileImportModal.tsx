@@ -7,6 +7,8 @@ import {
   Button,
   Card,
   Checkbox,
+  Code,
+  CopyButton,
   FileButton,
   Group,
   Loader,
@@ -58,7 +60,7 @@ type Stage =
   | { kind: 'reading' }
   | { kind: 'error'; message: string }
   /** `analytes` is kept alongside the plan so the file can be re-matched after an analyzer gains parameters. */
-  | { kind: 'review'; analytes: ParsedAnalyte[]; plan: MatchPlan; source: LabFileSource };
+  | { kind: 'review'; analytes: ParsedAnalyte[]; plan: MatchPlan; source: LabFileSource; lines: string[] };
 
 export function LabFileImportModal({
   opened,
@@ -102,7 +104,7 @@ export function LabFileImportModal({
       const plan = matchAnalytes(analytes, tests);
       setSelectedTestIds(defaultSelection(plan));
       setExtendTargetId(plan.fills[0]?.test.id ?? tests[0]?.id ?? null);
-      setStage({ kind: 'review', analytes, plan, source });
+      setStage({ kind: 'review', analytes, plan, source, lines });
     } catch (error) {
       const message =
         error instanceof LabFileError || error instanceof HttpRepositoryError
@@ -132,7 +134,7 @@ export function LabFileImportModal({
       const plan = matchAnalytes(stage.analytes, updatedTests);
       // The extended analyzer is now the point of the exercise — tick it even if the count is low.
       setSelectedTestIds([...new Set([...defaultSelection(plan), extendTargetId])]);
-      setStage({ kind: 'review', analytes: stage.analytes, plan, source: stage.source });
+      setStage({ kind: 'review', analytes: stage.analytes, plan, source: stage.source, lines: stage.lines });
     } catch (error) {
       setStage({
         kind: 'error',
@@ -210,6 +212,7 @@ export function LabFileImportModal({
             распознаванием огромна, и молчание о ней оставляет врача с ощущением «приложение плохо
             читает» там, где ему подали снимок экрана вместо файла из лаборатории.
           */}
+          {stage.source !== 'pdf-text' && <RecognisedText lines={stage.lines} />}
           {stage.source !== 'pdf-text' && (
             <Text size="xs" c="dimmed">
               {stage.source === 'image'
@@ -359,5 +362,54 @@ export function LabFileImportModal({
         </Stack>
       )}
     </Modal>
+  );
+}
+
+/**
+ * Что именно прочиталось из файла — строка в строку.
+ *
+ * Спрятано за нажатием и показывается только для распознанного: у PDF с текстовым слоем читать
+ * нечего — там всё точно. Нужно это в двух случаях, и оба настоящие. Врачу — понять, почему из
+ * двадцати показателей подставились четыре: увидев «Пежошиты 0» вместо «Лейкоциты», он сразу
+ * поймёт, что дело не в приложении, а в качестве картинки, и принесёт PDF. Нам — чинить разбор по
+ * тому, что было на самом деле, а не по догадкам: три догадки подряд о чужом бланке уже стоили
+ * дня работы.
+ */
+function RecognisedText({ lines }: { lines: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  if (lines.length === 0) return null;
+
+  return (
+    <Stack gap={4}>
+      <Group gap={6}>
+        <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setOpen((shown) => !shown)}>
+          {open ? 'Скрыть распознанный текст' : `Показать распознанный текст (${lines.length} строк)`}
+        </Button>
+        {open && (
+          <CopyButton value={lines.join('\n')}>
+            {({ copy }) => (
+              <Button
+                size="compact-xs"
+                variant="light"
+                color="gray"
+                onClick={() => {
+                  copy();
+                  setCopied(true);
+                }}
+              >
+                {copied ? 'Скопировано' : 'Скопировать'}
+              </Button>
+            )}
+          </CopyButton>
+        )}
+      </Group>
+      {open && (
+        <Code block style={{ fontSize: 11, maxHeight: 220, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+          {lines.join('\n')}
+        </Code>
+      )}
+    </Stack>
   );
 }

@@ -190,7 +190,15 @@ export function parseLabValues(lines: string[]): ParsedAnalyte[] {
       .replace(/[.,]\s*$/, '')
       .trim();
 
-    if (REFERENCE_ROW.test(name) || PAGE_HEADER.test(name)) continue;
+    /*
+     * Строку норм узнаём по **началу** названия, а не по всему.
+     *
+     * У бланка с анализатора колонка норм подписана «Здоровые люди», и распознавание сплошь и рядом
+     * приклеивает её к концу настоящей строки. Ища слово где угодно, мы выбрасывали бы вместе с
+     * мусором и настоящие показатели — а невидимая потеря хуже видимого мусора.
+     */
+    const opening = name.split(/\s+/).slice(0, 2).join(' ');
+    if (REFERENCE_ROW.test(opening) || PAGE_HEADER.test(opening)) continue;
 
     if (name.length < 2 || !HAS_LETTERS.test(name) || NOT_AN_ANALYTE.test(name)) continue;
     // A Russian analyte is capitalised on every laboratory form, so a lowercase Cyrillic opening
