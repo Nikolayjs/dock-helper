@@ -49,8 +49,8 @@ export async function takeHandoffFile(id: string): Promise<File> {
 /**
  * Имя файла из заголовка.
  *
- * Оно нужно не для красоты: по расширению имени `labFileText` отличает PDF от снимка бланка, а
- * снимок идёт через распознавание. Не разобралось — пусть решает тип содержимого.
+ * Оно нужно не для красоты: по расширению имени `labFileText` понимает, что перед ним PDF.
+ * Не разобралось — пусть решает тип содержимого.
  */
 function fileNameFrom(response: Response): string | null {
   const header = response.headers.get('content-disposition') ?? '';

@@ -260,7 +260,7 @@ export function AnalyzerPage() {
             </ThemeIcon>
             <Text fw={600}>Отпустите бланк — разберу</Text>
             <Text size="sm" c="dimmed">
-              PDF из лаборатории или снимок бланка
+              PDF из лаборатории
             </Text>
           </Stack>
         </Box>

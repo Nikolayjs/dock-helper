@@ -83,28 +83,6 @@ function fold(text: string): string {
   return [...text].map((char) => CONFUSABLES[char] ?? char).join('');
 }
 
-/**
- * Форма слова: обе азбуки сводятся к одним и тем же знакам.
- *
- * `CONFUSABLES` выше — про буквы, которые **нарисованы одинаково** (`о` и `o`). Здесь другое и
- * более грубое: буквы, которые распознавание **путает** на курсивном бланке. `б` читается как `6`,
- * `л` как `n`, `и` как `u`, `н` как `h`, `г` как `r`, `т` как `m`. Названия на бланке набраны
- * курсивом, и «Билирубин» приезжает как `Bunupy6un` — по буквам ничего общего, по форме отличие в
- * одну.
- *
- * Считается как **лишний вариант**, а не замена: своё слово сворачивается в ту же форму с обеих
- * сторон, и ничего, что совпадало раньше, совпадать не перестаёт.
- */
-const OCR_SHAPES: Record<string, string> = {
-  б: '6', b: '6', л: 'n', n: 'n', и: 'u', u: 'u', ц: 'u', й: 'u',
-  н: 'h', h: 'h', г: 'r', r: 'r', т: 'm', m: 'm', о: 'o', o: 'o',
-  р: 'p', p: 'p', у: 'y', y: 'y', е: 'e', e: 'e', с: 'c', c: 'c',
-  а: 'a', a: 'a', х: 'x', x: 'x', з: '3', в: 'b', к: 'k', k: 'k',
-};
-
-function shape(text: string): string {
-  return [...text].map((char) => OCR_SHAPES[char] ?? char).join('');
-}
 
 /**
  * The analyser's own code, which some forms give a column of its own — `PRO Белок`, `SG Удельный
@@ -157,7 +135,6 @@ function variants(text: string): string[] {
     }
     found.add(sortWords(seed));
     found.add(fold(seed));
-    found.add(shape(seed));
   }
   return [...found];
 }

@@ -1,16 +1,17 @@
-import { request } from '../../../lib/httpRepository';
-import { OCR_TARGET_WIDTH, fitForOcr } from '../../../lib/ocrImage';
-import type { TemplateLayout } from '../../patients/documents/layoutTypes';
-
 /**
- * Turns a lab result file into lines of text.
+ * Превращает файл с результатами анализов в строки текста.
  *
- * Two sources, one shape. A PDF from Инвитро or Хеликс carries real text, so it is read exactly and
- * never guessed at; a photograph has to go through OCR and comes back approximate. Both arrive as
- * positioned fragments, which is what matters: a lab report is a table, and "Гемоглобин" and "145"
- * are separate fragments that only mean something once they are known to sit on the same row.
- * Reassembling rows by vertical position is therefore the whole job here — concatenating fragments
- * in document order would interleave columns and destroy the pairing the parser depends on.
+ * Источник ровно один — **текстовый слой PDF**, то есть в точности то, что напечатала лаборатория,
+ * без единой догадки. Распознавание картинок отсюда убрано намеренно (`CLAUDE.md`, раздел про
+ * бланки анализов): потолок замера — 28 показателей из 36 на приличной картинке, а на настоящем
+ * бланке врача выходило «тюкоза» вместо «Глюкоза». Данные, по которым потом лечат, догадок не
+ * терпят. OCR остался там, где он к месту, — в конструкторе бланков документов: там распознанное
+ * правит врач и ошибку видно сразу.
+ *
+ * Строки приезжают позиционированными обрывками, и это главное здесь: бланк — таблица, а
+ * «Гемоглобин» и «145» лежат в ней отдельными кусками и значат что-то только вместе. Поэтому файл
+ * занят одним — сборкой строк по вертикали; склейка в порядке документа перемешала бы столбцы и
+ * разрушила бы пары, на которых держится разборщик.
  */
 
 interface TextFragment {
@@ -21,9 +22,6 @@ interface TextFragment {
 
 /** Fragments within this much of each other vertically are treated as one row. */
 const PDF_LINE_TOLERANCE_PT = 3;
-const OCR_LINE_TOLERANCE_PCT = 1.2;
-
-const OCR_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/tiff', 'image/bmp'];
 
 export class LabFileError extends Error {}
 
@@ -52,7 +50,7 @@ function assembleLines(fragments: TextFragment[], tolerance: number): string[] {
 
 async function linesFromPdf(file: File): Promise<string[]> {
   // pdf.js подключается здесь, а не сверху файла: это 94 КБ gzip, и нужны они только тому, кто
-  // действительно принёс PDF из лаборатории. Снимок с телефона идёт через OCR и без них.
+  // действительно открыл бланк из лаборатории.
   const { loadPdfDocument } = await import('../../library/pdfMeta');
   const doc = await loadPdfDocument(await file.arrayBuffer());
   try {
@@ -77,93 +75,20 @@ async function linesFromPdf(file: File): Promise<string[]> {
   }
 }
 
-async function linesFromImage(image: Blob, fileName: string): Promise<string[]> {
-  const file = await fitForOcr(image);
-  const form = new FormData();
-  form.append('image', file, fileName || 'analysis.png');
-  // Reuses the OCR endpoint built for scanning blank forms: it persists nothing, returns positioned
-  // text blocks, and already carries the HEIC rejection and Russian-language Tesseract setup.
-  const layout = await request<TemplateLayout>('/document-templates/recognize', { method: 'POST', body: form });
-  const fragments = layout.blocks.map((block) => ({
-    text: block.text,
-    x: block.xPct,
-    // OCR geometry grows downward; negate so it shares assembleLines' top-is-larger convention.
-    y: -block.yPct,
-  }));
-  return assembleLines(fragments, OCR_LINE_TOLERANCE_PCT);
-}
-
-/**
- * PDF без текстового слоя — тоже бланк, просто собранный из картинок.
- *
- * Раньше здесь стоял тупик: «сфотографируйте бланк и загрузите снимок». Совет вредный — снимок
- * экрана или фотография выходят хуже, чем страница, нарисованная **нами** в нужном размере: у нас
- * нет ни бликов, ни перекоса, ни чужого масштаба. Отсюда и правило: рисуем страницу сами, ровно в
- * ту ширину, на которой распознавание работает.
- *
- * Страниц берётся не больше четырёх: бланк лаборатории — это одна-две, а каждая страница стоит
- * отдельного распознавания в несколько секунд. Пятая почти всегда означала бы, что подали не бланк.
- */
-const OCR_PDF_PAGE_LIMIT = 4;
-
-async function linesFromScannedPdf(file: File): Promise<string[]> {
-  const { loadPdfDocument } = await import('../../library/pdfMeta');
-  const doc = await loadPdfDocument(await file.arrayBuffer());
-  try {
-    const lines: string[] = [];
-    const pages = Math.min(doc.numPages, OCR_PDF_PAGE_LIMIT);
-    for (let pageNumber = 1; pageNumber <= pages; pageNumber++) {
-      const page = await doc.getPage(pageNumber);
-      const base = page.getViewport({ scale: 1 });
-      const viewport = page.getViewport({ scale: OCR_TARGET_WIDTH / base.width });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const context = canvas.getContext('2d');
-      if (!context) continue;
-      await page.render({ canvasContext: context, viewport }).promise;
-
-      const rendered = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-      if (!rendered) continue;
-      lines.push(...(await linesFromImage(rendered, `page-${pageNumber}.png`)));
-    }
-    return lines;
-  } finally {
-    await doc.destroy();
-  }
-}
-
-/**
- * Каким путём прочитан бланк.
- *
- * Врачу это видно в окне разбора, и не ради подробностей: разница в качестве между путями
- * огромна. Текстовый слой PDF — это ровно то, что напечатала лаборатория, без единой ошибки;
- * распознавание — догадка по картинке. Не сказав, каким путём пошло, мы оставляем врача с
- * ощущением «приложение плохо читает» там, где на самом деле ему подали снимок экрана вместо
- * файла.
- */
-export type LabFileSource = 'pdf-text' | 'pdf-scan' | 'image';
-
-export interface LabFileLines {
-  lines: string[];
-  source: LabFileSource;
-}
-
-export async function extractLabFileLines(file: File): Promise<LabFileLines> {
+export async function extractLabFileLines(file: File): Promise<string[]> {
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-  if (isPdf) {
-    const lines = await linesFromPdf(file);
-    if (lines.length > 0) return { lines, source: 'pdf-text' };
-
-    // Текстового слоя нет — значит бланк внутри картинкой. Рисуем страницы сами и распознаём.
-    const scanned = await linesFromScannedPdf(file);
-    if (scanned.length === 0) {
-      throw new LabFileError('В этом PDF не нашлось ни текста, ни читаемого изображения бланка.');
-    }
-    return { lines: scanned, source: 'pdf-scan' };
+  if (!isPdf) {
+    throw new LabFileError('Читается только PDF из лаборатории — тот, что она присылает файлом.');
   }
 
-  if (OCR_IMAGE_TYPES.includes(file.type)) return { lines: await linesFromImage(file, file.name), source: 'image' };
-
-  throw new LabFileError('Поддерживаются PDF и снимки (JPG, PNG, WEBP, TIFF, BMP).');
+  const lines = await linesFromPdf(file);
+  if (lines.length === 0) {
+    // Отказ обязан называть дорогу, а не только беду: PDF без текстового слоя — это скан, и
+    // прочитать его точно нельзя ничем. Лаборатории почти всегда отдают и обычный PDF тоже.
+    throw new LabFileError(
+      'В этом PDF нет текстового слоя — внутри картинка. Попросите в лаборатории обычный PDF ' +
+        '(в личном кабинете он обычно есть) или внесите значения руками.',
+    );
+  }
+  return lines;
 }

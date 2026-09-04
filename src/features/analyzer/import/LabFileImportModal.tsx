@@ -7,8 +7,6 @@ import {
   Button,
   Card,
   Checkbox,
-  Code,
-  CopyButton,
   FileButton,
   Group,
   Loader,
@@ -22,7 +20,7 @@ import { IconAlertTriangle, IconFileUpload, IconInfoCircle, IconPlus } from '@ta
 
 import { HttpRepositoryError } from '../../../lib/httpRepository';
 import type { LabTestDefinition } from '../types';
-import { LabFileError, extractLabFileLines, type LabFileSource } from './labFileText';
+import { LabFileError, extractLabFileLines } from './labFileText';
 import { matchAnalytes, type MatchPlan } from './matchAnalytes';
 import { parseLabValues, type ParsedAnalyte } from './parseLabValues';
 import { defaultSelection } from './selectFills';
@@ -60,7 +58,7 @@ type Stage =
   | { kind: 'reading' }
   | { kind: 'error'; message: string }
   /** `analytes` is kept alongside the plan so the file can be re-matched after an analyzer gains parameters. */
-  | { kind: 'review'; analytes: ParsedAnalyte[]; plan: MatchPlan; source: LabFileSource; lines: string[] };
+  | { kind: 'review'; analytes: ParsedAnalyte[]; plan: MatchPlan };
 
 export function LabFileImportModal({
   opened,
@@ -92,8 +90,8 @@ export function LabFileImportModal({
     if (!file) return;
     setStage({ kind: 'reading' });
     try {
-      const { lines, source } = await extractLabFileLines(file);
-      const analytes = parseLabValues(lines, { ocr: source !== 'pdf-text' });
+      const lines = await extractLabFileLines(file);
+      const analytes = parseLabValues(lines);
       if (analytes.length === 0) {
         setStage({
           kind: 'error',
@@ -104,7 +102,7 @@ export function LabFileImportModal({
       const plan = matchAnalytes(analytes, tests);
       setSelectedTestIds(defaultSelection(plan));
       setExtendTargetId(plan.fills[0]?.test.id ?? tests[0]?.id ?? null);
-      setStage({ kind: 'review', analytes, plan, source, lines });
+      setStage({ kind: 'review', analytes, plan });
     } catch (error) {
       const message =
         error instanceof LabFileError || error instanceof HttpRepositoryError
@@ -134,7 +132,7 @@ export function LabFileImportModal({
       const plan = matchAnalytes(stage.analytes, updatedTests);
       // The extended analyzer is now the point of the exercise — tick it even if the count is low.
       setSelectedTestIds([...new Set([...defaultSelection(plan), extendTargetId])]);
-      setStage({ kind: 'review', analytes: stage.analytes, plan, source: stage.source, lines: stage.lines });
+      setStage({ kind: 'review', analytes: stage.analytes, plan });
     } catch (error) {
       setStage({
         kind: 'error',
@@ -170,10 +168,10 @@ export function LabFileImportModal({
       {stage.kind === 'idle' && (
         <Stack gap="md">
           <Text size="sm" c="dimmed">
-            PDF из лаборатории читается точно — в нём есть текстовый слой. Снимок бланка распознаётся, и в нём
-            возможны ошибки, поэтому всё найденное сначала показывается на проверку.
+            Нужен PDF из лаборатории — тот, что она присылает файлом: в нём есть текстовый слой, и значения
+            читаются в точности так, как их напечатали. Найденное всё равно показывается на проверку.
           </Text>
-          <FileButton onChange={handleFile} accept="application/pdf,image/jpeg,image/png,image/webp,image/tiff,image/bmp">
+          <FileButton onChange={handleFile} accept="application/pdf">
             {(props) => (
               <Button {...props} leftSection={<IconFileUpload size={16} />}>
                 Выбрать файл
@@ -207,19 +205,6 @@ export function LabFileImportModal({
 
       {stage.kind === 'review' && (
         <Stack gap="md">
-          {/*
-            Каким путём прочитан бланк — одной строкой. Разница в качестве между текстовым слоем и
-            распознаванием огромна, и молчание о ней оставляет врача с ощущением «приложение плохо
-            читает» там, где ему подали снимок экрана вместо файла из лаборатории.
-          */}
-          {stage.source !== 'pdf-text' && <RecognisedText lines={stage.lines} />}
-          {stage.source !== 'pdf-text' && (
-            <Text size="xs" c="dimmed">
-              {stage.source === 'image'
-                ? 'Прочитано распознаванием картинки — возможны ошибки. Точнее всего читается PDF из лаборатории: перетащите его сюда. А если картинка пришла из просмотрщика, помогает увеличить в нём масштаб и повторить: расширение берёт самую крупную страницу, которую тот успел загрузить.'
-                : 'В PDF нет текстового слоя, страницы распознаны как картинки — возможны ошибки.'}
-            </Text>
-          )}
           {stage.plan.fills.length === 0 ? (
             <Alert color="orange" icon={<IconInfoCircle size={18} />}>
               Показатели в файле нашлись, но ни один не совпал с существующими анализаторами.
@@ -282,18 +267,6 @@ export function LabFileImportModal({
                                     {match.analyte.line}
                                   </Text>
                                 </div>
-                                {/*
-                                  Значение, далёкое от нормы **в разы**, у распознанного бланка почти
-                                  всегда потерянная запятая: `7.0` читается как `70`, и 70 уезжает в
-                                  карту как настоящий pH. Заметить это в списке из десяти строк
-                                  нечем, поэтому строка помечается — но не выбрасывается: бывают и
-                                  настоящие тяжёлые отклонения, и решать, что здесь, должен врач.
-                                */}
-                                {suspiciouslyFar(match) && (
-                                  <Badge size="xs" variant="filled" color="red">
-                                    проверьте
-                                  </Badge>
-                                )}
                                 {match.score < 0.95 && (
                                   <Badge size="xs" variant="light" color="orange">
                                     похоже
@@ -377,94 +350,4 @@ export function LabFileImportModal({
   );
 }
 
-/**
- * Значение, ушедшее от нормы в разы, — повод присмотреться, а не молча подставить.
- *
- * Десятикратный порог выбран не на глаз: потерянная распознаванием запятая даёт ровно его (`7.0`
- * → `70`), а настоящие отклонения такого размера в бланке — редкость, о которой врач и так знает.
- * Ниже нормы считаем так же: `1.2` вместо `12` бывает не реже.
- */
-function suspiciouslyFar(match: MatchPlan['fills'][number]['matches'][number]): boolean {
-  if (match.value === 0) return false;
 
-  /*
-   * Норма бывает трёх видов — общая, по полу и по возрасту. Здесь нужен только порядок величины,
-   * поэтому берётся **самый широкий** из возможных: у пола и возраста это границы всех полос
-   * сразу. Ошибиться в сторону «промолчать» тут лучше, чем пометить верное значение.
-   */
-  const bounds: { min?: number; max?: number }[] = [];
-  const collect = (range: unknown): void => {
-    if (!range || typeof range !== 'object') return;
-    if (Array.isArray(range)) {
-      for (const band of range) collect((band as { range?: unknown }).range);
-      return;
-    }
-    const value = range as { min?: number; max?: number; male?: unknown; female?: unknown };
-    if (value.male || value.female) {
-      collect(value.male);
-      collect(value.female);
-      return;
-    }
-    bounds.push(value);
-  };
-  collect(match.param.range);
-  if (bounds.length === 0) return false;
-
-  const maxima = bounds.map((bound) => bound.max).filter((value): value is number => typeof value === 'number');
-  const minima = bounds.map((bound) => bound.min).filter((value): value is number => typeof value === 'number');
-  const top = maxima.length > 0 ? Math.max(...maxima) : undefined;
-  const bottom = minima.length > 0 ? Math.min(...minima) : undefined;
-
-  if (top !== undefined && top > 0 && match.value > top * 10) return true;
-  if (bottom !== undefined && bottom > 0 && match.value < bottom / 10) return true;
-  return false;
-}
-
-/**
- * Что именно прочиталось из файла — строка в строку.
- *
- * Спрятано за нажатием и показывается только для распознанного: у PDF с текстовым слоем читать
- * нечего — там всё точно. Нужно это в двух случаях, и оба настоящие. Врачу — понять, почему из
- * двадцати показателей подставились четыре: увидев «Пежошиты 0» вместо «Лейкоциты», он сразу
- * поймёт, что дело не в приложении, а в качестве картинки, и принесёт PDF. Нам — чинить разбор по
- * тому, что было на самом деле, а не по догадкам: три догадки подряд о чужом бланке уже стоили
- * дня работы.
- */
-function RecognisedText({ lines }: { lines: string[] }) {
-  const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  if (lines.length === 0) return null;
-
-  return (
-    <Stack gap={4}>
-      <Group gap={6}>
-        <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setOpen((shown) => !shown)}>
-          {open ? 'Скрыть распознанный текст' : `Показать распознанный текст (${lines.length} строк)`}
-        </Button>
-        {open && (
-          <CopyButton value={lines.join('\n')}>
-            {({ copy }) => (
-              <Button
-                size="compact-xs"
-                variant="light"
-                color="gray"
-                onClick={() => {
-                  copy();
-                  setCopied(true);
-                }}
-              >
-                {copied ? 'Скопировано' : 'Скопировать'}
-              </Button>
-            )}
-          </CopyButton>
-        )}
-      </Group>
-      {open && (
-        <Code block style={{ fontSize: 11, maxHeight: 220, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-          {lines.join('\n')}
-        </Code>
-      )}
-    </Stack>
-  );
-}

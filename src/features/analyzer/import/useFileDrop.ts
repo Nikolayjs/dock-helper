@@ -67,12 +67,10 @@ export function useFileDrop(onFile: (file: File) => void, accept: readonly strin
   return over;
 }
 
-/** То же, что принимает `labFileText`: PDF из лаборатории и снимок бланка. */
-export const LAB_FILE_ACCEPT = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/tiff',
-  'image/bmp',
-] as const;
+/**
+ * То же, что принимает `labFileText`, — и это ровно один тип.
+ *
+ * Снимки бланка отсюда убраны вместе с распознаванием: принимать файл, который мы всё равно не
+ * прочитаем, — это обещание, которое кончается окном «показателей не нашлось».
+ */
+export const LAB_FILE_ACCEPT = ['application/pdf'] as const;
