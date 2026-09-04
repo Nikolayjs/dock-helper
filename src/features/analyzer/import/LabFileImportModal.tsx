@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useIsMobile } from '../../../components/common/useIsMobile';
 import {
   Accordion,
@@ -36,6 +36,12 @@ import { defaultSelection } from './selectFills';
 interface LabFileImportModalProps {
   opened: boolean;
   onClose: () => void;
+  /**
+   * Файл, приехавший не из «Выбрать файл», а откуда-то ещё — сейчас из промежуточного слота, куда
+   * его положило расширение. Разбор при этом тот же самый: экран «что нашлось» и подтверждение
+   * врачом обязательны независимо от того, каким путём файл сюда попал.
+   */
+  incomingFile?: File | null;
   tests: LabTestDefinition[];
   onApply: (values: Record<string, Record<string, number>>) => void;
   onCreateAnalyzer: (analytes: ParsedAnalyte[]) => void;
@@ -57,6 +63,7 @@ type Stage =
 export function LabFileImportModal({
   opened,
   onClose,
+  incomingFile,
   tests,
   onApply,
   onCreateAnalyzer,
@@ -104,6 +111,18 @@ export function LabFileImportModal({
       setStage({ kind: 'error', message });
     }
   };
+
+  /*
+   * Присланный файл разбирается один раз — по ссылке на сам файл, а не по факту открытия окна.
+   * Иначе повторный рендер (а их здесь много: выбор анализаторов, разворот строк) запускал бы
+   * разбор заново и стирал бы то, что врач уже отметил.
+   */
+  const parsedFile = useRef<File | null>(null);
+  useEffect(() => {
+    if (!opened || !incomingFile || parsedFile.current === incomingFile) return;
+    parsedFile.current = incomingFile;
+    void handleFile(incomingFile);
+  }, [opened, incomingFile]);
 
   const extendSelected = async () => {
     if (stage.kind !== 'review' || !extendTargetId) return;
