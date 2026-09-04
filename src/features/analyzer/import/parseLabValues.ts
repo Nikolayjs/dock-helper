@@ -67,13 +67,51 @@ const GRADED_RESULT = /^[+]+$|^\+\/-$|^-\/\+$/;
 const NOT_AN_ANALYTE =
   /^(результат|референс|референсные|норма|нормы|единиц|показател|пациент|дата|врач|лаборатор|заключени|комментари|исследовани|материал|метод|подпись|страниц|телефон|адрес|заказ|номер|возраст|пол)(?![а-яёa-z])/i;
 
+/**
+ * Строки **таблицы норм**, а не показатели.
+ *
+ * У бланка с автоматического анализатора нормы напечатаны отдельной колонкой и переносятся своими
+ * строками: «Здоровые люди 5 6», «Дети до 15 лет 0 11», «Взрослые 1003 1035». Для разборщика это
+ * такие же строки с числом, как настоящий показатель, и без этого списка врач получает в разборе
+ * «Дети 20» вперемешку с «Удельный вес 1026» — и перестаёт верить всему разбору.
+ *
+ * Ищется в любом месте названия, а не только в начале: распознавание сплошь и рядом приклеивает к
+ * такой строке хвост соседней ячейки.
+ */
+const REFERENCE_ROW = /(здоровы|дети|детей|взрослы|новорожд|мужчин|женщин|беременн)/i;
+
+/**
+ * Шапка бланка: название лаборатории, адрес, «Лабораторное исследование».
+ *
+ * Отдельно от `NOT_AN_ANALYTE` потому, что там слова ищутся с начала строки, а шапка начинается с
+ * чего угодно: «Независимая лаборатория …», «ООО „Ромашка“, клинико-диагностическая лаборатория».
+ */
+const PAGE_HEADER = /(лаборатори|исследовани|поликлиник|больниц|клиник)/i;
+
 /** Above this nothing is a laboratory measurement — it is an order number or a phone that slipped through. */
 const IMPLAUSIBLE_VALUE = 1_000_000;
+
+/**
+ * Латинские единицы, которые действительно встречаются в бланках.
+ *
+ * Нужны затем, что **латинское слово рядом с числом в русском бланке — почти всегда мусор
+ * распознавания**: строка «PRO Белок 0.1 rin» (это «г/л») отдавала `rin` как единицу, та не
+ * сходилась ни с одной настоящей, и охранник единиц выбрасывал единственное настоящее число всего
+ * бланка мочи. Кириллические слова проверяются как раньше: там такой беды нет, а сузить их значило
+ * бы поломать формы, которые сегодня читаются.
+ */
+const LATIN_UNITS = new Set([
+  'iu', 'u', 'pg', 'fl', 'g', 'mg', 'mcg', 'ng', 'dl', 'ml', 'l', 'mm', 'cm',
+  'sec', 'min', 'mmol', 'mol', 'umol', 'ul', 'hpf', 'cells', 'ratio', 'index',
+]);
 
 function looksLikeUnit(token: string): boolean {
   if (STANDALONE_NUMBER.test(token)) return false;
   // Ranges (`130-160`, `4,0–9,0`) trail the result and must not be mistaken for its unit.
   if (/^\d+(?:[.,]\d+)?\s*[-–—]\s*\d/.test(token)) return false;
+  const bare = token.toLowerCase().replace(/[.,]+$/, '');
+  // Латиница без дроби, процента и цифр — только по списку.
+  if (/^[a-z]+$/.test(bare)) return LATIN_UNITS.has(bare);
   return /[а-яёa-z%^*/]/i.test(token);
 }
 
@@ -119,7 +157,20 @@ export function parseLabValues(lines: string[]): ParsedAnalyte[] {
   const analytes: ParsedAnalyte[] = [];
 
   for (const line of lines) {
-    const tokens = line.split(/\s+/).filter(Boolean);
+    /*
+     * Мусор распознавания снимается **до** разбора.
+     *
+     * Колонки бланка Tesseract отделяет палкой (`|`), к числам приклеивает скобку (`[0.1`), а к
+     * названиям — обратную кавычку. Пока это не убрано, `[0.1` перестаёт быть числом, и строка
+     * «PRO Белок [0.1 г/л» теряется целиком — а это единственное настоящее число на всём бланке
+     * мочи. Убираются только края: точка внутри `7.0` и дробь в `мг/дл` обязаны уцелеть.
+     */
+    const tokens = line
+      .split(/\s+/)
+      // Скобки не трогаем: на них держится вариант названия без пояснения в скобках, и без них
+      // «MCV (ср. объем эритр.)» перестаёт узнаваться как MCV.
+      .map((token) => token.replace(/^[[\]|`'"«»]+/, '').replace(/[[\]|`'"«»]+$/, ''))
+      .filter(Boolean);
     // Whichever comes first ends the name: a number, a spelled-out negative, or a graded positive.
     const valueIndex = tokens.findIndex(
       (token) =>
@@ -138,6 +189,8 @@ export function parseLabValues(lines: string[]): ParsedAnalyte[] {
       .replace(/[:：]\s*$/, '')
       .replace(/[.,]\s*$/, '')
       .trim();
+
+    if (REFERENCE_ROW.test(name) || PAGE_HEADER.test(name)) continue;
 
     if (name.length < 2 || !HAS_LETTERS.test(name) || NOT_AN_ANALYTE.test(name)) continue;
     // A Russian analyte is capitalised on every laboratory form, so a lowercase Cyrillic opening

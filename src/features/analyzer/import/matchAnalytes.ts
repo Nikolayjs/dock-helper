@@ -90,6 +90,17 @@ function fold(text: string): string {
 const LEADING_CODE = /^[a-z]{2,6}\d?\s+(?=\S)/;
 
 /**
+ * Тот же код, но снятый **до** приведения к нижнему регистру — и потому кириллический тоже.
+ *
+ * Распознавание читает `RBC` как `ВВС`, `pH` как `РН`, `SQEP` как `ЗОЕР`: латинские буквы кода
+ * подменяются кириллическими двойниками. После `normalize` отличить такой код от обычного русского
+ * слова уже нечем, а до него — можно: код набран **целиком прописными**, слово — нет. Правило
+ * поэтому смотрит на исходный текст и требует, чтобы прописными были все буквы кода: «Белок общий»
+ * так не срежется, а «ВВС Эритроциты» — срежется.
+ */
+const UPPERCASE_CODE = /^[A-ZА-ЯЁ][A-ZА-ЯЁ0-9]{1,5}[.\s]+(?=\S)/;
+
+/**
  * The name itself, the name without its bracketed abbreviation, that abbreviation alone, each of
  * those with its words sorted, and every known synonym of the lot.
  */
@@ -100,6 +111,9 @@ function variants(text: string): string[] {
 
   const withoutBrackets = normalize(text.replace(/[([{].*?[)\]}]/g, ' '));
   if (withoutBrackets) seeds.add(withoutBrackets);
+
+  const withoutCode = normalize(text.replace(UPPERCASE_CODE, ''));
+  if (withoutCode) seeds.add(withoutCode);
 
   for (const match of text.matchAll(/[([{](.*?)[)\]}]/g)) {
     const inner = normalize(match[1] ?? '');
