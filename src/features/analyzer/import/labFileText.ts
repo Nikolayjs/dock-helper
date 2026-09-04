@@ -133,21 +133,37 @@ async function linesFromScannedPdf(file: File): Promise<string[]> {
   }
 }
 
-export async function extractLabFileLines(file: File): Promise<string[]> {
+/**
+ * Каким путём прочитан бланк.
+ *
+ * Врачу это видно в окне разбора, и не ради подробностей: разница в качестве между путями
+ * огромна. Текстовый слой PDF — это ровно то, что напечатала лаборатория, без единой ошибки;
+ * распознавание — догадка по картинке. Не сказав, каким путём пошло, мы оставляем врача с
+ * ощущением «приложение плохо читает» там, где на самом деле ему подали снимок экрана вместо
+ * файла.
+ */
+export type LabFileSource = 'pdf-text' | 'pdf-scan' | 'image';
+
+export interface LabFileLines {
+  lines: string[];
+  source: LabFileSource;
+}
+
+export async function extractLabFileLines(file: File): Promise<LabFileLines> {
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
   if (isPdf) {
     const lines = await linesFromPdf(file);
-    if (lines.length > 0) return lines;
+    if (lines.length > 0) return { lines, source: 'pdf-text' };
 
     // Текстового слоя нет — значит бланк внутри картинкой. Рисуем страницы сами и распознаём.
     const scanned = await linesFromScannedPdf(file);
     if (scanned.length === 0) {
       throw new LabFileError('В этом PDF не нашлось ни текста, ни читаемого изображения бланка.');
     }
-    return scanned;
+    return { lines: scanned, source: 'pdf-scan' };
   }
 
-  if (OCR_IMAGE_TYPES.includes(file.type)) return linesFromImage(file, file.name);
+  if (OCR_IMAGE_TYPES.includes(file.type)) return { lines: await linesFromImage(file, file.name), source: 'image' };
 
   throw new LabFileError('Поддерживаются PDF и снимки (JPG, PNG, WEBP, TIFF, BMP).');
 }

@@ -20,7 +20,7 @@ import { IconAlertTriangle, IconFileUpload, IconInfoCircle, IconPlus } from '@ta
 
 import { HttpRepositoryError } from '../../../lib/httpRepository';
 import type { LabTestDefinition } from '../types';
-import { LabFileError, extractLabFileLines } from './labFileText';
+import { LabFileError, extractLabFileLines, type LabFileSource } from './labFileText';
 import { matchAnalytes, type MatchPlan } from './matchAnalytes';
 import { parseLabValues, type ParsedAnalyte } from './parseLabValues';
 import { defaultSelection } from './selectFills';
@@ -58,7 +58,7 @@ type Stage =
   | { kind: 'reading' }
   | { kind: 'error'; message: string }
   /** `analytes` is kept alongside the plan so the file can be re-matched after an analyzer gains parameters. */
-  | { kind: 'review'; analytes: ParsedAnalyte[]; plan: MatchPlan };
+  | { kind: 'review'; analytes: ParsedAnalyte[]; plan: MatchPlan; source: LabFileSource };
 
 export function LabFileImportModal({
   opened,
@@ -90,7 +90,7 @@ export function LabFileImportModal({
     if (!file) return;
     setStage({ kind: 'reading' });
     try {
-      const lines = await extractLabFileLines(file);
+      const { lines, source } = await extractLabFileLines(file);
       const analytes = parseLabValues(lines);
       if (analytes.length === 0) {
         setStage({
@@ -102,7 +102,7 @@ export function LabFileImportModal({
       const plan = matchAnalytes(analytes, tests);
       setSelectedTestIds(defaultSelection(plan));
       setExtendTargetId(plan.fills[0]?.test.id ?? tests[0]?.id ?? null);
-      setStage({ kind: 'review', analytes, plan });
+      setStage({ kind: 'review', analytes, plan, source });
     } catch (error) {
       const message =
         error instanceof LabFileError || error instanceof HttpRepositoryError
@@ -132,7 +132,7 @@ export function LabFileImportModal({
       const plan = matchAnalytes(stage.analytes, updatedTests);
       // The extended analyzer is now the point of the exercise — tick it even if the count is low.
       setSelectedTestIds([...new Set([...defaultSelection(plan), extendTargetId])]);
-      setStage({ kind: 'review', analytes: stage.analytes, plan });
+      setStage({ kind: 'review', analytes: stage.analytes, plan, source: stage.source });
     } catch (error) {
       setStage({
         kind: 'error',
@@ -205,6 +205,18 @@ export function LabFileImportModal({
 
       {stage.kind === 'review' && (
         <Stack gap="md">
+          {/*
+            Каким путём прочитан бланк — одной строкой. Разница в качестве между текстовым слоем и
+            распознаванием огромна, и молчание о ней оставляет врача с ощущением «приложение плохо
+            читает» там, где ему подали снимок экрана вместо файла из лаборатории.
+          */}
+          {stage.source !== 'pdf-text' && (
+            <Text size="xs" c="dimmed">
+              {stage.source === 'image'
+                ? 'Прочитано распознаванием снимка — возможны ошибки. Если у вас есть PDF из лаборатории, перетащите его: он читается точно.'
+                : 'В PDF нет текстового слоя, страницы распознаны как картинки — возможны ошибки.'}
+            </Text>
+          )}
           {stage.plan.fills.length === 0 ? (
             <Alert color="orange" icon={<IconInfoCircle size={18} />}>
               Показатели в файле нашлись, но ни один не совпал с существующими анализаторами.
