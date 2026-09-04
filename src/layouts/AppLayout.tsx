@@ -97,20 +97,14 @@ const PAGE_META: PageMetaEntry[] = [
   {
     match: (p) => p === '/reference',
     title: 'Справочник',
-    subtitle: 'Заболевания, аббревиатуры и классификация МКБ-10',
+    subtitle: 'Заболевания, клинические рекомендации, аббревиатуры и МКБ-10',
   },
   {
     match: (p) => p.startsWith('/knowledge/tag/'),
     title: (p) => `Тег: ${decodeURIComponent(p.split('/').pop() ?? '')}`,
     subtitle: 'Рекомендации и статьи с этим тегом',
   },
-  {
-    match: (p) => p === '/guidelines',
-    title: 'Клинические рекомендации',
-    subtitle: 'Протоколы и рекомендации',
-  },
-  { match: (p) => p === '/guidelines/new', title: 'Новая рекомендация' },
-  { match: (p) => p.startsWith('/guidelines/') && p.endsWith('/edit'), title: 'Редактирование рекомендации' },
+  /* Списка по этому адресу больше нет — он переехал вкладкой в «Справочник»; осталась карточка. */
   { match: (p) => p.startsWith('/guidelines/'), title: 'Рекомендация' },
   {
     match: (p) => p === '/articles',

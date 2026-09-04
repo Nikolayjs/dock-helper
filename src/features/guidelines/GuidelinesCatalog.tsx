@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useMediaQuery } from '@mantine/hooks';
-import { ActionIcon, Badge, Box, Group, Stack, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { IconChevronRight, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
+import { ActionIcon, Alert, Badge, Box, Group, Loader, Stack, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { IconChevronRight, IconInfoCircle, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 
 import { CatalogPanel } from '../../components/common/CatalogPanel';
 import { SortableTh } from '../../components/common/SortableTh';
@@ -10,6 +11,7 @@ import { sortRows, useTableSort } from '../../lib/tableSort';
 import type { SortValue } from '../../lib/tableSort';
 import { SpecialtyFilterNotice, SpecialtyFilterSwitch } from '../specialties/SpecialtyFilterControls';
 import { useSpecialtyFilter } from '../specialties/useSpecialtyFilter';
+import { useGuidelines } from './useGuidelines';
 import type { GuidelineSummary } from './types';
 
 /**
@@ -50,12 +52,16 @@ function published(value: string): string {
   return date.length === 3 ? `${date[2]}.${date[1]}.${date[0]}` : value;
 }
 
-interface GuidelinesCatalogProps {
-  guidelines: GuidelineSummary[];
-  onOpen: (row: GuidelineSummary) => void;
-}
-
-export function GuidelinesCatalog({ guidelines, onOpen }: GuidelinesCatalogProps) {
+/**
+ * Данные каталог берёт сам, как соседние вкладки справочника.
+ *
+ * Раньше их передавала своя страница `/guidelines`; страницы больше нет — рекомендации переехали
+ * вкладкой в «Справочник», и держать посредника, чья работа состоит из одного запроса и спиннера,
+ * стало незачем.
+ */
+export function GuidelinesCatalog() {
+  const navigate = useNavigate();
+  const { guidelines, isLoading, error } = useGuidelines();
   const [search, setSearch] = useState('');
   const specialtyFilter = useSpecialtyFilter('icd');
   const isNarrow = useMediaQuery('(max-width: 62em)');
@@ -88,6 +94,30 @@ export function GuidelinesCatalog({ guidelines, onOpen }: GuidelinesCatalogProps
   const sorted = useMemo(() => sortRows(filtered, sort, sortValue), [filtered, sort]);
   const { visible, hasMore, remaining, setSentinel } = useIncrementalList(sorted);
   const isFiltering = search.trim().length > 0 || specialtyFilter.active;
+
+  /*
+   * Открытие — навигация отсюда, а не колбэк наружу: у карточки один адрес, и знать его должен тот,
+   * кто рисует строку. Происхождение проставляется явно, чтобы кнопка «назад» на карточке вернула
+   * во вкладку справочника, а не в свой раздел — раздела у рекомендаций больше нет.
+   */
+  const open = (row: GuidelineSummary) =>
+    navigate(`/guidelines/${row.codeVersion}`, { state: { from: '/reference?tab=guidelines' } });
+
+  // Ветки состояния стоят после всех хуков: порядок вызова хуков менять нельзя.
+  if (error) {
+    return (
+      <Alert color="orange" icon={<IconInfoCircle size={18} />}>
+        {error.message}
+      </Alert>
+    );
+  }
+  if (isLoading) {
+    return (
+      <Group justify="center" py="xl">
+        <Loader size="sm" />
+      </Group>
+    );
+  }
 
   return (
     <CatalogPanel
@@ -143,7 +173,7 @@ export function GuidelinesCatalog({ guidelines, onOpen }: GuidelinesCatalogProps
           {visible.map((row) => (
             <Box
               key={row.codeVersion}
-              onClick={() => onOpen(row)}
+              onClick={() => open(row)}
               style={{ cursor: 'pointer', padding: '10px 16px', borderTop: '1px solid var(--mantine-color-default-border)' }}
             >
               <Group justify="space-between" wrap="nowrap" gap="xs">
@@ -189,7 +219,7 @@ export function GuidelinesCatalog({ guidelines, onOpen }: GuidelinesCatalogProps
               </Table.Thead>
               <Table.Tbody>
                 {visible.map((row) => (
-                  <Table.Tr key={row.codeVersion} style={{ cursor: 'pointer' }} onClick={() => onOpen(row)}>
+                  <Table.Tr key={row.codeVersion} style={{ cursor: 'pointer' }} onClick={() => open(row)}>
                     <Table.Td>
                       <Text size="sm" fw={500}>
                         {row.name}

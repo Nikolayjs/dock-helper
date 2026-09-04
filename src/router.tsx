@@ -51,7 +51,6 @@ const ScanTemplatePage = lazyPage(() => import('./pages/ScanTemplatePage'), 'Sca
 const LabResultViewPage = lazyPage(() => import('./features/labResults/LabResultViewPage'), 'LabResultViewPage');
 const DispensaryEditorPage = lazyPage(() => import('./pages/DispensaryEditorPage'), 'DispensaryEditorPage');
 const DispensaryStatsPage = lazyPage(() => import('./pages/DispensaryStatsPage'), 'DispensaryStatsPage');
-const GuidelinesPage = lazyPage(() => import('./pages/GuidelinesPage'), 'GuidelinesPage');
 const KnowledgeTagPage = lazyPage(() => import('./pages/KnowledgeTagPage'), 'KnowledgeTagPage');
 const ReferencePage = lazyPage(() => import('./pages/ReferencePage'), 'ReferencePage');
 const DiseaseViewPage = lazyPage(() => import('./features/diseases/DiseaseViewPage'), 'DiseaseViewPage');
@@ -198,10 +197,28 @@ export const router = createBrowserRouter(
             }
           />
           {/*
+            Список рекомендаций переехал вкладкой в «Справочник», а прежний адрес переносится туда
+            же — **вместе со строкой запроса**, как это делают остальные переезды: на него ведут
+            закладки врача и ссылки из старых заметок.
+
+            Сама рекомендация осталась своей страницей, а не вкладкой: вкладка — это список, а
+            документ на двести тысяч знаков со своим оглавлением ею быть не может. Тот же случай,
+            что у карточки кода `/icd10/:code`.
+
             Ни «новой», ни «правки»: клиническая рекомендация утверждена Минздравом, и права
             менять её у приложения нет. То, что врач пишет сам, живёт в разделе «Статьи».
           */}
-          <Route path="/guidelines" element={<GuidelinesPage />} />
+          <Route
+            path="/guidelines"
+            element={
+              <RedirectTo
+                build={(_params, search) => {
+                  search.set('tab', 'guidelines');
+                  return withSearch('/reference', search);
+                }}
+              />
+            }
+          />
           <Route path="/guidelines/:id" element={<GuidelineViewPage />} />
           <Route path="/diagnostics" element={<QuestionnairesPage />} />
           <Route path="/diagnostics/new" element={<QuestionnaireBuilderPage />} />

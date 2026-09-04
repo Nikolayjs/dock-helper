@@ -21,7 +21,7 @@ export function GuidelineViewPage() {
   return (
     <Container size="xl" px={0}>
       <Stack gap="md">
-        <RecordToolbar fallback={{ to: '/guidelines', label: 'К клиническим рекомендациям' }} />
+        <RecordToolbar fallback={{ to: '/reference?tab=guidelines', label: 'К клиническим рекомендациям' }} />
         {error ? (
           <Alert color="orange" icon={<IconInfoCircle size={18} />}>
             {error.message}

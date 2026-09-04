@@ -61,12 +61,26 @@ const STARTS_WITH_NAV_PATHS = new Set([
   '/diagnostics',
   '/library',
   '/documents',
-  '/guidelines',
+  '/reference',
   '/articles',
   '/news',
 ]);
 
+/**
+ * Чужие адреса, на которых раздел всё равно подсвечен.
+ *
+ * У справочника три вкладки ведут наружу, на свои страницы: карточка кода `/icd10/:code`, карточка
+ * заболевания и клиническая рекомендация `/guidelines/:id` — документ на двести тысяч знаков,
+ * вкладкой быть не может. Без этого врач, открывший рекомендацию, видел в меню подсветку нигде и
+ * терял ответ на вопрос «где я»: раздела «Клинические рекомендации» больше нет, а справочник, из
+ * которого он пришёл, не отмечен.
+ */
+const NAV_ALIASES: Record<string, string[]> = {
+  '/reference': ['/guidelines/', '/icd10/'],
+};
+
 function matches(pathname: string, path: string): boolean {
+  if ((NAV_ALIASES[path] ?? []).some((alias) => pathname.startsWith(alias))) return true;
   return STARTS_WITH_NAV_PATHS.has(path) ? pathname.startsWith(path) : pathname === path;
 }
 
