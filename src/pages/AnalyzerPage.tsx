@@ -16,7 +16,6 @@ import { calcAge } from '../features/patients/utils';
 import { AnalyzerResults } from '../features/analyzer/AnalyzerResults';
 import { toLabTestDefinition } from '../features/analyzer/customTypes';
 import { LabFileImportModal } from '../features/analyzer/import/LabFileImportModal';
-import { takeHandoffOnce } from '../features/analyzer/import/handoffApi';
 import { LAB_FILE_ACCEPT, useFileDrop } from '../features/analyzer/import/useFileDrop';
 import { toParamKey } from '../features/analyzer/import/paramKey';
 import type { ParsedAnalyte } from '../features/analyzer/import/parseLabValues';
@@ -34,7 +33,7 @@ export function AnalyzerPage() {
   const { customTests, isLoading, updateTest } = useCustomAnalyzers();
   const allTests = useMemo(() => customTests.map(toLabTestDefinition), [customTests]);
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { patients } = usePatients();
   const patientId = searchParams.get('patientId');
   const patient = patientId ? patients.find((p) => p.id === patientId) : undefined;
@@ -63,14 +62,14 @@ export function AnalyzerPage() {
   }, [patient]);
   const [valuesByTest, setValuesByTest] = useState<Record<string, Record<string, number | undefined>>>({});
   const [importOpen, setImportOpen] = useState(false);
-  const [handoffFile, setHandoffFile] = useState<File | null>(null);
+  const [droppedFile, setDroppedFile] = useState<File | null>(null);
 
   /*
    * Брошенный на страницу файл открывает то же окно разбора, что и «Загрузить файл»: дорога другая,
    * а решение — «что нашлось, и согласен ли врач» — обязано остаться одним.
    */
   const takeDropped = useCallback((file: File) => {
-    setHandoffFile(file);
+    setDroppedFile(file);
     setImportOpen(true);
   }, []);
   const dragging = useFileDrop(takeDropped, LAB_FILE_ACCEPT);
@@ -112,39 +111,6 @@ export function AnalyzerPage() {
    * происхождение у кнопки «назад»: дальше вкладки переключают руками, и переписывать за врачом
    * адрес на каждое нажатие незачем.
    */
-  /*
-   * Файл анализов, присланный расширением (`?handoff=<id>`).
-   *
-   * Адрес здесь работает так же, как `?patientId=` рядом и `?import=1` в картотеке: это не свой
-   * экран, а та же страница с открытым окном разбора. Отдельный маршрут показывал бы ровно её же и
-   * завёл бы второй адрес для одного места.
-   *
-   * Параметр снимается сразу и через `replace`: слот отдаётся **один раз**, и перезагрузка страницы
-   * с ним в адресе получила бы «файла больше нет» — то есть ошибку на ровном месте. Кнопка «назад»
-   * по той же причине не должна возвращать к нему.
-   */
-  const handoffId = searchParams.get('handoff');
-  const takenHandoff = useRef<string | null>(null);
-  useEffect(() => {
-    if (!handoffId || takenHandoff.current === handoffId) return;
-    takenHandoff.current = handoffId;
-
-    const next = new URLSearchParams(searchParams);
-    next.delete('handoff');
-    setSearchParams(next, { replace: true });
-
-    setImportOpen(true);
-    takeHandoffOnce(handoffId)
-      .then(setHandoffFile)
-      .catch((error) => {
-        notifications.show({
-          message: error instanceof Error ? error.message : 'Не удалось забрать файл из расширения',
-          color: 'red',
-        });
-        setImportOpen(false);
-      });
-  }, [handoffId, searchParams, setSearchParams]);
-
   const requestedTestId = searchParams.get('test');
   const activeTestId = testId ?? (requestedTestId && allTests.some((t) => t.id === requestedTestId) ? requestedTestId : undefined) ?? allTests[0]?.id;
   const filledMark = useMemo(
@@ -436,9 +402,9 @@ export function AnalyzerPage() {
           setImportOpen(false);
           // Файл не переживает закрытия окна: он с анализами человека, и держать его в состоянии
           // страницы дольше разбора незачем.
-          setHandoffFile(null);
+          setDroppedFile(null);
         }}
-        incomingFile={handoffFile}
+        incomingFile={droppedFile}
         tests={allTests}
         onApply={handleImport}
         onCreateAnalyzer={handleCreateFromUnmatched}

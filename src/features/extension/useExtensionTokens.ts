@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { request } from '../../lib/httpRepository';
 
-export type ExtensionScope = 'clips:write' | 'catalog:read' | 'sources:write' | 'handoff:write';
+export type ExtensionScope = 'clips:write' | 'catalog:read' | 'sources:write';
 
 export interface ExtensionTokenView {
   id: string;

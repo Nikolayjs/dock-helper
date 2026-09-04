@@ -35,10 +35,7 @@ describe('чего не умеет токен', () => {
    */
   it('токен, выданный раньше, назван поимённо', () => {
     const old = ['clips:write', 'catalog:read'] as ExtensionScope[];
-    expect(missingScopes({ scopes: old, revokedAt: null })).toEqual([
-      'добавлять ленты новостей и книги по ссылке',
-      'передавать файлы анализов в разбор',
-    ]);
+    expect(missingScopes({ scopes: old, revokedAt: null })).toEqual(['добавлять ленты новостей и книги по ссылке']);
   });
 
   it('у отозванного не спрашивается: он не умеет ничего', () => {

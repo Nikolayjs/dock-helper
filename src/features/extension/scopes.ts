@@ -12,7 +12,6 @@ export const SCOPES: { value: ExtensionScope; label: string }[] = [
   { value: 'clips:write', label: 'Сохранять страницы' },
   { value: 'catalog:read', label: 'Подсказывать названия из справочников' },
   { value: 'sources:write', label: 'Добавлять ленты новостей и книги по ссылке' },
-  { value: 'handoff:write', label: 'Передавать файлы анализов в разбор' },
 ];
 
 /**
@@ -20,10 +19,11 @@ export const SCOPES: { value: ExtensionScope; label: string }[] = [
  *
  * Забытая строка не падает и ничем себя не выдаёт: сервер объявляет маршрут, расширение умеет его
  * звать, а токен на него выпустить нечем — возможность существует и недостижима. Ровно так и вышло
- * с переносом анализов: ручка была, кнопка была, а `handoff:write` в этот список добавить забыли, и
- * расширение получало 403 на то, что уже умело.
+ * с переносом анализов: ручка была, кнопка была, а скоуп в этот список добавить забыли, и расширение
+ * получало 403 на то, что уже умело. (Сам перенос потом убрали вовсе — вместе с распознаванием
+ * анализов, — но урок остался.)
  */
-export const ALL_SERVER_SCOPES: ExtensionScope[] = ['clips:write', 'catalog:read', 'sources:write', 'handoff:write'];
+export const ALL_SERVER_SCOPES: ExtensionScope[] = ['clips:write', 'catalog:read', 'sources:write'];
 
 /** Чего этот токен не умеет. У отозванного не спрашивается: он не умеет ничего. */
 export function missingScopes(token: Pick<ExtensionTokenView, 'scopes' | 'revokedAt'>): string[] {
