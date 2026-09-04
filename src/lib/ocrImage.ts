@@ -62,23 +62,60 @@ const CONTRAST = 1.6;
  *
  * | что подали | как есть | без линовки |
  * |---|---|---|
- * | 800 px, снимок экрана | 11 / **0** | 10 / **4** |
  * | 1100 px JPEG (из просмотрщика) | 8 / 10 | **12 / 13** |
  * | 1600 px | 13 / 16 | 13 / 16 |
  * | 2400 px | **0 / 0** | **12 / 16** |
  * | две страницы просмотрщика, 1600×4800 | 13 / 32 | 13 / 32 |
  *
- * На хороших входах — без изменений, на плохих — разница между «мусор» и «работает». Обратите
- * внимание на первую строку: названий стало на одно меньше, а **значений** — с нуля до четырёх;
- * считать по одним названиям было бы самообманом.
+ * На хороших входах — без изменений, на плохих — разница между «мусор» и «работает».
+ *
+ * **Но у правки есть нижняя граница, и без неё она сама всё ломала** — см. `RULE_REMOVAL_MIN_WIDTH`
+ * ниже: на мелкой картинке буква и рамка одинаково тонкие, и стиралась вся страница.
  *
  * Стирается только **длинное и тонкое**: буква не бывает длиной в сотню точек, а подчёркнутая
  * строка и плотный ряд букв не проходят проверку на толщину.
  */
 const RULE_MIN_LENGTH_PART = 13;
 const RULE_MIN_LENGTH = 60;
-/** Насколько далеко смотреть «в стороны», чтобы отличить рамку от края буквы. */
-const RULE_THICKNESS = 3;
+/**
+ * Насколько далеко смотреть «в стороны», чтобы отличить рамку от края буквы, — **доля ширины, а не
+ * число пикселей**, и это исправленная ошибка.
+ *
+ * Жёсткие три пикселя верны для страницы в 1700 px и губительны для снимка в 800: там штрих буквы
+ * и есть один пиксель, а соседи в трёх пикселях от него — уже бумага, и «тонкой» выглядит **любая**
+ * строка текста. Стиралась при этом вся страница целиком.
+ */
+export function ruleThickness(width: number): number {
+  return Math.max(3, Math.round(width / 600));
+}
+
+/**
+ * Ниже этой ширины линовку не трогаем вовсе, и это главное здешнее правило.
+ *
+ * Стирать рамки нужно там, где они **толще буквы**: на крупной странице рамка выходит жирным
+ * штрихом, разметка Tesseract ломается об неё, и распознавание отдаёт ровно ноль. На мелкой
+ * картинке рамка и буква одинаковой толщины — отличить их нечем, а Tesseract с такой линовкой
+ * справляется сам.
+ *
+ * Замер на бланке из 36 строк, показателей доехало до врача (тем же tesseract, что на бою):
+ *
+ * | ширина | как есть | со стёртой линовкой |
+ * |---|---|---|
+ * | 800 px | **14** | 0 |
+ * | 1200 px | 28 | 28 |
+ * | 1600 px | 28 | 28 |
+ * | 2000 px | **0** | **28** |
+ * | 2400 px | **0** | **28** |
+ * | 3200 px | **0** | **28** |
+ *
+ * То есть до 1600 стирать нечего и не нужно, а с 2000 — обязательно. Порог стоит между ними.
+ */
+const RULE_REMOVAL_MIN_WIDTH = 1500;
+
+/** Стираем ли линовку на картинке такой ширины. Отдельной функцией — чтобы правило проверялось. */
+export function removesRules(width: number): boolean {
+  return width >= RULE_REMOVAL_MIN_WIDTH;
+}
 /** Доля соседних точек, при которой штрих уже не рамка, а часть чего-то плотного. */
 const RULE_NEIGHBOURS = 0.3;
 
@@ -114,6 +151,7 @@ function removeRules(context: CanvasRenderingContext2D, width: number, height: n
   for (let at = 0; at < dark.length; at += 1) dark[at] = grey[at]! < threshold ? 1 : 0;
 
   const minLength = Math.max(RULE_MIN_LENGTH, Math.round(width / RULE_MIN_LENGTH_PART));
+  const thickness = ruleThickness(width);
   const erase = (at: number): void => {
     const index = at * 4;
     pixels[index] = 255;
@@ -133,8 +171,8 @@ function removeRules(context: CanvasRenderingContext2D, width: number, height: n
         let above = 0;
         let below = 0;
         for (let k = start; k < x; k += 1) {
-          if (y >= RULE_THICKNESS && dark[(y - RULE_THICKNESS) * width + k] === 1) above += 1;
-          if (y < height - RULE_THICKNESS && dark[(y + RULE_THICKNESS) * width + k] === 1) below += 1;
+          if (y >= thickness && dark[(y - thickness) * width + k] === 1) above += 1;
+          if (y < height - thickness && dark[(y + thickness) * width + k] === 1) below += 1;
         }
         const length = x - start;
         if (above < length * RULE_NEIGHBOURS && below < length * RULE_NEIGHBOURS) {
@@ -157,8 +195,8 @@ function removeRules(context: CanvasRenderingContext2D, width: number, height: n
         let left = 0;
         let right = 0;
         for (let k = start; k < y; k += 1) {
-          if (x >= RULE_THICKNESS && dark[k * width + x - RULE_THICKNESS] === 1) left += 1;
-          if (x < width - RULE_THICKNESS && dark[k * width + x + RULE_THICKNESS] === 1) right += 1;
+          if (x >= thickness && dark[k * width + x - thickness] === 1) left += 1;
+          if (x < width - thickness && dark[k * width + x + thickness] === 1) right += 1;
         }
         const length = y - start;
         if (left < length * RULE_NEIGHBOURS && right < length * RULE_NEIGHBOURS) {
@@ -215,7 +253,7 @@ export async function fitForOcr(image: Blob): Promise<Blob> {
 
     // Линовку — после приведения размера: на итоговой картинке рамка тоньше, и порог длины считается
     // от той ширины, которая поедет на распознавание.
-    removeRules(context, canvas.width, canvas.height);
+    if (removesRules(canvas.width)) removeRules(context, canvas.width, canvas.height);
 
     // Всегда PNG: второй проход через JPEG добавил бы к потерям исходника свои.
     const prepared = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
