@@ -2,7 +2,6 @@ import { Alert, Container, Group, Loader, Stack } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useParams } from 'react-router-dom';
 
-import { ReadingSheet } from '../components/common/ReadingSheet';
 import { RecordToolbar } from '../components/common/RecordToolbar';
 import { GuidelineReader } from '../features/guidelines/GuidelineReader';
 import { useGuideline, useGuidelineText } from '../features/guidelines/useGuidelines';
@@ -32,9 +31,12 @@ export function GuidelineViewPage() {
             <Loader size="sm" />
           </Group>
         ) : (
-          <ReadingSheet>
-            <GuidelineReader guideline={guideline} sections={sections} loading={textLoading} />
-          </ReadingSheet>
+          /*
+           * Подложку рисует сама читалка, и только под текстом: оглавление — навигация по
+           * документу, а не его часть. Общая подложка вокруг обоих делала бы оглавление куском
+           * листа, тогда как оно прилипает к экрану и на бумагу не идёт вовсе.
+           */
+          <GuidelineReader guideline={guideline} sections={sections} loading={textLoading} />
         )}
       </Stack>
     </Container>
