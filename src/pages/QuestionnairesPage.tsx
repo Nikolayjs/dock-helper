@@ -1,18 +1,24 @@
 import { useMemo, useState } from 'react';
-import { Alert, Button, Box, Container, Group, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
-import { IconBuildingStore, IconInfoCircle, IconPlus, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
+import { Alert, Button, Box, Container, Group, Stack, Tabs, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { IconBuildingStore, IconInfoCircle, IconLayoutGrid, IconPlus, IconSearch, IconStethoscope, IconX } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { CatalogPanel } from '../components/common/CatalogPanel';
+import { PageToolbar } from '../components/common/PageToolbar';
+import { SymptomMatchPanel } from '../features/diagnostics/SymptomMatchPanel';
 import { QUESTIONNAIRE_SORT_KEYS, QuestionnaireTable, questionnaireSortValue, type QuestionnaireSortKey } from '../features/diagnostics/QuestionnaireTable';
 import { sortRows, useTableSort } from '../lib/tableSort';
 import type { Questionnaire } from '../features/diagnostics/types';
 import { QUERY_KEY as QUESTIONNAIRES_KEY, useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 
+const TABS = ['match', 'panels'] as const;
+type DiagnosticsTab = (typeof TABS)[number];
+
 export function QuestionnairesPage() {
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const { questionnaires, addQuestionnaire, deleteQuestionnaire } = useQuestionnaires();
   const confirmDelete = useDeleteWithConfirm();
   const [search, setSearch] = useState('');
@@ -54,9 +60,39 @@ export function QuestionnairesPage() {
 
   const sorted = useMemo(() => sortRows(filtered, sort, questionnaireSortValue), [filtered, sort]);
 
+  const raw = params.get('tab');
+  const tab: DiagnosticsTab = TABS.includes(raw as DiagnosticsTab) ? (raw as DiagnosticsTab) : 'match';
+
+  // Вкладка живёт в адресе, как в «Документах» и «Справочнике». По умолчанию открыт подбор: это
+  // то, ради чего в раздел заходят на приёме, а список панелей — библиотека за ним.
+  const setTab = (next: string | null) => {
+    const value = TABS.includes(next as DiagnosticsTab) ? (next as DiagnosticsTab) : 'match';
+    setParams(value === 'match' ? {} : { tab: value }, { replace: true });
+  };
+
   return (
     <Container size="xl" px={0}>
-      <Stack gap="lg">
+      <Tabs variant="pills" value={tab} onChange={setTab} keepMounted={false}>
+        <Stack gap="lg">
+          <PageToolbar
+            tabs={
+              <Tabs.List>
+                <Tabs.Tab value="match" leftSection={<IconStethoscope size={16} />}>
+                  Подбор по симптомам
+                </Tabs.Tab>
+                <Tabs.Tab value="panels" leftSection={<IconLayoutGrid size={16} />}>
+                  Панели
+                </Tabs.Tab>
+              </Tabs.List>
+            }
+          />
+
+          <Tabs.Panel value="match">
+            <SymptomMatchPanel />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="panels">
+            <Stack gap="lg">
         <Alert variant="light" color="brand" icon={<IconInfoCircle size={18} />} title="Как это работает">
           Заведите анкету: перечислите симптомы и заболевания-кандидаты, укажите, насколько типичен каждый
           симптом для каждого заболевания. Дальше у панели два режима: «Опрос» — приложение само выбирает
@@ -131,7 +167,10 @@ export function QuestionnairesPage() {
           />
         )}
         </CatalogPanel>
-      </Stack>
+            </Stack>
+          </Tabs.Panel>
+        </Stack>
+      </Tabs>
     </Container>
   );
 }
