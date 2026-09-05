@@ -1,9 +1,9 @@
 import { lazy, Suspense } from 'react';
 import type { ComponentType } from 'react';
-import { Loader, Stack } from '@mantine/core';
 import { createBrowserRouter, createRoutesFromElements, Navigate, Outlet, Route, RouterProvider } from 'react-router-dom';
 
 import { APP_BASE } from './lib/appBase';
+import { BootLoader } from './components/common/BootLoader';
 import { RequireAuth } from './routes/RequireAuth';
 import { RouteErrorPage } from './pages/RouteErrorPage';
 import { DeleteConfirmProvider } from './features/deletion/DeleteConfirmProvider';
@@ -89,14 +89,9 @@ function RouterRoot() {
   return (
     <DeleteConfirmProvider>
       {/* Одна заглушка на все страницы: разделение по чанкам — свойство сборки, а не поведение
-          экрана, и своё ожидание каждой странице придумывать незачем. */}
-      <Suspense
-        fallback={
-          <Stack align="center" justify="center" mih="60vh">
-            <Loader />
-          </Stack>
-        }
-      >
+          экрана, и своё ожидание каждой странице придумывать незачем. И та же самая, что у проверки
+          токена: это две фазы одной загрузки, и лоадер, стоящий в них на разной высоте, прыгает. */}
+      <Suspense fallback={<BootLoader />}>
         <Outlet />
       </Suspense>
     </DeleteConfirmProvider>

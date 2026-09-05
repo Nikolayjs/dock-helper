@@ -1,20 +1,12 @@
 import { useEffect } from 'react';
-import { Loader, Stack } from '@mantine/core';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { APP_BASE } from '../lib/appBase';
+import { BootLoader } from '../components/common/BootLoader';
 import { useAuthState, useLogout } from '../features/auth/AuthContext';
 import { IdleLockScreen } from '../features/auth/IdleLockScreen';
 import { useIdleLock } from '../features/auth/useIdleLock';
 import { isDemoSession } from '../features/demo/demoSession';
-
-function FullScreenLoader() {
-  return (
-    <Stack align="center" justify="center" mih="100vh">
-      <Loader />
-    </Stack>
-  );
-}
 
 /**
  * Sends an unauthenticated visitor to the login screen, remembering where they were going.
@@ -34,7 +26,7 @@ function RedirectToLogin() {
     window.location.replace(`/login?from=${encodeURIComponent(from)}`);
   }, [from]);
 
-  return <FullScreenLoader />;
+  return <BootLoader />;
 }
 
 /** The gate on everything under `/app`. */
@@ -44,7 +36,7 @@ export function RequireAuth() {
   // В демо блокировать нечего: пароля у гостя нет, и разблокировать было бы нечем.
   const { locked, unlock } = useIdleLock(Boolean(user) && !isDemoSession());
 
-  if (checkingStoredToken) return <FullScreenLoader />;
+  if (checkingStoredToken) return <BootLoader />;
   if (!user) return <RedirectToLogin />;
   return (
     <>

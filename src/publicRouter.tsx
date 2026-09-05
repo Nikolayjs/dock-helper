@@ -13,6 +13,9 @@ const PublicNotFoundPage = lazy(() => import('./pages/PublicNotFoundPage').then(
 
 function PublicRoot() {
   return (
+    // Своя заглушка, а не общий `BootLoader`: у публичной части свой набор всего, и тянуть сюда
+    // модуль приложения значило бы завести общий чанк ради двух тегов. Прыгать ей при этом не с
+    // чем — фаза загрузки здесь одна, проверки токена на публичных страницах нет вовсе.
     <Suspense
       fallback={
         <Stack align="center" justify="center" mih="100vh">
