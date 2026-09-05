@@ -6,6 +6,7 @@ import { useScrollDirection } from '../components/layout/useScrollDirection';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import { Outlet, useLocation } from 'react-router-dom';
 
+import { PageScrollbar } from '../components/layout/PageScrollbar';
 import { ScrollToTopButton } from '../components/layout/ScrollToTopButton';
 import { DemoBanner } from '../features/demo/DemoBanner';
 import { SCROLL_ROOT_ID } from '../components/layout/scrollRoot';
@@ -176,8 +177,11 @@ const PageContent = memo(function PageContent() {
           сдвинули бы панели редакторов, рабочее место таблицы и кнопку «наверх». Внутри
           содержимого полоса видна на каждой странице — переход прокручивает страницу к началу. */}
       <DemoBanner />
-      {/* Carries the bottom padding — see .content in the stylesheet for why it cannot sit on Main. */}
-      <div className={classes.content}>
+      {/* Carries the bottom padding — see .content in the stylesheet for why it cannot sit on Main.
+          `data-page-content` — метка для `PageScrollbar`: это единственный узел, который растёт
+          вместе со страницей. Сам `Main` не растёт (замер: 712 px при содержимом на 85 846), его
+          содержимое переполняет, и наблюдать за высотой страницы больше не по чему. */}
+      <div className={classes.content} data-page-content>
         <Outlet />
       </div>
     </>
@@ -268,6 +272,12 @@ export function AppLayout() {
     >
       <ReminderWatcher />
       <ScrollToTopButton />
+      {/*
+        Указатель прокрутки вместо родной полосы: та отнимала у каждой страницы десять пикселей
+        справа. Отступ сверху — высота шапки, пока она видна: ползунок начинается там же, где
+        начинается страница.
+      */}
+      <PageScrollbar top={showHeader ? HEADER_HEIGHT : 0} />
 
       <AppShell.Header>
         <Topbar title={title} subtitle={meta.subtitle} onBurgerClick={toggle} />
