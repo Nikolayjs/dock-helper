@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Autocomplete,
@@ -47,6 +47,16 @@ export function SymptomMatchPanel() {
   const [terms, setTerms] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
 
+  /**
+   * Отметка «выбор только что состоялся»: следующий `onChange` — это Mantine, а не врач.
+   *
+   * Подтвердив вариант, `Autocomplete` **сам записывает его в поле** — то есть затирает очистку уже
+   * после того, как она произошла. Признак при этом добавлен, и, чтобы назвать следующий, врачу
+   * приходится сначала стирать предыдущий вручную. Поэтому очистка переносится на тот самый
+   * `onChange`, которым Mantine и пишет.
+   */
+  const justSubmitted = useRef(false);
+
   const { suggestions, isFetching: suggesting } = useSymptomSuggestions(draft);
   const { result, isFetching, error } = useSymptomMatch(terms);
 
@@ -61,15 +71,36 @@ export function SymptomMatchPanel() {
 
   const removeTerm = (term: string) => setTerms((prev) => prev.filter((t) => t !== term));
 
-  const options = useMemo(
-    () =>
-      suggestions.map((s) => ({
-        value: s.label,
-        // Сколько болезней считают признак своим — видно сразу: широкий он или почти диагноз.
-        label: `${s.label} · ${withPlural(s.diseaseCount, 'болезнь', 'болезни', 'болезней')}`,
-      })),
-    [suggestions],
-  );
+  /**
+   * Вариант — это чистая формулировка признака, а счётчик рисуется отдельно.
+   *
+   * Счётчик стоял прямо в подписи варианта, и `Autocomplete` записывал в поле **её целиком**:
+   * «Насморк, заложенность носа · 13 болезней». Служебное число не часть названия признака и уж
+   * точно не то, что врач собирался набрать.
+   */
+  const countByLabel = useMemo(() => new Map(suggestions.map((s) => [s.label, s.diseaseCount])), [suggestions]);
+
+  /**
+   * Набранное — это **первая строка списка**, а не отдельный путь добавления.
+   *
+   * Так у добавления остаётся ровно одна дорога — `onOptionSubmit`, — и исчезает целый класс
+   * ошибок: пока Enter перехватывался вручную, одно нажатие добавляло **два** признака (наш
+   * обработчик клал черновик, а Mantine тем же нажатием подтверждал подсвеченный вариант).
+   * Разводить их по состоянию выпадающего списка не вышло: собственный стор, переданный через
+   * `comboboxProps`, расходится с внутренним, и список перестаёт открываться вовсе.
+   *
+   * Строка нужна ещё и по делу: короткое слово ищет шире готовой формулировки. «Насморк» найдёт
+   * все восемь способов, которыми он записан в панелях, а «Насморк, заложенность носа» — только
+   * свой.
+   */
+  const freeTerm = draft.trim();
+  const options = useMemo(() => {
+    const labels = suggestions.map((s) => s.label);
+    // Значения вариантов обязаны быть уникальными: на дубле Mantine бросает исключение и рисует
+    // вместо поля белый прямоугольник — так уже ломался поиск в расширении.
+    const duplicate = labels.some((l) => l.toLowerCase() === freeTerm.toLowerCase());
+    return freeTerm && !duplicate ? [freeTerm, ...labels] : labels;
+  }, [suggestions, freeTerm]);
 
   // Поля читаются защищённо: вкладка, открытая до деплоя, получает ответ прежней сборки, и
   // жёсткое обращение уронило бы ей весь раздел — ровно тот случай, ради которого написан
@@ -83,30 +114,47 @@ export function SymptomMatchPanel() {
           <Stack gap="sm">
             <Autocomplete
               value={draft}
-              onChange={setDraft}
-              onOptionSubmit={addTerm}
+              onChange={(value) => {
+                // Это Mantine дописывает подтверждённый вариант вслед за выбором — поле обязано
+                // остаться пустым, чтобы следующий признак набирался сразу.
+                if (justSubmitted.current) {
+                  justSubmitted.current = false;
+                  setDraft('');
+                  return;
+                }
+                setDraft(value);
+              }}
+              onOptionSubmit={(value) => {
+                justSubmitted.current = true;
+                addTerm(value);
+              }}
               data={options}
               // Сервер уже отобрал по началу слова; повторный отбор Mantine по строке варианта
               // выбросил бы «Накануне были насморк и кашель» у того, кто набрал «насморк», —
               // искали одно, а сверяли бы с другим.
               filter={({ options: shown }) => shown}
+              // Первый вариант подсвечен сразу, поэтому Enter добавляет набранное, не требуя
+              // сначала спуститься по списку стрелкой.
+              selectFirstOptionOnChange
+              renderOption={({ option }) => (
+                <Group justify="space-between" wrap="nowrap" gap="sm" style={{ flex: 1, minWidth: 0 }}>
+                  <Text size="sm">{option.value}</Text>
+                  <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                    {option.value === freeTerm && !countByLabel.has(option.value)
+                      ? 'искать по слову'
+                      : withPlural(countByLabel.get(option.value) ?? 0, 'болезнь', 'болезни', 'болезней')}
+                  </Text>
+                </Group>
+              )}
               placeholder="Назовите симптом — «насморк», «боль в ухе»…"
               leftSection={suggesting ? <Loader size={14} /> : <IconSearch size={16} />}
               rightSection={
-                draft.trim() ? (
-                  <Button size="compact-xs" variant="subtle" onClick={() => addTerm(draft)}>
+                freeTerm ? (
+                  <Button size="compact-xs" variant="subtle" onClick={() => addTerm(freeTerm)}>
                     <IconPlus size={14} />
                   </Button>
                 ) : null
               }
-              onKeyDown={(e) => {
-                // Enter добавляет набранное как есть: в панелях полторы тысячи формулировок, и
-                // ждать, пока врач найдёт «свою», значит заставить его подбирать чужие слова.
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addTerm(draft);
-                }
-              }}
               size="md"
             />
 
