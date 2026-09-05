@@ -96,10 +96,19 @@ export function SymptomMatchPanel() {
   const freeTerm = draft.trim();
   const options = useMemo(() => {
     const labels = suggestions.map((s) => s.label);
-    // Значения вариантов обязаны быть уникальными: на дубле Mantine бросает исключение и рисует
-    // вместо поля белый прямоугольник — так уже ломался поиск в расширении.
-    const duplicate = labels.some((l) => l.toLowerCase() === freeTerm.toLowerCase());
-    return freeTerm && !duplicate ? [freeTerm, ...labels] : labels;
+    if (!freeTerm) return labels;
+
+    /*
+     * Первой строкой стоит **ровно то, что набрано**, и когда такая формулировка в панелях уже
+     * есть — она же и поднимается наверх, а не дублируется.
+     *
+     * Значения вариантов обязаны быть уникальными: на дубле Mantine бросает исключение и рисует
+     * вместо поля белый прямоугольник — так уже ломался поиск в расширении. Но просто не добавлять
+     * набранное оказалось хуже: подсветка падала на самую частую подсказку, и врач, набравший
+     * «сыпь» и нажавший Enter, получал «Сыпь чешется» — не то, что он печатал. Поймано прогоном.
+     */
+    const exact = labels.find((l) => l.toLowerCase() === freeTerm.toLowerCase());
+    return exact ? [exact, ...labels.filter((l) => l !== exact)] : [freeTerm, ...labels];
   }, [suggestions, freeTerm]);
 
   // Поля читаются защищённо: вкладка, открытая до деплоя, получает ответ прежней сборки, и
