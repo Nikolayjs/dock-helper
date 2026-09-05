@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { PageToolbar } from '../components/common/PageToolbar';
 import type { ReactNode } from 'react';
-import { Alert, Badge, Button, Card, Container, Group, Loader, Modal, Stack, Text, Title } from '@mantine/core';
+import { Alert, Badge, Button, Card, Container, Group, Modal, Stack, Text, Title } from '@mantine/core';
 import { IconAlertTriangle, IconEdit, IconPill, IconPlus, IconTestPipe, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -18,6 +18,7 @@ import { useDrugInteractions } from '../features/interactions/useDrugInteraction
 import { useDeleteWithConfirm } from '../features/deletion/deleteConfirmContext';
 import { BackButton } from '../components/common/BackButton';
 import { ReadingSheet } from '../components/common/ReadingSheet';
+import { PageLoader } from '../components/common/PageLoader';
 
 export function DrugViewPage() {
   const { id } = useParams();
@@ -35,9 +36,7 @@ export function DrugViewPage() {
   if (isLoading) {
     return (
       <Container size="md" px={0}>
-        <Group justify="center" py={100}>
-          <Loader />
-        </Group>
+        <PageLoader />
       </Container>
     );
   }

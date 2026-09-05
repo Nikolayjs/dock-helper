@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Card, Container, Grid, Group, Loader, NumberInput, SegmentedControl, Stack, Tabs, Text, ThemeIcon } from '@mantine/core';
+import { Box, Button, Card, Container, Grid, Group, NumberInput, SegmentedControl, Stack, Tabs, Text, ThemeIcon } from '@mantine/core';
 
 import { PageToolbar } from '../components/common/PageToolbar';
 import { useUnsavedGuard } from '../components/common/unsavedChanges';
@@ -25,6 +25,7 @@ import { useCustomAnalyzers } from '../features/analyzer/useCustomAnalyzers';
 import { SaveToChartModal } from '../features/labResults/SaveToChartModal';
 import { panelValues } from '../features/labResults/panels';
 import type { FilledPanel } from '../features/labResults/panels';
+import { PageLoader } from '../components/common/PageLoader';
 
 export function AnalyzerPage() {
   const navigate = useNavigate();
@@ -193,9 +194,7 @@ export function AnalyzerPage() {
 
   if (isLoading) {
     return (
-      <Group justify="center" py="xl">
-        <Loader />
-      </Group>
+      <PageLoader />
     );
   }
 

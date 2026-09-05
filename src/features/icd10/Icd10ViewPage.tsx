@@ -1,4 +1,4 @@
-import { Alert, Badge, Button, Card, Center, Container, Group, Loader, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Alert, Badge, Button, Card, Container, Group, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconChevronRight, IconInfoCircle, IconStethoscope, IconVirus } from '@tabler/icons-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -8,6 +8,7 @@ import { ReadingSheet } from '../../components/common/ReadingSheet';
 import { useGuidelinesByCode } from '../guidelines/useGuidelines';
 import { useDiseasesByCode } from '../diseases/useDiseases';
 import { useIcd10Card } from './useIcd10';
+import { PageLoader } from '../../components/common/PageLoader';
 
 
 /**
@@ -47,9 +48,7 @@ export function Icd10ViewPage() {
   if (isLoading) {
     return (
       <Container size="md" px={0}>
-        <Center py={100}>
-          <Loader size="sm" />
-        </Center>
+        <PageLoader />
       </Container>
     );
   }

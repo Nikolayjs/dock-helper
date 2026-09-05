@@ -1,4 +1,4 @@
-import { Button, Container, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { Button, Container, Stack, Text, Title } from '@mantine/core';
 
 import { PageToolbar } from '../../../components/common/PageToolbar';
 import { notifications } from '@mantine/notifications';
@@ -10,6 +10,7 @@ import { LayoutTemplateForm } from './LayoutTemplateForm';
 import { QUERY_KEY as TEMPLATES_KEY, useDocumentTemplates } from './useDocumentTemplates';
 import type { DocumentTemplateInput } from './useDocumentTemplates';
 import { useDeleteWithConfirm } from '../../deletion/deleteConfirmContext';
+import { PageLoader } from '../../../components/common/PageLoader';
 
 export function DocumentTemplateEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -25,9 +26,7 @@ export function DocumentTemplateEditorPage() {
   // the form must not mount until we actually know whether there's data to hydrate it with.
   if (isEditMode && isLoading) {
     return (
-      <Group justify="center" py="xl">
-        <Loader />
-      </Group>
+      <PageLoader />
     );
   }
 

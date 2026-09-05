@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 
 import { PageToolbar } from '../components/common/PageToolbar';
 import { AnalyzerHelp } from '../features/analyzer/builder/AnalyzerHelp';
-import { Alert, Badge, Box, Button, Card, Container, Group, Loader, NumberInput, ScrollArea, SegmentedControl, Stack, Tabs, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Alert, Badge, Box, Button, Card, Container, Group, NumberInput, ScrollArea, SegmentedControl, Stack, Tabs, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconCopy, IconDeviceFloppy, IconHelp, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -32,6 +32,7 @@ import { FormActions } from '../components/common/FormActions';
 import { useScreenFitHeight } from '../components/common/useScreenFitHeight';
 import { useDirtyValue, useUnsavedGuard } from '../components/common/unsavedChanges';
 import { useSaveAction } from '../components/common/useSaveAction';
+import { PageLoader } from '../components/common/PageLoader';
 
 const IDENTIFIER_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -361,9 +362,7 @@ export function AnalyzerBuilderPage() {
   if (isEditMode && !hydrated) {
     return (
       <Container size="xl" px={0}>
-        <Group justify="center" py="xl">
-          <Loader />
-        </Group>
+        <PageLoader />
       </Container>
     );
   }

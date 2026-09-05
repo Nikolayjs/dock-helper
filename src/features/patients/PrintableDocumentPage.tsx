@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Card, Container, Group, Loader, Select, Stack, Text } from '@mantine/core';
+import { Alert, Button, Card, Container, Group, Select, Stack, Text } from '@mantine/core';
 import { IconArrowLeft, IconInfoCircle, IconPrinter, IconSettings } from '@tabler/icons-react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ import { TemplateDocument } from './documents/TemplateDocument';
 import { useDocumentTemplates } from './documents/useDocumentTemplates';
 import { recordTemplateUse } from '../dashboard/documentUsage';
 import { usePatient } from './usePatients';
+import { PageLoader } from '../../components/common/PageLoader';
 
 export function PrintableDocumentPage() {
   const { id, visitId } = useParams<{ id: string; visitId: string }>();
@@ -45,9 +46,7 @@ export function PrintableDocumentPage() {
 
   if (patientsLoading || templatesLoading) {
     return (
-      <Group justify="center" py="xl">
-        <Loader />
-      </Group>
+      <PageLoader />
     );
   }
 

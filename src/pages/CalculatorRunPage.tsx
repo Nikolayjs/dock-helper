@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import { PageToolbar } from '../components/common/PageToolbar';
-import { Alert, Anchor, Badge, Button, Card, Container, Group, Loader, Modal, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { Alert, Anchor, Badge, Button, Card, Container, Group, Modal, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconEdit, IconInfoCircle, IconStethoscope } from '@tabler/icons-react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -17,6 +17,7 @@ import { useLabResults } from '../features/labResults/useLabResults';
 import { usePatients } from '../features/patients/usePatients';
 import { calcAge } from '../features/patients/utils';
 import { BackButton } from '../components/common/BackButton';
+import { PageLoader } from '../components/common/PageLoader';
 
 export function CalculatorRunPage() {
   const { id } = useParams<{ id: string }>();
@@ -56,18 +57,14 @@ export function CalculatorRunPage() {
   // нельзя — иначе подстановка опоздала бы и пришлось бы перетирать уже набранное врачом.
   if (patientId && (patientsLoading || resultsLoading)) {
     return (
-      <Group justify="center" py="xl">
-        <Loader />
-      </Group>
+      <PageLoader />
     );
   }
 
   if (!definition) {
     if (isLoading) {
       return (
-        <Group justify="center" py="xl">
-          <Loader />
-        </Group>
+        <PageLoader />
       );
     }
     return <Navigate to="/calculators" replace />;
