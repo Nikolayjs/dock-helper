@@ -1,5 +1,5 @@
 import { FREQUENCY_PROBABILITY } from './types';
-import type { Disease, Questionnaire, Symptom } from './types';
+import type { Disease, Questionnaire, Symptom, SymptomFrequency } from './types';
 
 export type Answer = 'yes' | 'no';
 
@@ -58,6 +58,51 @@ function entropy(distribution: number[]): number {
   return -distribution.reduce((sum, p) => (p > 0 ? sum + p * Math.log2(p) : sum), 0);
 }
 
+export interface SymptomGain {
+  symptom: Symptom;
+  gain: number;
+}
+
+const MIN_USEFUL_GAIN = 0.02;
+
+/**
+ * Неотвеченные признаки по ожидаемому приросту информации — то есть по тому, насколько сильно
+ * ответ на них, в среднем, сузит круг версий.
+ *
+ * **Один расчёт на оба режима, и это несущее.** Опрос берёт отсюда первый признак, выбор симптомов
+ * — верхушку списка для подсказки «что ещё уточнить». Второй расчёт того же самого разошёлся бы с
+ * первым на первой правке, и получилось бы два движка, по-разному отвечающих на один вопрос:
+ * подсказка обещала бы одно, а опрос спрашивал другое.
+ */
+export function rankSymptomsByGain(
+  diseases: Disease[],
+  symptoms: Symptom[],
+  posteriors: Record<string, number>,
+  excludedSymptomIds: Set<string>,
+): SymptomGain[] {
+  const candidates = symptoms.filter((s) => !excludedSymptomIds.has(s.id));
+  if (candidates.length === 0 || diseases.length === 0) return [];
+
+  const currentEntropy = entropy(diseases.map((d) => posteriors[d.id] ?? 0));
+
+  return candidates
+    .map((symptom) => {
+      const pYes = diseases.reduce((sum, d) => sum + (posteriors[d.id] ?? 0) * symptomProbability(d, symptom), 0);
+      const pNo = 1 - pYes;
+
+      let entropyAfter = currentEntropy;
+      if (pYes > 1e-9 && pNo > 1e-9) {
+        const postYes = diseases.map((d) => ((posteriors[d.id] ?? 0) * symptomProbability(d, symptom)) / pYes);
+        const postNo = diseases.map((d) => ((posteriors[d.id] ?? 0) * (1 - symptomProbability(d, symptom))) / pNo);
+        entropyAfter = pYes * entropy(postYes) + pNo * entropy(postNo);
+      }
+
+      return { symptom, gain: currentEntropy - entropyAfter };
+    })
+    .filter((c) => c.gain >= MIN_USEFUL_GAIN)
+    .sort((a, b) => b.gain - a.gain);
+}
+
 /**
  * Picks the unanswered symptom that maximizes expected information gain
  * (the classic 20-questions strategy: the question whose answer, on average,
@@ -69,30 +114,7 @@ export function pickNextSymptom(
   posteriors: Record<string, number>,
   excludedSymptomIds: Set<string>,
 ): Symptom | null {
-  const candidates = symptoms.filter((s) => !excludedSymptomIds.has(s.id));
-  if (candidates.length === 0 || diseases.length === 0) return null;
-
-  const currentEntropy = entropy(diseases.map((d) => posteriors[d.id] ?? 0));
-  let best: { symptom: Symptom; gain: number } | null = null;
-
-  for (const symptom of candidates) {
-    const pYes = diseases.reduce((sum, d) => sum + (posteriors[d.id] ?? 0) * symptomProbability(d, symptom), 0);
-    const pNo = 1 - pYes;
-
-    let entropyAfter = currentEntropy;
-    if (pYes > 1e-9 && pNo > 1e-9) {
-      const postYes = diseases.map((d) => ((posteriors[d.id] ?? 0) * symptomProbability(d, symptom)) / pYes);
-      const postNo = diseases.map((d) => ((posteriors[d.id] ?? 0) * (1 - symptomProbability(d, symptom))) / pNo);
-      entropyAfter = pYes * entropy(postYes) + pNo * entropy(postNo);
-    }
-
-    const gain = currentEntropy - entropyAfter;
-    if (!best || gain > best.gain) best = { symptom, gain };
-  }
-
-  const MIN_USEFUL_GAIN = 0.02;
-  if (!best || best.gain < MIN_USEFUL_GAIN) return null;
-  return best.symptom;
+  return rankSymptomsByGain(diseases, symptoms, posteriors, excludedSymptomIds)[0]?.symptom ?? null;
 }
 
 export function getRankedCandidates(diseases: Disease[], posteriors: Record<string, number>): Candidate[] {
@@ -124,4 +146,86 @@ export function initialPosteriors(diseases: Disease[]): Record<string, number> {
 
 export function toQuestionnaireSummary(q: Pick<Questionnaire, 'diseases' | 'symptoms'>) {
   return { diseaseCount: q.diseases.length, symptomCount: q.symptoms.length };
+}
+
+/**
+ * Вероятность признака «в среднем по панели» — то, с чем сравнивается отдельное заболевание.
+ *
+ * Взвешивается приорами, а не считается простым средним: панель из двенадцати редкостей и одной
+ * банальности иначе объявила бы банальность «необычной» — её признаки встречались бы реже
+ * «среднего по списку», хотя именно она и приходит на приём чаще всех.
+ */
+function fieldProbability(diseases: Disease[], symptom: Symptom): number {
+  const weight = (d: Disease) => Math.max(d.priorWeight, 0.0001);
+  const total = diseases.reduce((sum, d) => sum + weight(d), 0);
+  if (total <= 0) return 0.5;
+  return diseases.reduce((sum, d) => sum + weight(d) * symptomProbability(d, symptom), 0) / total;
+}
+
+export type FindingDirection = 'for' | 'against' | 'neutral';
+
+export interface Finding {
+  symptom: Symptom;
+  answer: Answer;
+  /** Частота этого признака у этого заболевания — та самая, что стоит в матрице панели. */
+  frequency: SymptomFrequency | null;
+  /** Во сколько раз этот ответ поднял (или опустил) шансы заболевания против остальных версий. */
+  lift: number;
+  direction: FindingDirection;
+}
+
+/**
+ * Порог, за которым признак считается различающим.
+ *
+ * Полуторакратное изменение шансов — это примерно граница, за которой один признак ещё способен
+ * что-то решить в списке из десятка версий. Ниже неё признак есть у всех подряд, и называть его
+ * доводом значило бы выдавать за находку то, что не сузило круг ни на сколько.
+ */
+const LIFT_FOR = 1.5;
+const LIFT_AGAINST = 1 / LIFT_FOR;
+
+/**
+ * Чем отмеченные признаки говорят за это заболевание и чем против.
+ *
+ * **Считается сравнением с остальными версиями, а не по самой частоте, и это несущее.** Признак,
+ * который при этом заболевании бывает «часто», не говорит за него ничего, если при всех прочих
+ * бывает «всегда»: разделяет версии не частота, а разница частот. Показывать «Температура 38 °C —
+ * часто» доводом в пользу ангины среди двенадцати лихорадочных болезней значило бы объяснять
+ * диагноз тем, что одинаково верно для всего списка.
+ *
+ * Отсюда и третья корзина: признаки, которые не различают вовсе. Их не прячут — врач отметил их
+ * сам и вправе знать, что они не сдвинули ничего, а не искать глазами, куда они делись.
+ */
+export function explainCandidate(
+  disease: Disease,
+  diseases: Disease[],
+  symptoms: Symptom[],
+  answers: Record<string, Answer>,
+): Finding[] {
+  const findings: Finding[] = [];
+
+  for (const symptom of symptoms) {
+    const answer = answers[symptom.id];
+    if (!answer) continue;
+
+    const own = symptomProbability(disease, symptom);
+    const field = fieldProbability(diseases, symptom);
+    const lift = answer === 'yes' ? own / field : (1 - own) / (1 - field);
+
+    findings.push({
+      symptom,
+      answer,
+      frequency: disease.symptomLinks.find((l) => l.symptomId === symptom.id)?.frequency ?? null,
+      lift,
+      direction: lift >= LIFT_FOR ? 'for' : lift <= LIFT_AGAINST ? 'against' : 'neutral',
+    });
+  }
+
+  // Сильнее всего говорящее — первым, в обе стороны: список доводов читают сверху и до тех пор,
+  // пока они что-то значат.
+  return findings.sort((a, b) => {
+    const order = { for: 0, neutral: 2, against: 1 } as const;
+    if (order[a.direction] !== order[b.direction]) return order[a.direction] - order[b.direction];
+    return a.direction === 'against' ? a.lift - b.lift : b.lift - a.lift;
+  });
 }

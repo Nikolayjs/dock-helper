@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { PageToolbar } from '../components/common/PageToolbar';
-import { Alert, Badge, Box, Button, Card, Container, Group, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
+import { Alert, Box, Button, Card, Container, Group, SegmentedControl, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconHelp, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DiagnosticSession } from '../features/diagnostics/DiagnosticSession';
+import { SymptomPicker } from '../features/diagnostics/SymptomPicker';
+import { useDiagnosticAnswers } from '../features/diagnostics/useDiagnosticAnswers';
 import { DiseaseEditorRow, type DraftDisease } from '../features/diagnostics/builder/DiseaseEditorRow';
 import { QuestionnaireHelp } from '../features/diagnostics/builder/QuestionnaireHelp';
 import { SymptomPoolEditor, type DraftSymptom } from '../features/diagnostics/builder/SymptomPoolEditor';
@@ -41,6 +43,17 @@ export function QuestionnaireBuilderPage() {
   const [diseases, setDiseases] = useState<DraftDisease[]>([emptyDisease()]);
   const [hydrated, setHydrated] = useState(!isEditMode);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'session' | 'symptoms'>('session');
+
+  /**
+   * Разбор предпросмотра — общий на оба режима, как и на самой панели.
+   *
+   * Он же и причина, по которой у конструктора вообще появился выбор симптомов: матрицу частот
+   * проверяют вопросом «отмечу вот эти три признака — выйдет ли та болезнь, ради которой я их
+   * писал», а не ответами на десяток вопросов подряд. Ровно это делает `confusion:diagnostics`
+   * в пачке, и ровно это до сих пор нельзя было сделать руками ни на одной странице.
+   */
+  const previewAnswers = useDiagnosticAnswers();
 
   useEffect(() => {
     if (editingQuestionnaire && !hydrated) {
@@ -162,7 +175,7 @@ export function QuestionnaireBuilderPage() {
       <QuestionnaireHelp opened={helpOpen} onClose={() => setHelpOpen(false)} />
 
       <BuilderLayout
-        previewLabel="Предпросмотр опроса"
+        previewLabel="Предпросмотр"
         editor={
           <>
             <Card withBorder padding="lg">
@@ -249,12 +262,32 @@ export function QuestionnaireBuilderPage() {
           </FormActions>
         }
         preview={
-          /* Опрос идёт естественной высотой и прокручивается страницей — см. пояснение у калькулятора. */
+          /* Предпросмотр идёт естественной высотой и прокручивается страницей — см. пояснение у калькулятора. */
           <Stack gap="lg">
-            <Badge variant="light" color="gray">
-              Предпросмотр опроса
-            </Badge>
-            <DiagnosticSession diseases={previewDefinition.diseases} symptoms={previewDefinition.symptoms} />
+            {/* Переключатель, а не вкладки: вкладки у конструктора уже заняты парой «форма и
+                предпросмотр», и вторая их полоса внутри первой читалась бы как та же навигация,
+                ведущая в другое место. */}
+            <SegmentedControl
+              value={previewMode}
+              onChange={(value) => setPreviewMode(value as 'session' | 'symptoms')}
+              data={[
+                { value: 'session', label: 'Опрос' },
+                { value: 'symptoms', label: 'Выбор симптомов' },
+              ]}
+            />
+            {previewMode === 'session' ? (
+              <DiagnosticSession
+                diseases={previewDefinition.diseases}
+                symptoms={previewDefinition.symptoms}
+                state={previewAnswers}
+              />
+            ) : (
+              <SymptomPicker
+                diseases={previewDefinition.diseases}
+                symptoms={previewDefinition.symptoms}
+                state={previewAnswers}
+              />
+            )}
           </Stack>
         }
       />

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Badge, Button, Card, Group, Progress, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { Alert, Badge, Button, Card, Group, Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import { IconAlertTriangle, IconHelpCircle, IconRefresh, IconStethoscope } from '@tabler/icons-react';
 
 import {
@@ -9,47 +9,52 @@ import {
   pickNextSymptom,
   type Answer,
 } from './diagnosticEngine';
+import { DifferentialList } from './DifferentialList';
 import type { Disease, Symptom } from './types';
+import { useDiagnosticAnswers, type DiagnosticAnswers } from './useDiagnosticAnswers';
 
 interface DiagnosticSessionProps {
   diseases: Disease[];
   symptoms: Symptom[];
+  /**
+   * Разбор, общий со вкладкой выбора симптомов. Без него опрос ведёт свой — так он и работает в
+   * предпросмотре конструктора, где вкладок нет и делить состояние не с кем.
+   */
+  state?: DiagnosticAnswers;
 }
 
-const RANK_COLORS = ['brand', 'grape', 'blue', 'mint', 'gray'];
-
-export function DiagnosticSession({ diseases, symptoms }: DiagnosticSessionProps) {
-  const [answers, setAnswers] = useState<Record<string, Answer>>({});
-  const [skipped, setSkipped] = useState<Set<string>>(new Set());
+export function DiagnosticSession({ diseases, symptoms, state }: DiagnosticSessionProps) {
+  // Хук зовётся всегда, а используется только когда состояние не пришло сверху: условный вызов
+  // хука запрещён, а «свой разбор» нужен ровно предпросмотру конструктора.
+  const own = useDiagnosticAnswers();
+  const { answers, skipped, setAnswer, skip: skipSymptom, reset: resetAnswers, touched } = state ?? own;
   const [finishedEarly, setFinishedEarly] = useState(false);
 
   const posteriors = useMemo(() => computePosteriors(diseases, symptoms, answers), [diseases, symptoms, answers]);
   const ranked = useMemo(() => getRankedCandidates(diseases, posteriors), [diseases, posteriors]);
   const confidence = useMemo(() => checkConfidence(ranked), [ranked]);
 
-  const excluded = useMemo(() => new Set([...Object.keys(answers), ...skipped]), [answers, skipped]);
   const nextSymptom = useMemo(
-    () => pickNextSymptom(diseases, symptoms, posteriors, excluded),
-    [diseases, symptoms, posteriors, excluded],
+    () => pickNextSymptom(diseases, symptoms, posteriors, touched),
+    [diseases, symptoms, posteriors, touched],
   );
 
   const questionsAsked = Object.keys(answers).length + skipped.size;
   const isDone = finishedEarly || confidence.isConfident || !nextSymptom;
 
   const reset = () => {
-    setAnswers({});
-    setSkipped(new Set());
+    resetAnswers();
     setFinishedEarly(false);
   };
 
   const answer = (value: Answer) => {
     if (!nextSymptom) return;
-    setAnswers((prev) => ({ ...prev, [nextSymptom.id]: value }));
+    setAnswer(nextSymptom.id, value);
   };
 
   const skip = () => {
     if (!nextSymptom) return;
-    setSkipped((prev) => new Set(prev).add(nextSymptom.id));
+    skipSymptom(nextSymptom.id);
   };
 
   if (diseases.length === 0 || symptoms.length === 0) {
@@ -136,24 +141,7 @@ export function DiagnosticSession({ diseases, symptoms }: DiagnosticSessionProps
         </Card>
       )}
 
-      <Card withBorder padding="lg">
-        <Text fw={600} size="sm" mb="md">
-          Дифференциальный ряд
-        </Text>
-        <Stack gap="sm">
-          {ranked.slice(0, 5).map((candidate, index) => (
-            <div key={candidate.disease.id}>
-              <Group justify="space-between" mb={4}>
-                <Text size="sm">{candidate.disease.name}</Text>
-                <Text size="sm" c="dimmed">
-                  {Math.round(candidate.probability * 100)}%
-                </Text>
-              </Group>
-              <Progress value={candidate.probability * 100} color={RANK_COLORS[index] ?? 'gray'} radius="xl" size="sm" />
-            </div>
-          ))}
-        </Stack>
-      </Card>
+      <DifferentialList ranked={ranked} />
 
       <Alert color="orange" variant="light" icon={<IconAlertTriangle size={16} />}>
         Результат — вспомогательная подсказка на основе введённых вами данных о заболеваниях и симптомах, а не
