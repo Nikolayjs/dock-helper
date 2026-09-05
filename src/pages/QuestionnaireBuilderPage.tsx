@@ -3,11 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { PageToolbar } from '../components/common/PageToolbar';
 import { Alert, Badge, Box, Button, Card, Container, Group, Stack, Text, TextInput, Textarea, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconAlertTriangle, IconArrowLeft, IconDeviceFloppy, IconHelp, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DiagnosticSession } from '../features/diagnostics/DiagnosticSession';
 import { DiseaseEditorRow, type DraftDisease } from '../features/diagnostics/builder/DiseaseEditorRow';
+import { QuestionnaireHelp } from '../features/diagnostics/builder/QuestionnaireHelp';
 import { SymptomPoolEditor, type DraftSymptom } from '../features/diagnostics/builder/SymptomPoolEditor';
 import type { Questionnaire } from '../features/diagnostics/types';
 import { QUERY_KEY as QUESTIONNAIRES_KEY, slugifyQuestionnaireId, useQuestionnaires } from '../features/diagnostics/useQuestionnaires';
@@ -39,6 +40,7 @@ export function QuestionnaireBuilderPage() {
   const [symptoms, setSymptoms] = useState<DraftSymptom[]>([emptySymptom()]);
   const [diseases, setDiseases] = useState<DraftDisease[]>([emptyDisease()]);
   const [hydrated, setHydrated] = useState(!isEditMode);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     if (editingQuestionnaire && !hydrated) {
@@ -140,14 +142,24 @@ export function QuestionnaireBuilderPage() {
             <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/diagnostics')}>
               К анкетам
             </Button>
-            {editingQuestionnaire && (
-              <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
-                Удалить
+            <Group gap="xs">
+              {/* Справка стоит рядом с действиями страницы, как у анализатора и калькулятора:
+                  подсказкой под полем её не заменить — объяснять надо частоты, вес до опроса и то,
+                  почему общую частоту не считают руками. */}
+              <Button variant="light" color="gray" leftSection={<IconHelp size={16} />} onClick={() => setHelpOpen(true)}>
+                Справка
               </Button>
-            )}
+              {editingQuestionnaire && (
+                <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={handleDelete}>
+                  Удалить
+                </Button>
+              )}
+            </Group>
           </Group>
         </PageToolbar>
       </Box>
+
+      <QuestionnaireHelp opened={helpOpen} onClose={() => setHelpOpen(false)} />
 
       <BuilderLayout
         previewLabel="Предпросмотр опроса"
