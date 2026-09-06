@@ -36,6 +36,7 @@ const SECTION_LABELS: { prefix: string; label: string; item?: string }[] = [
   { prefix: '/calculators', label: 'К калькуляторам', item: 'К калькулятору' },
   { prefix: '/questionnaires', label: 'К анкетам', item: 'К анкете' },
   { prefix: '/analyzer', label: 'К анализам' },
+  { prefix: '/microbiology', label: 'К микробиологии' },
   { prefix: '/drugs', label: 'К справочнику', item: 'К препарату' },
   { prefix: '/interactions', label: 'К взаимодействиям' },
   { prefix: '/icd10', label: 'К МКБ-10', item: 'К коду МКБ-10' },
