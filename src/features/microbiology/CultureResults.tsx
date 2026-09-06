@@ -1,4 +1,6 @@
 import { Alert, Badge, Card, Divider, Group, List, Stack, Text, ThemeIcon } from '@mantine/core';
+
+import { InlineBold } from '../../components/common/InlineBold';
 import {
   IconAlertTriangle,
   IconCircleCheck,
@@ -8,8 +10,10 @@ import {
   IconVaccine,
 } from '@tabler/icons-react';
 
+import { LocusFloraGuide } from './LocusFloraGuide';
 import { SEVERITY_COLOR, SIGNIFICANCE_COLOR, SIGNIFICANCE_LABEL, sup } from './cultureEngine';
 import type { CultureVerdict, IsolateVerdict } from './cultureEngine';
+import type { MicrobiologyReference } from './types';
 
 /**
  * Разбор посева.
@@ -23,6 +27,7 @@ import type { CultureVerdict, IsolateVerdict } from './cultureEngine';
  */
 interface CultureResultsProps {
   verdict: CultureVerdict;
+  reference: MicrobiologyReference;
 }
 
 function IsolateBlock({ item }: { item: IsolateVerdict }) {
@@ -36,7 +41,9 @@ function IsolateBlock({ item }: { item: IsolateVerdict }) {
           </Badge>
         </Group>
 
-        <Text size="sm">{item.why}</Text>
+        <Text size="sm">
+          <InlineBold text={item.why} />
+        </Text>
 
         {item.conflicts.length > 0 && (
           <Alert
@@ -57,7 +64,7 @@ function IsolateBlock({ item }: { item: IsolateVerdict }) {
                       {conflict.label} — {conflict.result}.
                     </Text>{' '}
                     <Text span size="sm">
-                      {conflict.why}
+                      <InlineBold text={conflict.why} />
                     </Text>
                   </List.Item>
                 ))}
@@ -74,7 +81,9 @@ function IsolateBlock({ item }: { item: IsolateVerdict }) {
             icon={<IconAlertTriangle size={16} />}
             title={phenotype.title}
           >
-            <Text size="sm">{phenotype.meaning}</Text>
+            <Text size="sm">
+              <InlineBold text={phenotype.meaning} />
+            </Text>
           </Alert>
         ))}
 
@@ -86,7 +95,9 @@ function IsolateBlock({ item }: { item: IsolateVerdict }) {
             icon={<IconInfoCircle size={16} />}
             title={note.title}
           >
-            <Text size="sm">{note.text}</Text>
+            <Text size="sm">
+              <InlineBold text={note.text} />
+            </Text>
           </Alert>
         ))}
 
@@ -170,7 +181,7 @@ function IsolateBlock({ item }: { item: IsolateVerdict }) {
   );
 }
 
-export function CultureResults({ verdict }: CultureResultsProps) {
+export function CultureResults({ verdict, reference }: CultureResultsProps) {
   const { locus, isolates, notes } = verdict;
   const nothingEntered = isolates.length === 0 && notes.length === 0;
 
@@ -185,7 +196,9 @@ export function CultureResults({ verdict }: CultureResultsProps) {
               </ThemeIcon>
               <Text fw={600}>{locus.label}</Text>
             </Group>
-            <Text size="sm">{locus.note}</Text>
+            <Text size="sm">
+              <InlineBold text={locus.note} />
+            </Text>
             {locus.threshold !== undefined && (
               <Text size="xs" c="dimmed">
                 Порог значимости по умолчанию — 10{sup(locus.threshold)} КОЕ/мл; при жалобах и при заборе катетером он
@@ -196,6 +209,8 @@ export function CultureResults({ verdict }: CultureResultsProps) {
         </Card>
       )}
 
+      {locus && <LocusFloraGuide reference={reference} locus={locus} />}
+
       {notes.map((note) => (
         <Alert
           key={note.id}
@@ -204,7 +219,9 @@ export function CultureResults({ verdict }: CultureResultsProps) {
           icon={<IconInfoCircle size={16} />}
           title={note.title}
         >
-          <Text size="sm">{note.text}</Text>
+          <Text size="sm">
+              <InlineBold text={note.text} />
+            </Text>
         </Alert>
       ))}
 

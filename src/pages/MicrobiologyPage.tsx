@@ -106,7 +106,7 @@ export function MicrobiologyPage() {
             <CultureForm reference={reference} report={report} onChange={setReport} />
           </Grid.Col>
           <Grid.Col span={{ base: 12, lg: 6 }}>
-            <CultureResults verdict={verdict} />
+            <CultureResults verdict={verdict} reference={reference} />
           </Grid.Col>
         </Grid>
       </Stack>

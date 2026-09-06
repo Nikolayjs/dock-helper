@@ -15,6 +15,8 @@ import {
 } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 
+import { InlineBold } from '../../components/common/InlineBold';
+
 import type { Antibiotic, GrowthDegree, Isolate, Organism, SusceptibilityResult } from './types';
 import { sup } from './cultureEngine';
 
@@ -139,7 +141,7 @@ export const IsolateCard = memo(function IsolateCard({
 
         {organism && (
           <Text size="xs" c="dimmed">
-            {organism.note}
+            <InlineBold text={organism.note} />
           </Text>
         )}
 

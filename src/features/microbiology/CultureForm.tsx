@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 import { Alert, Button, Card, Checkbox, Group, Select, Stack, Switch, Text } from '@mantine/core';
+
+import { InlineBold } from '../../components/common/InlineBold';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
 
 import { IsolateCard } from './IsolateCard';
@@ -75,7 +77,9 @@ export function CultureForm({ reference, report, onChange }: CultureFormProps) {
 
           {locus && (
             <Alert variant="light" color="gray" icon={<IconInfoCircle size={16} />} title="Как берут этот материал">
-              <Text size="sm">{locus.samplingNote}</Text>
+              <Text size="sm">
+                <InlineBold text={locus.samplingNote} />
+              </Text>
             </Alert>
           )}
 

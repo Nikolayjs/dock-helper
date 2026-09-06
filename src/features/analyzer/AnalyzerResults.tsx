@@ -1,4 +1,6 @@
 import { Alert, Badge, Card, Group, List, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+
+import { InlineBold } from '../../components/common/InlineBold';
 import {
   IconAlertTriangle,
   IconCircleCheck,
@@ -87,6 +89,14 @@ export function AnalyzerResults({ result }: AnalyzerResultsProps) {
                     <Text fw={600} size="sm">
                       {pattern.title}
                     </Text>
+                    {/* Объяснение заключения не показывалось вовсе, хотя лежало в базе у каждой панели и
+                        правилось в конструкторе: врач видел название состояния и список причин, а то, что с этим
+                        делать, оставалось в сиде. Именно там живёт вся клиническая часть заключения. */}
+                    {pattern.description && (
+                      <Text size="sm" mt={6}>
+                        <InlineBold text={pattern.description} />
+                      </Text>
+                    )}
                     <List size="sm" c="dimmed" mt={4} spacing={2}>
                       {pattern.causes.map((cause) => (
                         <List.Item key={cause}>{cause}</List.Item>
