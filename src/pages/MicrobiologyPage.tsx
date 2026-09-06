@@ -101,7 +101,7 @@ export function MicrobiologyPage() {
           </Text>
         </PageToolbar>
 
-        <Grid gutter="md">
+        <Grid gap="md">
           <Grid.Col span={{ base: 12, lg: 6 }}>
             <CultureForm reference={reference} report={report} onChange={setReport} />
           </Grid.Col>
