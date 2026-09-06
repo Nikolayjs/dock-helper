@@ -1,13 +1,10 @@
 import { useMemo, useState } from 'react';
 import {
   Alert,
-  Badge,
   Box,
   Button,
-  Card,
   Container,
   Group,
-  SimpleGrid,
   Stack,
   Switch,
   Tabs,
@@ -15,32 +12,23 @@ import {
   TextInput,
   ThemeIcon,
 } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
+import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconBuildingStore, IconCheck, IconDownload, IconSearch } from '@tabler/icons-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { IconBuildingStore, IconDownload, IconSearch } from '@tabler/icons-react';
+import { useSearchParams } from 'react-router-dom';
 
-import { PageToolbar } from '../components/common/PageToolbar';
+import { CatalogPanel } from '../components/common/CatalogPanel';
 import { plural } from '../lib/plural';
+import { sortRows, useTableSort } from '../lib/tableSort';
 import { useAuth } from '../features/auth/AuthContext';
 import { useSpecialties } from '../features/specialties/useSpecialtyFilter';
-import { installedPath, useStore, type StoreItem, type StoreKind } from '../features/store/useStore';
-
-const KIND_LABEL: Record<StoreKind, string> = {
-  analyzer: 'Анализатор',
-  calculator: 'Калькулятор',
-  questionnaire: 'Диагностика',
-  template: 'Бланк',
-  book: 'Источник',
-};
-
-const KIND_COLOR: Record<StoreKind, string> = {
-  analyzer: 'grape',
-  calculator: 'blue',
-  questionnaire: 'teal',
-  template: 'orange',
-  book: 'indigo',
-};
+import {
+  StoreTable,
+  STORE_SORT_KEYS,
+  storeSortValue,
+  type StoreSortKey,
+} from '../features/store/StoreTable';
+import { useStore, type StoreItem } from '../features/store/useStore';
 
 const TABS: { value: string; label: string }[] = [
   { value: 'all', label: 'Всё' },
@@ -63,12 +51,13 @@ function matchesSearch(item: StoreItem, query: string): boolean {
  * доставались сорок ЛОР- и педиатрических панелей, а педиатру — шкала ХОБЛ. Теперь при регистрации
  * ставится ядро, а остальное лежит здесь и ставится по одному.
  *
- * **Карточки, а не таблица, и это отступление от общего правила раздела «Плитка или строка».**
- * Правило говорит: плитка оправдана там, где в превью может быть картинка. Здесь картинки нет, но и
- * сравнивать нечего — читают **описание**, три-четыре строки прозы, по которым и решают, нужна ли
- * позиция. В колонку таблицы такой текст не помещается, а обрезанный до одной строки перестаёт быть
- * ответом на вопрос «что это». Так же устроены витрины, у которых ровно та же задача: галерея
- * шаблонов Notion, магазин расширений VS Code.
+ * **Таблица, как и остальные списки приложения, — это смена прежнего решения.** Раньше здесь были
+ * карточки, и довод был такой: читают описание в три-четыре строки прозы, а в колонку оно не
+ * поместится. Довод не выдержал двух других. Позиций стало **132**, и сетка по три карточки в ряд —
+ * это сорок с лишним рядов, которые просматриваются зигзагом вместо одного движения глаз сверху
+ * вниз. А раздел, устроенный не так, как все прочие списки, заставляет заново искать глазами и
+ * поиск, и сортировку, и кнопку. Описание при этом никуда не делось: оно стоит второй строкой под
+ * названием и обрезается на двух, как у калькуляторов и документов.
  */
 export function StorePage() {
   const { items, isLoading, install, installMany } = useStore();
@@ -92,6 +81,13 @@ export function StorePage() {
     defaultValue: Boolean(user.specialty),
   });
   const specialtyActive = specialty !== null && bySpecialty;
+
+  // На телефоне таблица из четырёх колонок требует бокового смахивания — там компактный список.
+  const isNarrow = useMediaQuery('(max-width: 62em)');
+  const { sort, toggle } = useTableSort<StoreSortKey>(
+    { key: 'title', direction: 'asc' },
+    { storageKey: 'medassist:sort:store', keys: STORE_SORT_KEYS },
+  );
 
   // Вкладка живёт в адресе, а не в состоянии: ссылка на раздел магазина обязана открывать тот самый
   // раздел — та же причина, что у вкладок «Документов» и «Справочника».
@@ -123,6 +119,8 @@ export function StorePage() {
     [foundIgnoringSpecialty, specialtyActive, specialty],
   );
 
+  const sorted = useMemo(() => sortRows(visible, sort, storeSortValue), [visible, sort]);
+
   const hiddenBySpecialty = foundIgnoringSpecialty.length - visible.length;
   const installedCount = byKind.filter((item) => item.installed).length;
 
@@ -152,95 +150,97 @@ export function StorePage() {
 
   return (
     <Container size="xl" px={0}>
-      <Box mb="lg">
-        <PageToolbar
-          tabs={
-            <Tabs value={tab} onChange={(v) => setTab(v ?? 'all')} variant="pills">
-              <Tabs.List>
-                {TABS.map((item) => (
-                  <Tabs.Tab key={item.value} value={item.value}>
-                    {item.label}
-                  </Tabs.Tab>
-                ))}
-              </Tabs.List>
-            </Tabs>
-          }
-        >
-          <Group justify="space-between" wrap="wrap" gap="md">
-            <Group gap="md" wrap="wrap">
-              <TextInput
-                placeholder="Поиск по магазину…"
-                leftSection={<IconSearch size={16} />}
-                value={search}
-                onChange={(e) => setSearch(e.currentTarget.value)}
-                w={260}
-              />
-              {specialty && (
-                <Switch
-                  label="Моя специальность"
-                  checked={bySpecialty}
-                  onChange={(e) => setBySpecialty(e.currentTarget.checked)}
+      {/* Одна панель на всё: вкладки, поиск, отбор, кнопка набора, счётчик и сам список. */}
+      <CatalogPanel
+        tabs={
+          <Tabs value={tab} onChange={(v) => setTab(v ?? 'all')} variant="pills">
+            <Tabs.List>
+              {TABS.map((item) => (
+                <Tabs.Tab key={item.value} value={item.value}>
+                  {item.label}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs>
+        }
+        header={
+          <Stack gap="sm">
+            <Group justify="space-between" wrap="wrap" gap="md">
+              <Group gap="md" wrap="wrap">
+                <TextInput
+                  placeholder="Поиск по магазину…"
+                  leftSection={<IconSearch size={16} />}
+                  value={search}
+                  onChange={(e) => setSearch(e.currentTarget.value)}
+                  w={260}
                 />
-              )}
+                {specialty && (
+                  <Switch
+                    label="Моя специальность"
+                    checked={bySpecialty}
+                    onChange={(e) => setBySpecialty(e.currentTarget.checked)}
+                  />
+                )}
+              </Group>
+              <Group gap="sm" wrap="wrap">
+                {/*
+                  «Поставить всё» появляется только при включённом отборе и только когда есть что
+                  ставить: без отбора это значило бы вывалить врачу весь каталог — ровно то, от чего
+                  магазин и уходил. Ставится одним запросом: по одному ограничитель на сервере
+                  оборвал бы набор на середине.
+                */}
+                {specialtyActive && notInstalled.length > 0 && (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    leftSection={<IconDownload size={14} />}
+                    loading={installMany.isPending}
+                    onClick={handleInstallAll}
+                  >
+                    Поставить набор для специальности ({notInstalled.length})
+                  </Button>
+                )}
+                <Text size="sm" c="dimmed">
+                  {query || specialtyActive
+                    ? `Найдено: ${visible.length} из ${byKind.length}`
+                    : `${byKind.length} ${plural(byKind.length, 'позиция', 'позиции', 'позиций')}, установлено ${installedCount}`}
+                </Text>
+              </Group>
             </Group>
-            <Group gap="sm" wrap="wrap">
-              {/*
-                «Поставить всё» появляется только при включённом отборе и только когда есть что
-                ставить: без отбора это значило бы вывалить врачу весь каталог — ровно то, от чего
-                магазин и уходил. Ставится одним запросом: по одному ограничитель на сервере
-                оборвал бы набор на середине.
-              */}
-              {specialtyActive && notInstalled.length > 0 && (
-                <Button
-                  size="xs"
-                  variant="light"
-                  leftSection={<IconDownload size={14} />}
-                  loading={installMany.isPending}
-                  onClick={handleInstallAll}
-                >
-                  Поставить набор для специальности ({notInstalled.length})
-                </Button>
-              )}
+
+            {/*
+              Спрятанного не видно, поэтому отбор обязан о себе говорить — то же правило, что в
+              справочниках: пустой список при включённом тумблере врач прочитает как «такого нет».
+            */}
+            {specialtyActive && hiddenBySpecialty > 0 && visible.length > 0 && (
               <Text size="sm" c="dimmed">
-                {query || specialtyActive
-                  ? `Найдено: ${visible.length} из ${byKind.length}`
-                  : `${byKind.length} ${plural(byKind.length, 'позиция', 'позиции', 'позиций')}, установлено ${installedCount}`}
+                Отбор по специальности скрыл {hiddenBySpecialty} —{' '}
+                <Text component="span" c="brand" style={{ cursor: 'pointer' }} onClick={() => setBySpecialty(false)}>
+                  показать всё
+                </Text>
               </Text>
-            </Group>
-          </Group>
-        </PageToolbar>
-      </Box>
-
-      <Stack gap="lg">
-        {/*
-          Спрятанного не видно, поэтому отбор обязан о себе говорить — то же правило, что в
-          справочниках: пустой список при включённом тумблере врач прочитает как «такого нет».
-        */}
-        {specialtyActive && hiddenBySpecialty > 0 && visible.length > 0 && (
-          <Text size="sm" c="dimmed">
-            Отбор по специальности скрыл {hiddenBySpecialty} — {' '}
-            <Text component="span" c="brand" style={{ cursor: 'pointer' }} onClick={() => setBySpecialty(false)}>
-              показать всё
-            </Text>
-          </Text>
-        )}
-
+            )}
+          </Stack>
+        }
+      >
         {specialtyActive && visible.length === 0 && foundIgnoringSpecialty.length > 0 && (
-          <Alert color="yellow" variant="light">
-            <Group justify="space-between" wrap="wrap" gap="sm">
-              <Text size="sm">
-                Отбор по специальности «{specialty?.name}» скрыл всё: без него нашлось{' '}
-                {foundIgnoringSpecialty.length}.
-              </Text>
-              <Button size="xs" variant="light" onClick={() => setBySpecialty(false)}>
-                Показать всё
-              </Button>
-            </Group>
-          </Alert>
+          <Box p="md">
+            <Alert color="yellow" variant="light">
+              <Group justify="space-between" wrap="wrap" gap="sm">
+                <Text size="sm">
+                  Отбор по специальности «{specialty?.name}» скрыл всё: без него нашлось{' '}
+                  {foundIgnoringSpecialty.length}.
+                </Text>
+                <Button size="xs" variant="light" onClick={() => setBySpecialty(false)}>
+                  Показать всё
+                </Button>
+              </Group>
+            </Alert>
+          </Box>
         )}
 
         {!isLoading && visible.length === 0 && foundIgnoringSpecialty.length === 0 && (
-          <Card withBorder padding="xl">
+          <Box p="xl">
             <Stack align="center" gap="sm" py="xl">
               <ThemeIcon size={48} radius="xl" variant="light" color="gray">
                 <IconBuildingStore size={24} />
@@ -251,57 +251,20 @@ export function StorePage() {
                 панели и бланки.
               </Text>
             </Stack>
-          </Card>
+          </Box>
         )}
 
-        {/* Карточка ростом со своё содержимое, а не с соседку по ряду: описания разной длины, и
-            растянутая карточка превращается в прямоугольник с пустотой под текстом. */}
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" style={{ alignItems: 'start' }}>
-          {visible.map((item) => (
-            <Card key={`${item.kind}:${item.key}`} withBorder padding="lg" radius="md">
-              <Stack gap="xs">
-                <Group gap="xs">
-                  <Badge variant="light" color={KIND_COLOR[item.kind]}>
-                    {KIND_LABEL[item.kind]}
-                  </Badge>
-                  {item.installed && (
-                    <Badge variant="light" color="teal" leftSection={<IconCheck size={12} />}>
-                      Установлено
-                    </Badge>
-                  )}
-                  {item.price > 0 && (
-                    <Badge variant="light" color="yellow">
-                      {item.price} ₽
-                    </Badge>
-                  )}
-                </Group>
-
-                <Text fw={600}>{item.title}</Text>
-                <Text size="sm" c="dimmed" lineClamp={4}>
-                  {item.description}
-                </Text>
-
-                <Group mt="sm">
-                  {item.installed ? (
-                    <Button component={Link} to={installedPath(item)} variant="light" size="sm">
-                      Открыть
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      leftSection={<IconDownload size={16} />}
-                      loading={install.isPending && install.variables?.key === item.key}
-                      onClick={() => handleInstall(item)}
-                    >
-                      Установить
-                    </Button>
-                  )}
-                </Group>
-              </Stack>
-            </Card>
-          ))}
-        </SimpleGrid>
-      </Stack>
+        {sorted.length > 0 && (
+          <StoreTable
+            items={sorted}
+            sort={sort}
+            onSort={toggle}
+            onInstall={handleInstall}
+            installingKey={install.isPending ? install.variables?.key : undefined}
+            narrow={isNarrow}
+          />
+        )}
+      </CatalogPanel>
     </Container>
   );
 }
