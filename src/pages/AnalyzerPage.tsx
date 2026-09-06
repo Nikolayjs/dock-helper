@@ -4,7 +4,7 @@ import { Box, Button, Card, Container, Grid, Group, NumberInput, SegmentedContro
 import { PageToolbar } from '../components/common/PageToolbar';
 import { useUnsavedGuard } from '../components/common/unsavedChanges';
 import { notifications } from '@mantine/notifications';
-import { IconBuildingStore, IconClipboardPlus, IconEdit, IconEraser, IconFileUpload, IconFlask, IconPlus } from '@tabler/icons-react';
+import { IconBuildingStore, IconClipboardPlus, IconEdit, IconEraser, IconFileUpload, IconFlask, IconPlus, IconVirusSearch } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -258,6 +258,17 @@ export function AnalyzerPage() {
                 onClick={() => navigate('/store?tab=analyzer')}
               >
                 В магазин
+              </Button>
+              {/* Посев разбирается в своём разделе, а ищут его здесь: бланк из лаборатории
+                  для врача один, и то, что у нас это две разные формы данных, его не касается. Раздел, который
+                  отвечает на вопрос соседнего раздела, обязан на него указать — иначе о нём не узнают. */}
+              <Button
+                size="xs"
+                variant="subtle"
+                leftSection={<IconVirusSearch size={14} />}
+                onClick={() => navigate('/microbiology', { state: { from: '/analyzer' } })}
+              >
+                Посев и антибиотикограмма
               </Button>
               <Button size="xs" leftSection={<IconFileUpload size={14} />} onClick={() => setImportOpen(true)}>
                 Загрузить файл
