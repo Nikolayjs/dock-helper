@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { request } from '../../lib/httpRepository';
-import type { MicrobiologyReference } from './types';
+import type { MicrobiologyReference, OrganismProfile } from './types';
 
 /**
  * Справочник микробиологии — один запрос на весь сеанс.
@@ -24,4 +24,30 @@ export function useMicrobiologyReference() {
   });
 
   return { reference: query.data, isLoading: query.isPending, error: query.error };
+}
+
+/**
+ * Подробный разбор одного возбудителя.
+ *
+ * Запрашивается **только когда карточку открыли**, и в этом весь смысл отдельной ручки: шестьдесят
+ * разборов внутри справочника платил бы каждый, кто зашёл разобрать посев, а читает их тот, кто
+ * пришёл разбираться. `staleTime: Infinity` по той же причине, что у справочника, — это не данные
+ * врача, а текст, меняющийся с релизом.
+ *
+ * **`retry: false`, и это не мелочь.** Ключ приходит из адреса, поэтому единственный реальный отказ
+ * здесь — 404 «такого возбудителя нет», а его повтор ничего не исправит: он только оттягивает
+ * честный ответ на время отсрочки и печатает второй 404 в консоль. Замер на стенде: два запроса
+ * вместо одного. Та же настройка и по той же причине у карточки кода МКБ-10.
+ */
+export function useOrganismProfile(key: string | undefined) {
+  const query = useQuery<OrganismProfile>({
+    queryKey: ['microbiology-organism', key],
+    queryFn: () => request<OrganismProfile>(`/microbiology/organisms/${encodeURIComponent(key!)}`),
+    enabled: Boolean(key),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: false,
+  });
+
+  return { profile: query.data, isLoading: query.isPending, error: query.error };
 }

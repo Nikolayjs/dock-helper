@@ -97,7 +97,14 @@ function matchesOrganism(rule: { groups?: string[]; organisms?: string[] }, orga
   return byGroup || byName;
 }
 
-function intrinsicHit(rule: IntrinsicRule, organism: Organism, antibiotic: Antibiotic): boolean {
+/**
+ * Действует ли правило природной устойчивости на эту пару.
+ *
+ * Экспортируется, потому что тем же вопросом задаётся карточка возбудителя в справочнике: «к чему
+ * он устойчив от природы» — это и есть перебор пар этой функцией. Своя копия там разошлась бы с
+ * движком на первой правке, и справочник начал бы обещать не то, что скажет разбор бланка.
+ */
+export function intrinsicHit(rule: IntrinsicRule, organism: Organism, antibiotic: Antibiotic): boolean {
   if (rule.exceptOrganisms?.includes(organism.key)) return false;
   if (!matchesOrganism(rule, organism)) return false;
   if (rule.exceptAntibiotics?.includes(antibiotic.key)) return false;

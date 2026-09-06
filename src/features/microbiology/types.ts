@@ -181,3 +181,24 @@ export interface CultureReport {
   context: ContextFlag[];
   isolates: Isolate[];
 }
+
+/**
+ * Подробный разбор возбудителя — то, что читают, а не то, чем считают.
+ *
+ * В справочник (`MicrobiologyReference`) он **не входит и не должен**: справочник скачивает каждый,
+ * кто открыл разбор посева, и нужен он там для счёта, а не для чтения. Разборы едут по одному,
+ * своей ручкой, и только когда карточку действительно открыли, — та же пара «сводка в списке,
+ * полная запись по ключу», что у формуляра и картотеки.
+ */
+export interface OrganismProfile {
+  key: string;
+  summary: string;
+  habitat: string;
+  causes: string[];
+  significance: string;
+  resistance: string;
+  treatment: string;
+  pitfalls: string[];
+  /** Коды МКБ-10: дорога отсюда в классификацию, а из неё — в клинические рекомендации. */
+  icd10?: string[];
+}

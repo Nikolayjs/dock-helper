@@ -1,10 +1,12 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Badge, Group, Stack, Text, TextInput } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 
 import { CatalogPanel } from '../../components/common/CatalogPanel';
 import { DataTable } from '../../components/common/DataTable';
 import { sortRows, useTableSort } from '../../lib/tableSort';
+import { groupLabel } from './labels';
 import type { MicrobiologyReference, Organism } from './types';
 
 /**
@@ -16,31 +18,18 @@ import type { MicrobiologyReference, Organism } from './types';
  *
  * Показывается здесь не биология, а **роль**: где микроб живёт в норме и к чему устойчив от
  * природы. «Грамотрицательная палочка семейства Enterobacteriaceae» не меняет ни одного решения.
+ *
+ * **Строка открывает карточку возбудителя** — подробный разбор с тем, что вызывает, когда рост
+ * значим, чем лечат и на чём здесь ошибаются. Двух строк списка на это не хватает, а прятать разбор
+ * за отдельной кнопкой в строке незачем: у **каждой** записи он есть, и строка, открывающая запись,
+ * — общее правило всех списков приложения. Сам разбор при этом едет отдельной ручкой и только по
+ * нажатию: в справочник он не входит, чтобы не платил за него тот, кто пришёл разобрать бланк.
  */
 type SortKey = 'name' | 'group' | 'flora';
 
-const GROUP_LABEL: Record<string, string> = {
-  enterobacterales: 'Энтеробактерии',
-  nonfermenter: 'Неферментирующие',
-  staphylococcus: 'Стафилококки',
-  streptococcus: 'Стрептококки',
-  enterococcus: 'Энтерококки',
-  haemophilus: 'Гемофилы',
-  moraxella: 'Моракселлы',
-  neisseria: 'Нейссерии',
-  corynebacterium: 'Коринебактерии',
-  listeria: 'Листерии',
-  anaerobe: 'Анаэробы',
-  mycoplasma: 'Микоплазмы',
-  chlamydia: 'Хламидии',
-  yeast: 'Дрожжевые грибы',
-  mold: 'Плесневые грибы',
-  lactobacillus: 'Лактобактерии',
-  gardnerella: 'Гарднереллы',
-  other: 'Прочие',
-};
 
 export function OrganismCatalog({ reference, tabs }: { reference: MicrobiologyReference; tabs: ReactNode }) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const sortState = useTableSort<SortKey>(
     { key: 'name', direction: 'asc' },
@@ -84,7 +73,7 @@ export function OrganismCatalog({ reference, tabs }: { reference: MicrobiologyRe
         key === 'name'
           ? organism.ru
           : key === 'group'
-            ? GROUP_LABEL[organism.group] ?? organism.group
+            ? groupLabel(organism.group)
             : (floraOf.get(organism.key) ?? []).join(', '),
       ),
     [filtered, sortState.sort, floraOf],
@@ -115,6 +104,9 @@ export function OrganismCatalog({ reference, tabs }: { reference: MicrobiologyRe
         rowKey={(organism) => organism.key}
         sort={sortState.sort}
         onSort={sortState.toggle}
+        onRowClick={(organism) =>
+          navigate(`/microbiology/organisms/${organism.key}`, { state: { from: '/microbiology?tab=organisms' } })
+        }
         minWidth={760}
         columns={[
           {
@@ -143,7 +135,7 @@ export function OrganismCatalog({ reference, tabs }: { reference: MicrobiologyRe
             render: (organism) => (
               <Stack gap={4}>
                 <Badge variant="light" color="gray">
-                  {GROUP_LABEL[organism.group] ?? organism.group}
+                  {groupLabel(organism.group)}
                 </Badge>
                 {organism.gram && (
                   <Text size="xs" c="dimmed">

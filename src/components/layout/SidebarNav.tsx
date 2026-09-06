@@ -56,6 +56,7 @@ type Arranged = Record<SidebarSection, Entry[]>;
 /** Разделы, которые остаются подсвеченными на любом внутреннем адресе — карточке, правке, «новом». */
 const STARTS_WITH_NAV_PATHS = new Set([
   '/calculators',
+  '/microbiology',
   '/drugs',
   '/notes',
   '/diagnostics',

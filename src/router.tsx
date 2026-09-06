@@ -68,6 +68,7 @@ const ArticleEditorPage = lazyPage(() => import('./pages/ArticleEditorPage'), 'A
 const AnalyzerPage = lazyPage(() => import('./pages/AnalyzerPage'), 'AnalyzerPage');
 const AnalyzerBuilderPage = lazyPage(() => import('./pages/AnalyzerBuilderPage'), 'AnalyzerBuilderPage');
 const MicrobiologyPage = lazyPage(() => import('./pages/MicrobiologyPage'), 'MicrobiologyPage');
+const OrganismPage = lazyPage(() => import('./pages/OrganismPage'), 'OrganismPage');
 const DrugsPage = lazyPage(() => import('./pages/DrugsPage'), 'DrugsPage');
 const Icd10ViewPage = lazyPage(() => import('./pages/Icd10ViewPage'), 'Icd10ViewPage');
 const DrugViewPage = lazyPage(() => import('./pages/DrugViewPage'), 'DrugViewPage');
@@ -128,6 +129,7 @@ export const router = createBrowserRouter(
           <Route path="/analyzer/new" element={<AnalyzerBuilderPage />} />
           <Route path="/analyzer/:id/edit" element={<AnalyzerBuilderPage />} />
           <Route path="/microbiology" element={<MicrobiologyPage />} />
+          <Route path="/microbiology/organisms/:key" element={<OrganismPage />} />
           {/* Раздел переехал во вкладку справочника. Строка запроса сохраняется: карточка препарата
               ведёт сюда с `?drugs=<МНН>`, и без него проверка открылась бы пустой. */}
           <Route
